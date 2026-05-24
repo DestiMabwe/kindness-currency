@@ -1,0 +1,408 @@
+# KINDNESS CURRENCY — MASTER BRIEF FOR CLAUDE CODE
+# Version 1.0 | Use this file at the start of every Claude Code session.
+# Say: "This is the full project brief. Read it entirely before writing any code."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 1 — THE VISION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem: Traditional digital gifts feel impersonal. Physical gifts are expensive or cluttered.
+
+Solution: A web app that lets users create and send "Acts of Service" coupons (e.g., "One Home-Cooked Meal," "One Night of Babysitting") via a unique Magic Link.
+
+Key Driver: Zero friction for the recipient. No app download. Just a URL sent via WhatsApp/SMS that opens a beautiful, interactive digital coupon card.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 2 — TECH STACK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Frontend:     Next.js (App Router) + React
+Styling:      Tailwind CSS
+Backend/DB:   Supabase (Postgres + Realtime + Auth)
+Deployment:   Vercel
+Distribution: Web Share API (WhatsApp/SMS — no email server needed)
+
+Auth Method: Supabase Email OTP (Magic Link)
+- User enters their email address
+- Supabase sends a one-time magic link to verify
+- No passwords. No friction.
+- This is the simplest, most reliable Supabase auth method for this use case
+- Auth is only triggered at save/share time — not before
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 3 — DATABASE SCHEMA & VALIDATION CONSTRAINTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### 1. Centralized Runtime Validation (Zod Guardrails)
+Before building any backend routes, mutations, or form handlers, you MUST create a strict runtime validation schema file at `/src/schemas/couponSchema.ts` using Zod.
+- `template_type` enum must strictly be: `'mothers_day' | 'valentines' | 'birthday' | 'lovers' | 'besties'`
+- `coupon_sets.status` enum must strictly be: `'draft' | 'sent' | 'viewed'`
+- `coupons.status` enum must strictly be: `'sent' | 'viewed' | 'redeemed'`
+All backend API routines, database inserts, and data mutations must parse through this schema first to eliminate hallucinated property drift.
+
+### 2. Database Tables (Supabase)
+
+-- Table: coupon_sets
+-- Purpose: One set = one gift (e.g., a full Mom's Promise Tokens pack)
+CREATE TABLE coupon_sets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  user_id UUID REFERENCES auth.users(id),
+  sender_name TEXT,
+  recipient_name TEXT,
+  template_type TEXT, -- Strictly parsed via Zod Enum
+  background_color TEXT DEFAULT '#FFF8F0',
+  background_effect TEXT DEFAULT 'none',
+  expiry_date DATE,
+  pin_code TEXT NOT NULL, -- Short 4-digit token generated at creation for frictionless security
+  status TEXT DEFAULT 'draft' -- 'draft', 'sent', 'viewed'
+);
+
+-- Table: coupons
+-- Purpose: Individual coupons within a set
+CREATE TABLE coupons (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  set_id UUID REFERENCES coupon_sets(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  service_title TEXT,        -- e.g., "One Home-Cooked Meal"
+  micro_copy TEXT,           -- e.g., "Made with extra love"
+  fine_print TEXT,           -- e.g., "No expiry · Redeemable anytime"
+  font_choice TEXT DEFAULT 'playfair',
+  status TEXT DEFAULT 'sent', -- Strictly parsed via Zod Enum: 'sent', 'viewed', 'redeemed'
+  redeemed_at TIMESTAMP WITH TIME ZONE
+);
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 4 — DESIGN SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### Colors
+--color-primary:    #1A1A2E   /* Deep Ink — dark base, navbars, footers */
+--color-secondary:  #C2185B   /* Kindness Red — brand color, borders, CTAs */
+--color-accent:     #FF8F00   /* Warmth Amber — highlights, success states, confetti */
+--color-background: #FFF8F0   /* Cream — page background */
+--color-text:       #2C2C2C   /* Near Black — all body text */
+
+### Fonts
+Display: 'Playfair Display', serif — Bold 700 and Bold Italic 700
+         Use for: coupon titles, hero headings, act-of-service text on cards
+Body:    'DM Sans', sans-serif — Regular 400 and Medium 500
+         Use for: all UI text, form labels, micro-copy, fine print
+
+Google Fonts import URL:
+https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=DM+Sans:wght@400;500&display=swap
+
+### Vibe (use these words to evaluate every UI decision)
+Warm. Playful. Intimate. Generous. Surprising.
+If a component does not feel like all five of these words, redesign it.
+
+### Logo
+File: Kindness_Currency_Logo.png
+Usage: Always on Cream (#FFF8F0) or white backgrounds. Never on dark fills.
+       In navbar: logo left-aligned, clicking it returns to home page.
+Logo file: Kindness_Currency_Logo.png (white bg version)
+The logo is black line art. On the cream background (#FFF8F0) 
+it renders perfectly. On Deep Ink (#1A1A2E) navbar, use the 
+logo in white — apply CSS filter: brightness(0) invert(1) 
+to flip it without needing a separate file.
+
+### Coupon Card Design Rules (non-negotiable)
+- Ticket/coupon shape with scalloped or torn edges (CSS clip-path or SVG border)
+- "Good for a ___" as the framing label above every coupon title
+- Playfair Display Bold Italic for the act-of-service title
+- A recurring decorative element on every coupon
+- Barcode graphic on the right side of every coupon (decorative, not functional)
+- Cream (#FFF8F0) card background
+- Kindness Red (#C2185B) border
+- Mobile-first: every coupon must look beautiful at 390px width
+- Coupon visual design (shape, border, layout) is LOCKED — users cannot change it
+- Users CAN change: service title text, micro-copy, fine print, font choice
+- Users CAN change: coupon background color (via color wheel) and background effect
+
+### Button & CTA Copy (warm, not clinical)
+- Primary CTA:        "Send with Love"
+- Save:               "Save My Coupons"
+- Preview:            "Preview All Coupons"
+- Redeem (recipient): "Redeem This ♥"
+- Thank you state:    "This has been redeemed with love"
+- Sign up prompt:     "Almost there — save your coupons"
+
+### Success & Error States
+- Success: use Warmth Amber (#FF8F00) with a celebratory micro-animation
+- Error: soft red, never harsh — maintain the warm tone
+- Empty states: encouraging, never clinical
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 5 — PAGE SPECIFICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### PAGE 1 — HOME PAGE (/)
+
+COMPETITION BANNER (above navbar, full width):
+  Background: Kindness Red (#C2185B)
+  Text: "Stand a chance to win a cash prize by using the Mom's Promise Tokens before May 30th 🎉"
+  Font: DM Sans Medium, white text, centered
+  Dismissible: No
+
+NAVBAR:
+  Background: #1A1A2E (Deep Ink)
+  Left: Kindness Currency logo — clicking returns to home
+  Center: Links — Home · Templates · How It Works · Suggestions (to improve the app)
+  Right: "Log In" (ghost button) + "Create" (filled, Kindness Red)
+  Mobile: Hamburger menu
+
+HERO SECTION:
+  Headline: "Give the gift of showing up"
+  Subheading: "Create beautiful Acts of Service coupons and send them with one link"
+  CTA Button: "Create My Coupons" → routes to /create
+  Background: Cream (#FFF8F0)
+  Animation: Showcase coupons floating/fanning across all 5 template types
+             Coupons should cycle or animate to show variety of occasions and loved ones
+             This is the most important visual moment on the page — make it premium
+
+TEMPLATES SECTION:
+  Section Title: "Trending Templates"
+  Subheading: "Customize the perfect coupons. 100% free, always."
+  Layout: Horizontal scroll or grid of cards
+  Card Design:
+    - Square card with template preview image
+    - On hover: overlay appears with template name
+    - Template names: "Mom's Promise Tokens" | "Valentine's Love Passes" |
+                      "Birthday Joy Tokens" | "Lover's Intimate Promises" |
+                      "Bestie's Surprise Passes"
+  Below cards: "More templates coming soon ✨" in muted text
+
+FOOTER:
+  Background: #1A1A2E
+  Content: Logo + tagline + basic links
+  Tagline: "Because the best gifts are promises kept."
+
+
+### PAGE 2 — COUPON CREATION PAGE (/create)
+
+STEP 1 — TEMPLATE SELECTION:
+  User selects one of the 5 template types
+  Selected template highlights in Kindness Red
+
+STEP 2 — PERSONALISATION FORM:
+  Fields:
+    - Your Name (sender)
+    - Recipient's Name
+    - Expiry Date (optional toggle — "Add an expiry date?")
+  All fields: DM Sans, warm placeholder copy (e.g., "Who is this gift for?")
+
+STEP 3 — COUPON EDITOR:
+  - Displays all 8 default coupons for the selected template
+  - Each coupon is editable: title, micro-copy, fine print
+  - Font selector per coupon (Playfair Display or DM Sans)
+  - Coupon background color: color wheel (changes coupon card background only, not page)
+  - Background effect selector: options include None | Confetti | Sparkle | Soft Glow
+  - Coupon shape/border/layout: LOCKED — cannot be changed by user
+  - "Preview All Coupons" button: shows full-screen preview of the complete set
+  - "Save Draft" button: saves without requiring login
+
+SAVE / SHARE (triggers auth):
+  - When user clicks "Save My Coupons" or "Send with Love" → auth modal appears
+  - Auth modal copy: "Almost there — save your coupons"
+  - Subtext: "Your information is safe with us. We use bank-level encryption and will never share your details."
+  - Form fields: Full Name + Email Address
+  - Method: Supabase Email OTP Magic Link
+  - After verification: coupon set saves, unique magic link is generated.
+  - Magic Link URL Structure: Must embed the token securely as a query parameter to preserve frictionless authentication: `kindnesscurrency.app/give/[uuid]?pin=[4-digit-pin]`
+  - Share options: WhatsApp (primary) | Copy Link | More (Web Share API)
+
+
+### PAGE 3 — RECIPIENT MAGIC LINK PAGE (/give/[id])
+
+This is the most important page. It must be beautiful on mobile.
+
+LAYOUT:
+  - Full-screen, mobile-first
+  - Background: Cream (#FFF8F0)
+  - Opens to a personal greeting: "For [Recipient Name], with love from [Sender Name]"
+  - Below: all 8 coupons displayed as a scrollable stack or fan
+  - Each coupon shows: act of service title, micro-copy, fine print
+  - Each coupon has a "Redeem This ♥" button
+
+STATELESS REDEMPTION VERIFICATION FLOW:
+  - NO LOGIN REQUIRED for recipient — zero friction. Never add account auth to this page.
+  - URL Query Verification: The page expects a `pin` parameter in the URL query string (e.g., `?pin=9821`).
+  - User taps "Redeem This ♥"
+  - Interactive Confirmation Step: A warm modal appears asking: *"Are you sure you want to redeem this coupon right now? This action cannot be undone."*
+  - Verification Logic:
+      1. If the `pin` parameter in the URL matches the `pin_code` stored in the database for this set, allow instant confirmation without manual input.
+      2. If the URL parameter is missing or mismatched (e.g., if a brute-force actor guesses just the ID), reveal a polite fallback PIN entry form inside the confirmation modal: *"Please type the 4-digit PIN attached to your WhatsApp message to verify."*
+  - On Successful verification and confirmation: coupon status updates to 'redeemed' in Supabase.
+  - Visual state change: coupon gets a "Redeemed ♥" stamp overlay
+  - Redeemed coupons move to bottom of stack
+  - A warm thank-you message appears: "This has been redeemed with love"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 6 — COUPON TEMPLATES & DEFAULT CONTENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Data structure for all templates:
+
+{
+  "mothers_day": {
+    "name": "Mom's Promise Tokens",
+    "theme": "Promise",
+    "color_mood": "Soft rose + cream",
+    "decorative_element": "Flower or ribbon motif",
+    "emotional_tone": "Tender, reverent",
+    "coupons": [
+      { "title": "One Home-Cooked Meal", "micro_copy": "Made with extra love, just the way you like it", "fine_print": "No expiry · Redeemable anytime" },
+      { "title": "One Errand Run", "micro_copy": "Give me the list. I'll handle everything", "fine_print": "No questions asked" },
+      { "title": "One Full Day Together", "micro_copy": "Your plans, your pace, your person", "fine_print": "Phone goes away. You have my full attention" },
+      { "title": "One Grocery Shop", "micro_copy": "Your favourites, plus a little extra", "fine_print": "Just send me the list" },
+      { "title": "One Bedside Visit", "micro_copy": "Soup, company, and zero judgment", "fine_print": "Redeemable when you're under the weather" },
+      { "title": "One Long Phone Call", "micro_copy": "No rushing. Just us talking", "fine_print": "Anytime you need it" },
+      { "title": "One Surprise Treat", "micro_copy": "Something sweet, just because", "fine_print": "No occasion needed" },
+      { "title": "One Anything You Need", "micro_copy": "Whatever it is — I'm already saying yes", "fine_print": "Wildcard · No limits" }
+    ]
+  },
+
+  "valentines": {
+    "name": "Valentine's Love Passes",
+    "theme": "Pass",
+    "color_mood": "Bold rose red + deep ink",
+    "decorative_element": "Rose or sparkle motif",
+    "emotional_tone": "Passionate, playful",
+    "coupons": [
+      { "title": "One Romantic Dinner In", "micro_copy": "Candles, your favourite meal, no interruptions", "fine_print": "Redeemable any evening · Chef's kiss guaranteed" },
+      { "title": "One Breakfast in Bed", "micro_copy": "Stay right there. I've got this", "fine_print": "Weekend redemption preferred" },
+      { "title": "One Massage", "micro_copy": "Full focus. No distractions. Just you", "fine_print": "Duration negotiable" },
+      { "title": "One Night, Your Choice", "micro_copy": "Movie, drive, dancing — you pick, I show up", "fine_print": "No vetoes allowed" },
+      { "title": "One Love Letter", "micro_copy": "Handwritten. From the heart. No edits", "fine_print": "Delivered whenever you redeem" },
+      { "title": "One Chore-Free Day", "micro_copy": "Rest. I'll handle everything today", "fine_print": "Valid any day you need a break" },
+      { "title": "One Surprise Date", "micro_copy": "Just show up. I'll do the rest", "fine_print": "Dress code: whatever makes you feel good" },
+      { "title": "One Wild Card", "micro_copy": "Anything, anywhere, anytime", "fine_print": "No questions asked · No limits" }
+    ]
+  },
+
+  "birthday": {
+    "name": "Birthday Joy Tokens",
+    "theme": "Token",
+    "color_mood": "Amber + warm red",
+    "decorative_element": "Balloon or confetti motif",
+    "emotional_tone": "Celebratory, energetic",
+    "coupons": [
+      { "title": "One Birthday Meal, Your Choice", "micro_copy": "Restaurant, takeout, or homemade — your call", "fine_print": "Valid all birthday month" },
+      { "title": "One Cake of Your Choice", "micro_copy": "Ordered, baked, or bought — however you want it", "fine_print": "Candles included" },
+      { "title": "One Fun Day Out", "micro_copy": "Pick the vibe. I'll plan the rest", "fine_print": "No budget complaints" },
+      { "title": "One Sleep-In Morning", "micro_copy": "I'll handle the noise. You stay in bed", "fine_print": "Redeemable any weekend" },
+      { "title": "One Playlist Made for You", "micro_copy": "Every song chosen with you in mind", "fine_print": "Delivered within 24 hours of redemption" },
+      { "title": "One Rant Session", "micro_copy": "Talk. I'll listen. No advice unless you ask", "fine_print": "Unlimited time · Full attention" },
+      { "title": "One Guilt-Free Treat", "micro_copy": "Order the expensive one. No comments from me", "fine_print": "One-time use · Fully valid" },
+      { "title": "One Birthday Wish Granted", "micro_copy": "Whatever you want. Today it's yes", "fine_print": "Wildcard · Birthday rules apply" }
+    ]
+  },
+
+  "lovers": {
+    "name": "Lover's Intimate Promises",
+    "theme": "Promise",
+    "color_mood": "Deep ink + muted rose",
+    "decorative_element": "Candle or moon motif",
+    "emotional_tone": "Sensual, private",
+    "coupons": [
+      { "title": "One Night With No Phones", "micro_copy": "Just us. The screens can wait", "fine_print": "Full evening · No exceptions" },
+      { "title": "One Long Bath Together", "micro_copy": "Candles, music, no rushing", "fine_print": "Redeemable any evening" },
+      { "title": "One Morning We Don't Leave Bed", "micro_copy": "Nowhere to be. Nothing to do", "fine_print": "Weekend use only" },
+      { "title": "One Dance in the Kitchen", "micro_copy": "No music required. Just us", "fine_print": "Redeemable anytime, without warning" },
+      { "title": "One Honest Conversation", "micro_copy": "No guards. No defensiveness. Just truth", "fine_print": "Safe space guaranteed" },
+      { "title": "One Night You Plan Everything", "micro_copy": "I'll just say yes to whatever you decide", "fine_print": "Full surrender of the evening" },
+      { "title": "One Love Language Act", "micro_copy": "However you feel most loved — I'm doing that", "fine_print": "You define it. I deliver it" },
+      { "title": "One Anything After Midnight", "micro_copy": "You know what this means", "fine_print": "Wildcard · No elaboration needed" }
+    ]
+  },
+
+  "besties": {
+    "name": "Bestie's Surprise Passes",
+    "theme": "Pass",
+    "color_mood": "Amber + red",
+    "decorative_element": "Star or lightning bolt motif",
+    "emotional_tone": "Loud, joyful",
+    "coupons": [
+      { "title": "One Emergency Vent Call", "micro_copy": "Drop everything. I'm already listening", "fine_print": "Available 24/7 · No judgment ever" },
+      { "title": "One Unplanned Adventure", "micro_copy": "Say yes first. Ask questions never", "fine_print": "Destination decided on the day" },
+      { "title": "One Ugly Cry Session", "micro_copy": "Tissues provided. Mascara optional", "fine_print": "Full duration · Snacks included" },
+      { "title": "One Honest Opinion", "micro_copy": "The real answer. Not the nice one", "fine_print": "You asked. I delivered" },
+      { "title": "One Hype Session", "micro_copy": "I will remind you how incredible you are", "fine_print": "Redeemable before any big moment" },
+      { "title": "One Night In Together", "micro_copy": "Snacks, bad TV, no plans, no effort", "fine_print": "Comfy clothes mandatory" },
+      { "title": "One Errand Buddy", "micro_copy": "I'll come. I'll complain. I'll make it fun", "fine_print": "Available weekends · Complaints are affectionate" },
+      { "title": "One Wildcard Favour", "micro_copy": "Whatever you need. No explanation required", "fine_print": "Best friend card · Always valid" }
+    ]
+  }
+}
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 7 — DEVELOPMENT PRIORITIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build in this exact order. Do not jump ahead.
+
+PRIORITY 1 — Project Setup & Schema Guardrails
+  - Initialise Next.js (App Router) with Tailwind CSS
+  - Configure Supabase client
+  - Create the Zod validation layout in `/src/schemas/couponSchema.ts`
+  - Add Google Fonts import (Playfair Display + DM Sans)
+  - Set Tailwind config with design system color tokens
+  - Create Supabase tables: `coupon_sets` and `coupons` matching schemas perfectly
+
+PRIORITY 2 — Recipient Magic Link Page (/give/[id])
+  - This is the most important page — build it first
+  - Dynamic route: `app/give/[id]/page.tsx`
+  - Fetches coupon_set + all coupons by set ID from Supabase
+  - Implement Stateless Verification: Read `pin` from the query parameter and compare against database. Create confirmation modal with manual entry fallback if URL pin parameter fails.
+  - Renders all 8 coupons beautifully on mobile (390px)
+  - Redemption flow: Redeem button → verify PIN/confirm → status update via strict Zod wrapper → visual stamp
+  - No login required for recipient
+
+PRIORITY 3 — Mom's Promise Tokens Template UI
+  - Build the structural layout component (`<CouponLayout />`) using the locked specifications.
+  - Apply styling parameters: Scalloped/torn edge, locked layout, Kindness Red border, Cream background, heart motif + decorative barcode.
+  - Bind Playfair Display Bold Italic to the dynamic act-of-service title.
+  - Must look premium on mobile before moving to other templates.
+
+PRIORITY 4 — Coupon Creation Page (/create)
+  - Template selector (5 options)
+  - Personalisation form (sender name, recipient name, optional expiry)
+  - Coupon editor (editable text fields per coupon, font selector, color wheel)
+  - Background effect selector for coupon cards
+  - Preview button
+  - Save Draft (no auth)
+  - "Send with Love" / "Save My Coupons" → auto-generate random 4-digit PIN string -> triggers Supabase Email OTP auth
+
+PRIORITY 5 — Home Page (/)
+  - Competition banner
+  - Navbar with logo
+  - Hero section with coupon animation
+  - Trending Templates section
+  - Footer
+
+
+PRIORITY 6 — Remaining 4 Templates
+  - Valentine's Love Passes
+  - Birthday Joy Tokens
+  - Lover's Intimate Promises
+  - Bestie's Surprise Passes
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 8 — RULES FOR CLAUDE CODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Always follow the design system in Section 4. Never use arbitrary colors or fonts.
+2. Build mobile-first. Every component must look perfect at 390px before desktop.
+3. The coupon card visual design is LOCKED. Never let user input change the shape, border, or layout.
+4. The recipient page (/give/[id]) requires zero login. Never add auth to this page.
+5. Auth is triggered only at save/share time on the creation page.
+6. All CTA copy must follow Section 4. Never use generic terms like "Submit" or "Click here."
+7. Use the vibe words as a quality check: Warm. Playful. Intimate. Generous. Surprising.
+8. When in doubt about a UI decision not covered in this brief, ask before building.
