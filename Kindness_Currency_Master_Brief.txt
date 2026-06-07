@@ -1,3 +1,5 @@
+DEPRECATED: Superseded by PRD.md. Do not use for implementation — contains wrong PIN architecture, wrong template schema, and wrong CTA copy.
+
 # KINDNESS CURRENCY — MASTER BRIEF FOR CLAUDE CODE
 # Version 1.0 | Use this file at the start of every Claude Code session.
 # Say: "This is the full project brief. Read it entirely before writing any code."
