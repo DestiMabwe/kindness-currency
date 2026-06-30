@@ -8,8 +8,28 @@ export const CouponStatusSchema = z.enum(['sent', 'viewed', 'redeemed'])
 export const FontChoiceSchema = z.enum(['playfair', 'dm-sans'])
 export const BackgroundEffectSchema = z.enum(['none', 'confetti', 'sparkle', 'soft-glow'])
 
+// Coupon set mutation schema — template_id replaces template_type enum
+export const CouponSetMutationSchema = z.object({
+  template_id: z.string().uuid(),
+  sender_name: z.string().min(1),
+  recipient_name: z.string().min(1),
+  expiry_date: z.string().date().optional(),
+})
+
+// Individual coupon mutation schema
+export const CouponMutationSchema = z.object({
+  service_title: z.string().min(1),
+  micro_copy: z.string().optional(),
+  fine_print: z.string().optional(),
+  font_choice: FontChoiceSchema,
+  background_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  background_effect: BackgroundEffectSchema,
+})
+
 // Derived types — never write parallel interfaces
 export type CouponSetStatus = z.infer<typeof CouponSetStatusSchema>
 export type CouponStatus = z.infer<typeof CouponStatusSchema>
 export type FontChoice = z.infer<typeof FontChoiceSchema>
 export type BackgroundEffect = z.infer<typeof BackgroundEffectSchema>
+export type CouponSetMutation = z.infer<typeof CouponSetMutationSchema>
+export type CouponMutation = z.infer<typeof CouponMutationSchema>
