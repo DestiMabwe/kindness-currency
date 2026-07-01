@@ -49,6 +49,7 @@ describe('useCouponSetBuilder', () => {
           recipientName: 'Mom',
           expiryDate: '',
           coupons: [],
+          savedResult: null,
         })
       )
 
@@ -105,6 +106,45 @@ describe('useCouponSetBuilder', () => {
 
       expect(result.current.state.coupons[0]).toMatchObject({ id: 'c1', serviceTitle: 'One Homemade Feast', fontChoice: 'dm-sans' })
       expect(result.current.state.coupons[1]).toMatchObject({ id: 'c2', serviceTitle: 'One Errand Run' })
+    })
+  })
+
+  describe('toSavePayload', () => {
+    it('builds a save payload matching SaveCouponSetInputSchema', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderName('Alex'))
+      act(() => result.current.setRecipientName('Mom'))
+
+      const payload = result.current.toSavePayload()
+
+      expect(payload).toMatchObject({
+        template_id: mothersDay.id,
+        sender_name: 'Alex',
+        recipient_name: 'Mom',
+      })
+      expect(payload?.coupons).toHaveLength(2)
+      expect(payload).not.toHaveProperty('expiry_date')
+    })
+
+    it('omits expiry_date when unset rather than sending an empty string', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.toSavePayload()).not.toHaveProperty('expiry_date')
+    })
+  })
+
+  describe('completeSave', () => {
+    it('moves to the giftReady screen, stores the result, and clears the localStorage draft', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821' }))
+
+      expect(result.current.state.screen).toBe('giftReady')
+      expect(result.current.state.savedResult).toEqual({ setId: 'set-1', pin: '4821' })
+      expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
     })
   })
 })

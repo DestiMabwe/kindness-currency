@@ -1,23 +1,57 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useCouponSetBuilder, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
 import { AgeGate } from '@/components/modals/AgeGate'
+import { AuthGate } from '@/components/modals/AuthGate'
 import { CouponCard } from '@/components/coupon/CouponCard'
+import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
 import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
+import { createClient } from '@/lib/supabase/client'
+import { saveCouponSetAction } from '@/app/create/actions'
 import type { TemplateWithCoupons } from '@/lib/templateRepository'
 
 export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
-  onSave?: () => void
-  onSend?: () => void
 }
 
-export function CouponSetBuilder({ templates, onSave, onSend }: CouponSetBuilderProps) {
+export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
   const [pendingAgeGateSlug, setPendingAgeGateSlug] = useState<TemplateSlug | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const attemptedResume = useRef(false)
+
+  const performSave = async () => {
+    const payload = builder.toSavePayload()
+    if (!payload) return
+    setSaving(true)
+    setSaveError('')
+    const result = await saveCouponSetAction(payload)
+    setSaving(false)
+    if (!result.success) {
+      setSaveError(result.error)
+      return
+    }
+    builder.completeSave({ setId: result.id, pin: result.pin })
+  }
+
+  // After a magic-link click, the browser lands back here already authenticated.
+  // If there's still an unsaved draft in the builder, finish the save automatically
+  // instead of making the user click "Save My Coupons" again.
+  useEffect(() => {
+    if (attemptedResume.current || !builder.hasSaveableDraft) return
+    attemptedResume.current = true
+    createClient()
+      .auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session) void performSave()
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-check once per mount, not on every builder state change
+  }, [builder.hasSaveableDraft])
 
   const handleSelectTemplate = (template: TemplateWithCoupons) => {
     if (template.is_age_restricted) {
@@ -36,6 +70,15 @@ export function CouponSetBuilder({ templates, onSave, onSend }: CouponSetBuilder
   const pendingTemplate = pendingAgeGateSlug ? templates.find((t) => t.slug === pendingAgeGateSlug) : null
   const selectedTemplate = builder.templateBySlug(builder.state.selectedTemplateSlug as TemplateSlug)
   const visuals = builder.state.selectedTemplateSlug ? templateVisuals[builder.state.selectedTemplateSlug] : null
+
+  if (builder.state.screen === 'giftReady' && builder.state.savedResult) {
+    return (
+      <GiftReadyScreen
+        shareLink={`${window.location.origin}/give/${builder.state.savedResult.setId}`}
+        pin={builder.state.savedResult.pin}
+      />
+    )
+  }
 
   return (
     <div className="min-h-screen">
@@ -63,11 +106,13 @@ export function CouponSetBuilder({ templates, onSave, onSend }: CouponSetBuilder
           coupons={builder.state.coupons}
           accent={visuals.accent}
           motif={visuals.motif}
+          saving={saving}
+          saveError={saveError}
           onBack={builder.backToDetails}
           onPatchCoupon={builder.patchCoupon}
           onPreview={() => setPreviewOpen(true)}
-          onSave={onSave}
-          onSend={onSend}
+          onSave={() => setAuthOpen(true)}
+          onSend={() => setAuthOpen(true)}
         />
       )}
 
@@ -78,6 +123,8 @@ export function CouponSetBuilder({ templates, onSave, onSend }: CouponSetBuilder
       {pendingTemplate && (
         <AgeGate templateName={pendingTemplate.name} onConfirm={confirmAgeGate} onDismiss={() => setPendingAgeGateSlug(null)} />
       )}
+
+      {authOpen && <AuthGate onClose={() => setAuthOpen(false)} />}
     </div>
   )
 }
@@ -245,6 +292,8 @@ function EditScreen({
   coupons,
   accent,
   motif,
+  saving,
+  saveError,
   onBack,
   onPatchCoupon,
   onPreview,
@@ -257,11 +306,13 @@ function EditScreen({
   coupons: BuilderCoupon[]
   accent: string
   motif: string
+  saving: boolean
+  saveError: string
   onBack: () => void
   onPatchCoupon: (id: string, patch: Partial<BuilderCoupon>) => void
   onPreview: () => void
-  onSave?: () => void
-  onSend?: () => void
+  onSave: () => void
+  onSend: () => void
 }) {
   return (
     <div className="pb-5">
@@ -288,14 +339,25 @@ function EditScreen({
       </div>
 
       <div className="sticky bottom-0 z-40 mt-3.5 flex flex-col gap-2.5 border-t border-[#1A1A2E]/8 bg-[#FFF8F0]/94 px-4.5 pt-3.5 pb-4 backdrop-blur">
+        {saveError && <div className="text-center text-[12.5px] text-[#C2185B]">{saveError}</div>}
         <button type="button" onClick={onPreview} className="w-full rounded-[13px] border-[1.5px] border-[#1A1A2E] p-3 font-sans text-sm font-semibold text-[#1A1A2E]">
           {ctaCopy.previewAllCoupons}
         </button>
         <div className="flex gap-2.5">
-          <button type="button" onClick={onSave} className="flex-1 rounded-[13px] border-[1.5px] border-[#C2185B] p-3.5 font-sans text-sm font-bold text-[#C2185B]">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="flex-1 rounded-[13px] border-[1.5px] border-[#C2185B] p-3.5 font-sans text-sm font-bold text-[#C2185B] disabled:opacity-50"
+          >
             {ctaCopy.saveMyCoupons}
           </button>
-          <button type="button" onClick={onSend} className="flex-[1.3] rounded-[13px] bg-[#C2185B] p-3.5 font-sans text-sm font-bold text-white">
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={saving}
+            className="flex-[1.3] rounded-[13px] bg-[#C2185B] p-3.5 font-sans text-sm font-bold text-white disabled:opacity-50"
+          >
             {ctaCopy.sendWithLove}
           </button>
         </div>

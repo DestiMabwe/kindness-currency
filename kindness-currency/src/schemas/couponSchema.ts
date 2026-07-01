@@ -32,6 +32,11 @@ export const RedeemInputSchema = z.object({
   pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
 })
 
+// Full save payload — the AuthGate save mutation parses this before writing coupon_sets + coupons
+export const SaveCouponSetInputSchema = CouponSetMutationSchema.extend({
+  coupons: z.array(CouponMutationSchema.extend({ sort_order: z.number().int().min(1) })).length(8),
+})
+
 // Derived types — never write parallel interfaces
 export type CouponSetStatus = z.infer<typeof CouponSetStatusSchema>
 export type CouponStatus = z.infer<typeof CouponStatusSchema>
@@ -40,3 +45,4 @@ export type BackgroundEffect = z.infer<typeof BackgroundEffectSchema>
 export type CouponSetMutation = z.infer<typeof CouponSetMutationSchema>
 export type CouponMutation = z.infer<typeof CouponMutationSchema>
 export type RedeemInput = z.infer<typeof RedeemInputSchema>
+export type SaveCouponSetInput = z.infer<typeof SaveCouponSetInputSchema>
