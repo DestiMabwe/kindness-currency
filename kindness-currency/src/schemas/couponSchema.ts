@@ -26,6 +26,12 @@ export const CouponMutationSchema = z.object({
   background_effect: BackgroundEffectSchema,
 })
 
+// Redemption input — RedemptionEngine parses every payload through this before touching the database
+export const RedeemInputSchema = z.object({
+  couponId: z.string().uuid(),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
+})
+
 // Derived types — never write parallel interfaces
 export type CouponSetStatus = z.infer<typeof CouponSetStatusSchema>
 export type CouponStatus = z.infer<typeof CouponStatusSchema>
@@ -33,3 +39,4 @@ export type FontChoice = z.infer<typeof FontChoiceSchema>
 export type BackgroundEffect = z.infer<typeof BackgroundEffectSchema>
 export type CouponSetMutation = z.infer<typeof CouponSetMutationSchema>
 export type CouponMutation = z.infer<typeof CouponMutationSchema>
+export type RedeemInput = z.infer<typeof RedeemInputSchema>

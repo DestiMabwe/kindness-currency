@@ -30,6 +30,15 @@ type CouponSetRow = {
   coupons: GiveCoupon[]
 }
 
+/** Redeemed coupons sink to the bottom so the recipient's remaining coupons stay prominent. */
+export function sortCouponsForDisplay<T extends { status: CouponStatus; sort_order: number }>(coupons: T[]): T[] {
+  return [...coupons].sort((a, b) => {
+    if (a.status === 'redeemed' && b.status !== 'redeemed') return 1
+    if (a.status !== 'redeemed' && b.status === 'redeemed') return -1
+    return a.sort_order - b.sort_order
+  })
+}
+
 export function createGiveRepository(supabase: SupabaseClient) {
   return {
     /**

@@ -1,17 +1,9 @@
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/service'
-import { createGiveRepository, type GiveCoupon } from '@/lib/giveRepository'
+import { createGiveRepository, sortCouponsForDisplay } from '@/lib/giveRepository'
 import { templateVisuals } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { CouponCard } from '@/components/coupon/CouponCard'
-
-function sortForDisplay(coupons: GiveCoupon[]): GiveCoupon[] {
-  return [...coupons].sort((a, b) => {
-    if (a.status === 'redeemed' && b.status !== 'redeemed') return 1
-    if (a.status !== 'redeemed' && b.status === 'redeemed') return -1
-    return a.sort_order - b.sort_order
-  })
-}
+import { RecipientCouponList } from '@/components/coupon/RecipientCouponList'
 
 export default async function GivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -21,7 +13,7 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
   if (!giveData) notFound()
 
   const visuals = templateVisuals[giveData.template_slug]
-  const coupons = sortForDisplay(giveData.coupons)
+  const coupons = sortCouponsForDisplay(giveData.coupons)
 
   return (
     <div className="flex min-h-screen flex-col pb-10">
@@ -41,22 +33,12 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 px-4 pt-5 pb-2">
-        {coupons.map((coupon) => (
-          <CouponCard
-            key={coupon.id}
-            serviceTitle={coupon.service_title}
-            microCopy={coupon.micro_copy}
-            finePrint={coupon.fine_print}
-            fontChoice={coupon.font_choice}
-            backgroundColor={coupon.background_color}
-            backgroundEffect={coupon.background_effect}
-            status={coupon.status}
-            accent={visuals.accent}
-            motif={visuals.motif}
-          />
-        ))}
-      </div>
+      <RecipientCouponList
+        initialCoupons={coupons}
+        senderName={giveData.sender_name}
+        accent={visuals.accent}
+        motif={visuals.motif}
+      />
 
       <div className="mx-4 mt-6 rounded-[20px] bg-[#1A1A2E] p-5 text-center">
         <div className="text-lg font-bold text-white italic" style={{ fontFamily: 'var(--font-playfair)' }}>
