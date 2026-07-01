@@ -13,15 +13,17 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
   ]),
   {
+    ignores: ["src/lib/supabase/**"],
     rules: {
-      "no-restricted-imports": [
+      "@typescript-eslint/no-restricted-imports": [
         "error",
         {
           patterns: [
             {
-              group: ["@supabase/supabase-js"],
+              group: ["@supabase/supabase-js", "@supabase/ssr"],
               message:
-                "Import Supabase client only from lib/server files, not directly in components.",
+                "Only construct Supabase clients in lib/supabase/*. Elsewhere, import the SupabaseClient type (allowed) and accept a client as a parameter.",
+              allowTypeImports: true,
             },
           ],
         },
