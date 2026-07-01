@@ -16,3 +16,13 @@ body {
   color: #2C2C2C;
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
+
+@keyframes kc-float {
+  0%, 100% { transform: translateY(0) rotate(var(--kc-float-rotate, 0deg)); }
+  50% { transform: translateY(-14px) rotate(var(--kc-float-rotate, 0deg)); }
+}
+
+.kc-float {
+  animation: kc-float var(--kc-float-duration, 6s) ease-in-out infinite;
+  animation-delay: var(--kc-float-delay, 0s);
+}
