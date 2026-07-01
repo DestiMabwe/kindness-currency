@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createGiveRepository } from '../giveRepository'
+import { createGiveRepository, sortCouponsForDisplay } from '../giveRepository'
 
 function makeChain(resolvedValue: { data: unknown; error: unknown }) {
   const chain = {
@@ -80,6 +80,32 @@ describe('GiveRepository', () => {
       const result = await repo.getCouponSetForRecipient('missing')
 
       expect(result).toBeNull()
+    })
+  })
+
+  describe('sortCouponsForDisplay', () => {
+    it('moves redeemed coupons to the bottom of the stack', () => {
+      const input = [
+        { sort_order: 1, status: 'redeemed' as const },
+        { sort_order: 2, status: 'sent' as const },
+        { sort_order: 3, status: 'sent' as const },
+      ]
+
+      const result = sortCouponsForDisplay(input)
+
+      expect(result.map((c) => c.sort_order)).toEqual([2, 3, 1])
+    })
+
+    it('preserves sort_order among non-redeemed coupons', () => {
+      const input = [
+        { sort_order: 3, status: 'sent' as const },
+        { sort_order: 1, status: 'sent' as const },
+        { sort_order: 2, status: 'sent' as const },
+      ]
+
+      const result = sortCouponsForDisplay(input)
+
+      expect(result.map((c) => c.sort_order)).toEqual([1, 2, 3])
     })
   })
 })
