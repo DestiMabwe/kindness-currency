@@ -107,4 +107,31 @@ describe('TemplateRepository', () => {
       expect(result?.template_coupons[1]?.sort_order).toBe(2)
     })
   })
+
+  describe('getActiveTemplatesWithCoupons', () => {
+    it('returns each active template with its coupons sorted by sort_order', async () => {
+      const templates = [
+        {
+          ...activeTemplate({ sort_order: 1 }),
+          template_coupons: [coupon({ sort_order: 2 }), coupon({ sort_order: 1, service_title: 'One Errand Run' })],
+        },
+      ]
+      const { supabase, chain } = makeChain({ data: templates, error: null })
+      const repo = createTemplateRepository(supabase as never)
+
+      const result = await repo.getActiveTemplatesWithCoupons()
+
+      expect(chain.eq).toHaveBeenCalledWith('is_active', true)
+      expect(result[0]?.template_coupons.map((c) => c.sort_order)).toEqual([1, 2])
+    })
+
+    it('returns an empty array when no templates exist', async () => {
+      const { supabase } = makeChain({ data: null, error: null })
+      const repo = createTemplateRepository(supabase as never)
+
+      const result = await repo.getActiveTemplatesWithCoupons()
+
+      expect(result).toEqual([])
+    })
+  })
 })

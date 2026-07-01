@@ -56,5 +56,23 @@ export function createTemplateRepository(supabase: SupabaseClient) {
         ),
       }
     },
+
+    /** All active templates with their default coupons, for /create to hold entirely client-side. */
+    async getActiveTemplatesWithCoupons(): Promise<TemplateWithCoupons[]> {
+      const { data, error } = await supabase
+        .from('templates')
+        .select('*, template_coupons(*)')
+        .eq('is_active', true)
+        .order('sort_order')
+
+      if (error || !data) return []
+
+      return data.map((template) => ({
+        ...template,
+        template_coupons: [...template.template_coupons].sort(
+          (a: TemplateCoupon, b: TemplateCoupon) => a.sort_order - b.sort_order
+        ),
+      }))
+    },
   }
 }
