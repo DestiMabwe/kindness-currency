@@ -112,6 +112,10 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     return true
   }, [state.recipientName])
 
+  const patchCoupon = useCallback((id: string, patch: Partial<BuilderCoupon>) => {
+    setState((s) => ({ ...s, coupons: s.coupons.map((c) => (c.id === id ? { ...c, ...patch } : c)) }))
+  }, [])
+
   return {
     state,
     templateBySlug,
@@ -122,5 +126,6 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     setRecipientName,
     setExpiryDate,
     startEditing,
+    patchCoupon,
   }
 }

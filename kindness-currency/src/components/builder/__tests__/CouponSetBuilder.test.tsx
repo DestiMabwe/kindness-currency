@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CouponSetBuilder } from '../CouponSetBuilder'
+import { ctaCopy } from '@/constants/ctaCopy'
 import type { TemplateWithCoupons } from '@/lib/templateRepository'
 
 const template = (overrides: Partial<TemplateWithCoupons> = {}): TemplateWithCoupons => ({
@@ -94,7 +95,82 @@ describe('CouponSetBuilder', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
-      expect(screen.getByText(/coupons ready to personalise/)).toBeInTheDocument()
+      expect(screen.getByText('Save My Coupons')).toBeInTheDocument()
+    })
+  })
+
+  async function goToEditor() {
+    render(<CouponSetBuilder templates={[template()]} onSave={vi.fn()} onSend={vi.fn()} />)
+    await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+    await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+    await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+  }
+
+  describe('coupon editor', () => {
+    it('updates the live CouponCard preview as the title is edited', async () => {
+      await goToEditor()
+
+      const titleInput = screen.getByLabelText('Service title')
+      await userEvent.clear(titleInput)
+      await userEvent.type(titleInput, 'One Homemade Feast')
+
+      expect(titleInput).toHaveValue('One Homemade Feast')
+      expect(screen.getByText('One Homemade Feast')).toBeInTheDocument() // live CouponCard title
+    })
+
+    it('switches the title font when DM Sans is selected', async () => {
+      await goToEditor()
+
+      await userEvent.click(screen.getByRole('button', { name: 'DM Sans' }))
+
+      const cardTitle = screen.getByText('One Home-Cooked Meal')
+      expect(cardTitle).toHaveStyle({ fontStyle: 'normal' })
+    })
+
+    it('applies a background effect selection', async () => {
+      await goToEditor()
+
+      await userEvent.click(screen.getByRole('button', { name: 'Confetti' }))
+
+      expect(screen.getByRole('button', { name: 'Confetti' })).toHaveStyle({ color: '#fff' })
+    })
+  })
+
+  describe('preview overlay', () => {
+    it('opens on "Preview All Coupons" and closes on the close button', async () => {
+      await goToEditor()
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
+      expect(screen.getByText('Preview')).toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
+      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('save and send', () => {
+    it('fires onSave when "Save My Coupons" is clicked', async () => {
+      const onSave = vi.fn()
+      render(<CouponSetBuilder templates={[template()]} onSave={onSave} onSend={vi.fn()} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+
+      expect(onSave).toHaveBeenCalledOnce()
+    })
+
+    it('fires onSend when "Send with Love" is clicked', async () => {
+      const onSend = vi.fn()
+      render(<CouponSetBuilder templates={[template()]} onSave={vi.fn()} onSend={onSend} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+
+      expect(onSend).toHaveBeenCalledOnce()
     })
   })
 })

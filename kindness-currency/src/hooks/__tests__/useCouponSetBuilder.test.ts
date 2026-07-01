@@ -95,4 +95,16 @@ describe('useCouponSetBuilder', () => {
       expect(result.current.state.screen).toBe('edit')
     })
   })
+
+  describe('patchCoupon', () => {
+    it('updates only the targeted coupon, leaving the others untouched', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      act(() => result.current.patchCoupon('c1', { serviceTitle: 'One Homemade Feast', fontChoice: 'dm-sans' }))
+
+      expect(result.current.state.coupons[0]).toMatchObject({ id: 'c1', serviceTitle: 'One Homemade Feast', fontChoice: 'dm-sans' })
+      expect(result.current.state.coupons[1]).toMatchObject({ id: 'c2', serviceTitle: 'One Errand Run' })
+    })
+  })
 })

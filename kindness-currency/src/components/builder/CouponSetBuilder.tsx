@@ -1,19 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { useCouponSetBuilder } from '@/hooks/useCouponSetBuilder'
+import { useCouponSetBuilder, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
 import { AgeGate } from '@/components/modals/AgeGate'
-import { templateVisuals, type TemplateSlug } from '@/constants/designTokens'
+import { CouponCard } from '@/components/coupon/CouponCard'
+import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
 import type { TemplateWithCoupons } from '@/lib/templateRepository'
 
 export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
+  onSave?: () => void
+  onSend?: () => void
 }
 
-export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
+export function CouponSetBuilder({ templates, onSave, onSend }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
   const [pendingAgeGateSlug, setPendingAgeGateSlug] = useState<TemplateSlug | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const handleSelectTemplate = (template: TemplateWithCoupons) => {
     if (template.is_age_restricted) {
@@ -30,6 +34,8 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
   }
 
   const pendingTemplate = pendingAgeGateSlug ? templates.find((t) => t.slug === pendingAgeGateSlug) : null
+  const selectedTemplate = builder.templateBySlug(builder.state.selectedTemplateSlug as TemplateSlug)
+  const visuals = builder.state.selectedTemplateSlug ? templateVisuals[builder.state.selectedTemplateSlug] : null
 
   return (
     <div className="min-h-screen">
@@ -37,7 +43,7 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
 
       {builder.state.screen === 'details' && (
         <DetailsFormScreen
-          templateName={builder.templateBySlug(builder.state.selectedTemplateSlug as TemplateSlug)?.name ?? ''}
+          templateName={selectedTemplate?.name ?? ''}
           senderName={builder.state.senderName}
           recipientName={builder.state.recipientName}
           expiryDate={builder.state.expiryDate}
@@ -49,13 +55,24 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
         />
       )}
 
-      {builder.state.screen === 'edit' && (
-        <div className="p-6 text-center text-[#2C2C2C]">
-          <p>{builder.state.coupons.length} coupons ready to personalise — editor coming soon.</p>
-          <button type="button" onClick={builder.backToDetails} className="mt-3 text-sm font-semibold text-[#C2185B]">
-            ‹ Back
-          </button>
-        </div>
+      {builder.state.screen === 'edit' && visuals && (
+        <EditScreen
+          templateName={selectedTemplate?.name ?? ''}
+          senderName={builder.state.senderName}
+          recipientName={builder.state.recipientName}
+          coupons={builder.state.coupons}
+          accent={visuals.accent}
+          motif={visuals.motif}
+          onBack={builder.backToDetails}
+          onPatchCoupon={builder.patchCoupon}
+          onPreview={() => setPreviewOpen(true)}
+          onSave={onSave}
+          onSend={onSend}
+        />
+      )}
+
+      {previewOpen && (
+        <PreviewOverlay coupons={builder.state.coupons} accent={visuals?.accent ?? '#C2185B'} motif={visuals?.motif ?? ''} onClose={() => setPreviewOpen(false)} />
       )}
 
       {pendingTemplate && (
@@ -209,6 +226,248 @@ function DetailsFormScreen({
           <div className="text-center text-[11.5px] text-[#C2185B]">Add their name first ♥</div>
         )}
         <div className="text-center text-[11.5px] text-[#2C2C2C] opacity-55">{ctaCopy.templatesSubheading}</div>
+      </div>
+    </div>
+  )
+}
+
+const EFFECT_OPTIONS: { value: BuilderCoupon['backgroundEffect']; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'confetti', label: 'Confetti' },
+  { value: 'sparkle', label: 'Sparkle' },
+  { value: 'soft-glow', label: 'Soft Glow' },
+]
+
+function EditScreen({
+  templateName,
+  senderName,
+  recipientName,
+  coupons,
+  accent,
+  motif,
+  onBack,
+  onPatchCoupon,
+  onPreview,
+  onSave,
+  onSend,
+}: {
+  templateName: string
+  senderName: string
+  recipientName: string
+  coupons: BuilderCoupon[]
+  accent: string
+  motif: string
+  onBack: () => void
+  onPatchCoupon: (id: string, patch: Partial<BuilderCoupon>) => void
+  onPreview: () => void
+  onSave?: () => void
+  onSend?: () => void
+}) {
+  return (
+    <div className="pb-5">
+      <div className="sticky top-0 z-30 border-b border-[#1A1A2E]/7 bg-[#FFF8F0]/92 backdrop-blur-sm">
+        <div className="flex items-center gap-3 px-4.5 pt-11.5 pb-3">
+          <button type="button" onClick={onBack} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
+            ‹
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">
+              Step 3 of 3 · {templateName}
+            </div>
+            <div className="mt-0.5 text-[11.5px] text-[#2C2C2C] opacity-60">
+              For {recipientName || 'them'} · from {senderName || 'you'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4.5 px-4.5 pt-4.5">
+        {coupons.map((coupon) => (
+          <CouponEditorCard key={coupon.id} coupon={coupon} accent={accent} motif={motif} onPatch={(patch) => onPatchCoupon(coupon.id, patch)} />
+        ))}
+      </div>
+
+      <div className="sticky bottom-0 z-40 mt-3.5 flex flex-col gap-2.5 border-t border-[#1A1A2E]/8 bg-[#FFF8F0]/94 px-4.5 pt-3.5 pb-4 backdrop-blur">
+        <button type="button" onClick={onPreview} className="w-full rounded-[13px] border-[1.5px] border-[#1A1A2E] p-3 font-sans text-sm font-semibold text-[#1A1A2E]">
+          {ctaCopy.previewAllCoupons}
+        </button>
+        <div className="flex gap-2.5">
+          <button type="button" onClick={onSave} className="flex-1 rounded-[13px] border-[1.5px] border-[#C2185B] p-3.5 font-sans text-sm font-bold text-[#C2185B]">
+            {ctaCopy.saveMyCoupons}
+          </button>
+          <button type="button" onClick={onSend} className="flex-[1.3] rounded-[13px] bg-[#C2185B] p-3.5 font-sans text-sm font-bold text-white">
+            {ctaCopy.sendWithLove}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CouponEditorCard({
+  coupon,
+  accent,
+  motif,
+  onPatch,
+}: {
+  coupon: BuilderCoupon
+  accent: string
+  motif: string
+  onPatch: (patch: Partial<BuilderCoupon>) => void
+}) {
+  return (
+    <div className="rounded-[20px] border border-[#1A1A2E]/7 bg-white p-3.5 shadow-[0_12px_28px_-22px_rgba(26,26,46,0.55)]">
+      <CouponCard
+        serviceTitle={coupon.serviceTitle}
+        microCopy={coupon.microCopy}
+        finePrint={coupon.finePrint}
+        fontChoice={coupon.fontChoice}
+        backgroundColor={coupon.backgroundColor}
+        backgroundEffect={coupon.backgroundEffect}
+        status="sent"
+        accent={accent}
+        motif={motif}
+        punchColor="#FFFFFF"
+      />
+
+      <div className="mt-3.5 flex flex-col gap-2.5">
+        <input
+          value={coupon.serviceTitle}
+          onChange={(e) => onPatch({ serviceTitle: e.target.value })}
+          placeholder="Service title"
+          aria-label="Service title"
+          className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#FFF8F0] p-2.5 text-[15px] font-bold text-[#1A1A2E] italic outline-none"
+          style={{ fontFamily: 'var(--font-playfair)' }}
+        />
+        <input
+          value={coupon.microCopy}
+          onChange={(e) => onPatch({ microCopy: e.target.value })}
+          placeholder="A warm supporting line"
+          aria-label="Micro copy"
+          className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#FFF8F0] p-2.5 text-[13px] text-[#2C2C2C] outline-none"
+        />
+        <input
+          value={coupon.finePrint}
+          onChange={(e) => onPatch({ finePrint: e.target.value })}
+          placeholder="Fine print"
+          aria-label="Fine print"
+          className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#FFF8F0] p-2 text-[11.5px] text-[#2C2C2C] outline-none"
+        />
+      </div>
+
+      <div className="mt-3.5 flex flex-col gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <span className="w-[46px] shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-50">Font</span>
+          <div className="flex gap-1.5 rounded-[10px] bg-[#F0ECE4] p-[3px]">
+            {(['playfair', 'dm-sans'] as const).map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                onClick={() => onPatch({ fontChoice: choice })}
+                className="rounded-[8px] px-2.5 py-1.5 text-xs font-semibold"
+                style={{
+                  backgroundColor: coupon.fontChoice === choice ? '#fff' : 'transparent',
+                  color: coupon.fontChoice === choice ? '#1A1A2E' : '#2C2C2C99',
+                }}
+              >
+                {choice === 'playfair' ? 'Playfair' : 'DM Sans'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <span className="w-[46px] shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-50">Colour</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {colorWheelSwatches.map((swatch) => (
+              <button
+                key={swatch}
+                type="button"
+                aria-label={`Set background colour ${swatch}`}
+                onClick={() => onPatch({ backgroundColor: swatch })}
+                className="h-[22px] w-[22px] rounded-full"
+                style={{
+                  backgroundColor: swatch,
+                  boxShadow: coupon.backgroundColor === swatch ? `0 0 0 2px #fff, 0 0 0 3.5px ${accent}` : '0 0 0 1px rgba(26,26,46,0.15)',
+                }}
+              />
+            ))}
+            <label
+              className="relative flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-full"
+              style={{ background: 'conic-gradient(from 0deg, #ff5252, #ffb142, #fffb52, #52ff7a, #52d9ff, #5271ff, #c952ff, #ff52a8, #ff5252)' }}
+            >
+              <input
+                type="color"
+                aria-label="Custom background colour"
+                value={coupon.backgroundColor}
+                onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <span className="w-[46px] shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-50">Effect</span>
+          <div className="flex flex-wrap gap-1.5">
+            {EFFECT_OPTIONS.map((effect) => (
+              <button
+                key={effect.value}
+                type="button"
+                onClick={() => onPatch({ backgroundEffect: effect.value })}
+                className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                style={{
+                  backgroundColor: coupon.backgroundEffect === effect.value ? accent : '#F0ECE4',
+                  color: coupon.backgroundEffect === effect.value ? '#fff' : '#2C2C2C',
+                }}
+              >
+                {effect.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PreviewOverlay({
+  coupons,
+  accent,
+  motif,
+  onClose,
+}: {
+  coupons: BuilderCoupon[]
+  accent: string
+  motif: string
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-[80] flex flex-col bg-[#1A1A2E]">
+      <div className="flex items-center justify-between px-5 pt-11 pb-3">
+        <div className="text-lg font-bold text-white italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+          Preview
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close preview" className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white">
+          ✕
+        </button>
+      </div>
+      <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-4.5 pb-6.5">
+        {coupons.map((coupon) => (
+          <CouponCard
+            key={coupon.id}
+            serviceTitle={coupon.serviceTitle}
+            microCopy={coupon.microCopy}
+            finePrint={coupon.finePrint}
+            fontChoice={coupon.fontChoice}
+            backgroundColor={coupon.backgroundColor}
+            backgroundEffect={coupon.backgroundEffect}
+            status="sent"
+            accent={accent}
+            motif={motif}
+            punchColor="#1A1A2E"
+          />
+        ))}
       </div>
     </div>
   )
