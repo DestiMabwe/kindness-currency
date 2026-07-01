@@ -1,6 +1,9 @@
 .env
+.mcp.json
 node_modules/
 dist/
 build/
 *.log
 .DS_Store
+kindness-currency/supabase/.temp/
+kindness-currency/supabase/.branches/
