@@ -5,6 +5,16 @@ import { CouponSetBuilder } from '../CouponSetBuilder'
 import { ctaCopy } from '@/constants/ctaCopy'
 import type { TemplateWithCoupons } from '@/lib/templateRepository'
 
+const getSession = vi.fn().mockResolvedValue({ data: { session: null } })
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({ auth: { getSession } }),
+}))
+
+const saveCouponSetAction = vi.fn()
+vi.mock('@/app/create/actions', () => ({
+  saveCouponSetAction: (input: unknown) => saveCouponSetAction(input),
+}))
+
 const template = (overrides: Partial<TemplateWithCoupons> = {}): TemplateWithCoupons => ({
   id: 'aaaaaaaa-0000-0000-0000-000000000001',
   slug: 'mothers_day',
@@ -33,6 +43,8 @@ const restrictedTemplate = template({
 describe('CouponSetBuilder', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    getSession.mockReset().mockResolvedValue({ data: { session: null } })
+    saveCouponSetAction.mockReset()
   })
 
   describe('template selection', () => {
@@ -100,7 +112,7 @@ describe('CouponSetBuilder', () => {
   })
 
   async function goToEditor() {
-    render(<CouponSetBuilder templates={[template()]} onSave={vi.fn()} onSend={vi.fn()} />)
+    render(<CouponSetBuilder templates={[template()]} />)
     await userEvent.click(screen.getByText("Mom's Promise Tokens"))
     await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
     await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
@@ -149,28 +161,70 @@ describe('CouponSetBuilder', () => {
   })
 
   describe('save and send', () => {
-    it('fires onSave when "Save My Coupons" is clicked', async () => {
-      const onSave = vi.fn()
-      render(<CouponSetBuilder templates={[template()]} onSave={onSave} onSend={vi.fn()} />)
-      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
-      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
-      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+    it('opens AuthGate when "Save My Coupons" is clicked', async () => {
+      await goToEditor()
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
 
-      expect(onSave).toHaveBeenCalledOnce()
+      expect(screen.getByText(ctaCopy.authModalHeading)).toBeInTheDocument()
     })
 
-    it('fires onSend when "Send with Love" is clicked', async () => {
-      const onSend = vi.fn()
-      render(<CouponSetBuilder templates={[template()]} onSave={vi.fn()} onSend={onSend} />)
-      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
-      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
-      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+    it('opens AuthGate when "Send with Love" is clicked', async () => {
+      await goToEditor()
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
 
-      expect(onSend).toHaveBeenCalledOnce()
+      expect(screen.getByText(ctaCopy.authModalHeading)).toBeInTheDocument()
+    })
+  })
+
+  describe('resume after auth', () => {
+    const draftKey = 'kindness-currency:coupon-set-draft'
+
+    function seedUnsavedDraft() {
+      window.localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          screen: 'edit',
+          selectedTemplateId: template().id,
+          selectedTemplateSlug: 'mothers_day',
+          senderName: 'Alex',
+          recipientName: 'Mom',
+          expiryDate: '',
+          coupons: Array.from({ length: 8 }, (_, i) => ({
+            id: `c${i + 1}`,
+            sortOrder: i + 1,
+            serviceTitle: `Coupon ${i + 1}`,
+            microCopy: '',
+            finePrint: '',
+            fontChoice: 'playfair',
+            backgroundColor: '#FFF8F0',
+            backgroundEffect: 'none',
+          })),
+          savedResult: null,
+        })
+      )
+    }
+
+    it('auto-saves and shows GiftReadyScreen when the user returns already authenticated with an unsaved draft', async () => {
+      seedUnsavedDraft()
+      getSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
+      saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
+      expect(saveCouponSetAction).toHaveBeenCalledOnce()
+    })
+
+    it('does not attempt to save when there is no authenticated session', async () => {
+      seedUnsavedDraft()
+      getSession.mockResolvedValue({ data: { session: null } })
+
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(saveCouponSetAction).not.toHaveBeenCalled()
     })
   })
 })

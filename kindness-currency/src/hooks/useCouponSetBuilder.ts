@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TemplateWithCoupons } from '@/lib/templateRepository'
-import type { FontChoice, BackgroundEffect } from '@/schemas/couponSchema'
+import type { FontChoice, BackgroundEffect, SaveCouponSetInput } from '@/schemas/couponSchema'
 import type { TemplateSlug } from '@/constants/designTokens'
 
-export type BuilderScreen = 'select' | 'details' | 'edit'
+export type BuilderScreen = 'select' | 'details' | 'edit' | 'giftReady'
 
 export type BuilderCoupon = {
   id: string
@@ -16,6 +16,8 @@ export type BuilderCoupon = {
   backgroundEffect: BackgroundEffect
 }
 
+export type SavedResult = { setId: string; pin: string }
+
 export type BuilderState = {
   screen: BuilderScreen
   selectedTemplateId: string | null
@@ -24,6 +26,7 @@ export type BuilderState = {
   recipientName: string
   expiryDate: string
   coupons: BuilderCoupon[]
+  savedResult: SavedResult | null
 }
 
 const DRAFT_STORAGE_KEY = 'kindness-currency:coupon-set-draft'
@@ -36,6 +39,7 @@ const initialState: BuilderState = {
   recipientName: '',
   expiryDate: '',
   coupons: [],
+  savedResult: null,
 }
 
 function couponsFromTemplate(template: TemplateWithCoupons): BuilderCoupon[] {
@@ -78,7 +82,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   }, [])
 
   useEffect(() => {
-    if (!hydrated.current || typeof window === 'undefined') return
+    if (!hydrated.current || typeof window === 'undefined' || state.screen === 'giftReady') return
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
@@ -116,6 +120,32 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     setState((s) => ({ ...s, coupons: s.coupons.map((c) => (c.id === id ? { ...c, ...patch } : c)) }))
   }, [])
 
+  const toSavePayload = useCallback((): SaveCouponSetInput | null => {
+    if (!state.selectedTemplateId || state.coupons.length === 0) return null
+    return {
+      template_id: state.selectedTemplateId,
+      sender_name: state.senderName,
+      recipient_name: state.recipientName,
+      ...(state.expiryDate ? { expiry_date: state.expiryDate } : {}),
+      coupons: state.coupons.map((c) => ({
+        service_title: c.serviceTitle,
+        micro_copy: c.microCopy,
+        fine_print: c.finePrint,
+        font_choice: c.fontChoice,
+        background_color: c.backgroundColor,
+        background_effect: c.backgroundEffect,
+        sort_order: c.sortOrder,
+      })),
+    }
+  }, [state])
+
+  const completeSave = useCallback((result: SavedResult) => {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(DRAFT_STORAGE_KEY)
+    setState((s) => ({ ...s, screen: 'giftReady', savedResult: result }))
+  }, [])
+
+  const hasSaveableDraft = state.screen === 'edit' && state.coupons.length === 8
+
   return {
     state,
     templateBySlug,
@@ -127,5 +157,8 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     setExpiryDate,
     startEditing,
     patchCoupon,
+    toSavePayload,
+    completeSave,
+    hasSaveableDraft,
   }
 }
