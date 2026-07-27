@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="position:relative; width:100%; box-sizing:border-box; opacity:{{ noteOpacity }}; transition:opacity .3s ease; font-family:'Archivo',sans-serif;">
+  <div style="position:relative; box-sizing:border-box; border:2px solid {{ ink }}; border-radius:3px; padding:15px 16px 14px; background-color:{{ paper }}; background-image:{{ guilloche }}; box-shadow:0 14px 30px -20px rgba(28,27,22,0.6), inset 0 0 0 1px {{ paper }};">
+    <!-- inner engraved frame -->
+    <div style="position:absolute; inset:5px; border:1px solid {{ inkLine }}; border-radius:2px; pointer-events:none;"></div>
+
+    <!-- effect overlays -->
+    <sc-if value="{{ fxGlow }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; pointer-events:none; background:radial-gradient(140px 100px at 26% 22%, rgba(255,252,242,0.85), transparent 72%);"></div>
+    </sc-if>
+    <sc-if value="{{ fxSparkle }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; pointer-events:none; color:{{ ink }};">
+        <span style="position:absolute; top:30%; left:42%; font-size:10px; opacity:.3;">✦</span>
+        <span style="position:absolute; top:64%; left:30%; font-size:8px; opacity:.25;">✦</span>
+        <span style="position:absolute; top:22%; left:66%; font-size:9px; opacity:.28;">✦</span>
+      </div>
+    </sc-if>
+    <sc-if value="{{ fxConfetti }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; pointer-events:none; color:{{ ink }}; font-family:'Space Mono',monospace;">
+        <span style="position:absolute; top:28%; left:38%; font-size:9px; opacity:.22;">✳</span>
+        <span style="position:absolute; top:58%; left:28%; font-size:7px; opacity:.2;">✳</span>
+        <span style="position:absolute; top:40%; left:60%; font-size:8px; opacity:.22;">✳</span>
+        <span style="position:absolute; top:70%; left:52%; font-size:7px; opacity:.18;">✳</span>
+      </div>
+    </sc-if>
+
+    <!-- header row -->
+    <div style="position:relative; display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+      <span style="font-family:'Space Mono',monospace; font-size:8px; letter-spacing:0.16em; text-transform:uppercase; color:{{ ink }}; opacity:0.75; line-height:1.3;">Promissory Note<br>of Kindness</span>
+      <span style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.08em; color:{{ ink }}; opacity:0.7;">№ {{ serial }}</span>
+    </div>
+
+    <!-- double rule -->
+    <div style="position:relative; margin-top:9px; border-top:1.5px solid {{ ink }}; border-bottom:0.5px solid {{ inkLine }}; height:3px;"></div>
+
+    <!-- denomination -->
+    <div style="position:relative; margin-top:11px;">
+      <div style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.2em; text-transform:uppercase; color:{{ ink }}; opacity:0.62;">{{ framingLabel }}</div>
+      <div style="margin-top:4px; font-family:{{ titleFontFamily }}; font-weight:{{ titleFontWeight }}; text-transform:{{ titleTransform }}; font-size:25px; line-height:1.05; letter-spacing:{{ titleSpacing }}; color:{{ ink }}; padding-right:54px; text-wrap:balance;">{{ serviceTitle }}</div>
+      <div style="margin-top:8px; font-family:'Archivo',sans-serif; font-size:12px; line-height:1.42; color:{{ ink }}; opacity:0.78; padding-right:54px;">{{ microCopy }}</div>
+    </div>
+
+    <!-- payable line + seal -->
+    <div style="position:relative; margin-top:14px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px;">
+      <div style="flex:1; min-width:0;">
+        <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.04em; color:{{ ink }}; opacity:0.78; line-height:1.4;">Pay to <b style="font-weight:700;">{{ recipient }}</b> on demand.</div>
+        <div style="margin-top:9px; display:flex; align-items:flex-end; gap:7px;">
+          <span style="font-family:'DM Serif Display',serif; font-style:italic; font-size:16px; color:{{ ink }}; line-height:1; transform:translateY(2px);">{{ sender }}</span>
+          <span style="flex:1; border-bottom:1px solid {{ ink }}; opacity:0.5; height:1px; margin-bottom:3px;"></span>
+        </div>
+        <div style="margin-top:3px; font-family:'Space Mono',monospace; font-size:7.5px; letter-spacing:0.1em; text-transform:uppercase; color:{{ ink }}; opacity:0.5;">Authorised signature</div>
+      </div>
+      <!-- seal -->
+      <div style="position:relative; width:62px; height:62px; flex:none; border-radius:50%; border:2px solid {{ ink }}; box-shadow:inset 0 0 0 3px {{ paper }}, inset 0 0 0 4px {{ inkLine }}; display:flex; flex-direction:column; align-items:center; justify-content:center; color:{{ ink }};">
+        <span style="font-size:23px; line-height:1;">{{ motif }}</span>
+        <span style="margin-top:2px; font-family:'Space Mono',monospace; font-size:6px; letter-spacing:0.18em;">KINDNESS</span>
+      </div>
+    </div>
+
+    <!-- fine print -->
+    <div style="position:relative; margin-top:11px; border-top:0.5px solid {{ inkLine }}; padding-top:7px; font-family:'Space Mono',monospace; font-size:7.5px; letter-spacing:0.08em; text-transform:uppercase; color:{{ ink }}; opacity:0.6;">{{ finePrint }}</div>
+
+    <!-- redeem -->
+    <sc-if value="{{ showRedeem }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ onRedeem }}" style="position:relative; margin-top:13px; width:100%; border:1.5px solid {{ ink }}; background:transparent; cursor:pointer; color:{{ ink }}; font-family:'Space Mono',monospace; font-weight:700; font-size:12px; letter-spacing:0.18em; text-transform:uppercase; padding:11px; border-radius:2px;" style-hover="background:{{ ink }}; color:{{ paper }};">Cash This Note ✦</button>
+    </sc-if>
+
+    <!-- redeemed stamp -->
+    <sc-if value="{{ isRedeemed }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+        <div style="transform:rotate(-9deg); border:3px double {{ seal }}; color:{{ seal }}; background:rgba(241,233,214,0.34); padding:7px 14px 5px; text-align:center; border-radius:3px;">
+          <div style="font-family:'Space Mono',monospace; font-weight:700; font-size:20px; letter-spacing:0.18em;">REDEEMED</div>
+          <div style="margin-top:2px; font-family:'Space Mono',monospace; font-size:7.5px; letter-spacing:0.22em;">PAID · WITH LOVE</div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:360,&quot;height&quot;:280},&quot;serviceTitle&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;One Home-Cooked Meal&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;microCopy&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Made with extra love, just the way you like it&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;finePrint&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;No expiry · Redeemable anytime&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;fontChoice&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;playfair&quot;,&quot;dm-sans&quot;],&quot;default&quot;:&quot;playfair&quot;,&quot;tsType&quot;:&quot;'playfair' | 'dm-sans'&quot;},&quot;backgroundColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#F1E9D6&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;backgroundEffect&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;confetti&quot;,&quot;sparkle&quot;,&quot;soft-glow&quot;],&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;status&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;sent&quot;,&quot;viewed&quot;,&quot;redeemed&quot;],&quot;default&quot;:&quot;sent&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;motif&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;❀&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1C1B16&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;seal&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#B23A2E&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;recipient&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;the bearer&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;sender&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;a friend&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;serial&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;KC-2468-01&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;framingLabel&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Good for&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showRedeem&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;onRedeem&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;() =&gt; void&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const ink = p.ink || '#1C1B16';
+    const paper = p.backgroundColor || '#F1E9D6';
+    const font = p.fontChoice || 'playfair';
+    const grotesque = font === 'dm-sans';
+    const isRedeemed = p.status === 'redeemed';
+    const inkLine = ink + '33';
+    return {
+      serviceTitle: p.serviceTitle ?? 'Your kind act',
+      microCopy: p.microCopy ?? '',
+      finePrint: p.finePrint ?? '',
+      framingLabel: p.framingLabel || 'Good for',
+      recipient: p.recipient || 'the bearer',
+      sender: p.sender || 'a friend',
+      serial: p.serial || 'KC-0000-00',
+      motif: p.motif || '❀',
+      ink, paper, inkLine,
+      seal: p.seal || '#B23A2E',
+      guilloche: 'repeating-linear-gradient(58deg, ' + ink + '0f 0 1px, transparent 1px 6px), repeating-radial-gradient(circle at 86% 80%, ' + ink + '12 0 2.5px, transparent 2.5px 7px)',
+      titleFontFamily: grotesque ? "'Archivo', sans-serif" : "'DM Serif Display', serif",
+      titleFontWeight: grotesque ? 800 : 400,
+      titleTransform: grotesque ? 'uppercase' : 'none',
+      titleSpacing: grotesque ? '-0.01em' : '0',
+      isRedeemed,
+      showRedeem: !!p.showRedeem && !isRedeemed,
+      fxConfetti: p.backgroundEffect === 'confetti',
+      fxSparkle: p.backgroundEffect === 'sparkle',
+      fxGlow: p.backgroundEffect === 'soft-glow',
+      onRedeem: p.onRedeem || (() => {}),
+      noteOpacity: isRedeemed ? 0.82 : 1,
+    };
+  }
+}
+</script>
+</body>
+</html>

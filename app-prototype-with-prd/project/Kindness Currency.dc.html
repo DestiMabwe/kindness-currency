@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500;1,600;1,700;1,800&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap" rel="stylesheet">
+  <style>
+    *{ box-sizing:border-box; }
+    @keyframes kcFloat { 0%{ transform:translateY(0) rotate(var(--r,0deg)); } 50%{ transform:translateY(-14px) rotate(var(--r,0deg)); } 100%{ transform:translateY(0) rotate(var(--r,0deg)); } }
+    @keyframes kcRise { from{ opacity:0; transform:translateY(14px); } to{ opacity:1; transform:translateY(0); } }
+    @keyframes kcPop { 0%{ transform:scale(.8); opacity:0; } 60%{ transform:scale(1.04); } 100%{ transform:scale(1); opacity:1; } }
+    @keyframes kcShine { 0%{ background-position:-120% 0; } 100%{ background-position:220% 0; } }
+    .kc-screen::-webkit-scrollbar{ width:0; height:0; }
+    .kc-screen{ scrollbar-width:none; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; width:100%; background:radial-gradient(1200px 700px at 50% -10%, #23233b 0%, #15151f 60%, #101019 100%); display:flex; flex-direction:column; align-items:center; padding:28px 16px 56px; font-family:'DM Sans',sans-serif;">
+
+  <!-- prototype nav -->
+  <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); padding:6px; border-radius:999px; margin-bottom:22px; backdrop-filter:blur(8px);">
+    <span style="color:rgba(255,255,255,0.4); font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; padding:0 10px 0 8px;">Prototype</span>
+    <button onClick="{{ goHome }}" style="{{ navHomeStyle }}">Home</button>
+    <button onClick="{{ goCreate }}" style="{{ navCreateStyle }}">Create</button>
+    <button onClick="{{ goGiveDemo }}" style="{{ navGiveStyle }}">Recipient</button>
+  </div>
+
+  <!-- phone -->
+  <div style="position:relative; width:390px; height:844px; background:#1A1A2E; border-radius:46px; padding:11px; box-shadow:0 40px 90px -30px rgba(0,0,0,0.8), 0 0 0 2px rgba(255,255,255,0.06); flex:none;">
+    <!-- notch -->
+    <div style="position:absolute; top:21px; left:50%; transform:translateX(-50%); width:108px; height:26px; background:#1A1A2E; border-radius:999px; z-index:70; display:flex; align-items:center; justify-content:center; gap:34px; pointer-events:none;">
+      <span style="width:34px; height:4px; border-radius:999px; background:#2b2b40;"></span>
+      <span style="width:7px; height:7px; border-radius:50%; background:#2b2b40;"></span>
+    </div>
+    <div class="kc-screen" style="position:relative; width:100%; height:100%; background:#FFF8F0; border-radius:36px; overflow-y:auto; overflow-x:hidden;">
+
+      <!-- ============ HOME ============ -->
+      <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <!-- campaign banner -->
+          <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ true }}">
+            <div style="background:{{ accent }}; color:#fff; text-align:center; padding:44px 38px 9px; font-size:11.5px; font-weight:500; line-height:1.35; letter-spacing:0.01em;">{{ bannerMsg }}</div>
+          </sc-if>
+          <!-- navbar -->
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:{{ homeNavPadTop }} 18px 12px;">
+            <img src="assets/logo.png" alt="Kindness Currency" style="height:30px; width:auto;">
+            <button onClick="{{ noop }}" style="background:none; border:1px solid rgba(26,26,46,0.18); color:#1A1A2E; font-family:'DM Sans',sans-serif; font-weight:600; font-size:12.5px; padding:7px 16px; border-radius:999px; cursor:pointer;">Log In</button>
+          </div>
+
+          <!-- hero -->
+          <div style="position: relative; padding: 14px 22px 26px; overflow: hidden; background: linear-gradient(180deg, #c1672a0d, #effcff00, #cb92b4)">
+            <div style="position:relative; height:188px; margin:0 -6px 6px;">
+              <div style="--r:-8deg; position:absolute; top:6px; left:6px; width:158px; animation:kcFloat 6s ease-in-out infinite;">
+                <dc-import name="CouponCardMini" title="One Long Bath Together" accent="#C2185B" motif="❦" hint-size="158px,86px"></dc-import>
+              </div>
+              <div style="--r:7deg; position:absolute; top:30px; right:2px; width:158px; animation:kcFloat 7s ease-in-out 0.6s infinite;">
+                <dc-import name="CouponCardMini" title="One Fun Day Out" accent="#FF8F00" motif="✺" hint-size="158px,86px"></dc-import>
+              </div>
+              <div style="--r:5deg; position:absolute; bottom:0; left:24px; width:158px; animation:kcFloat 6.6s ease-in-out 0.3s infinite;">
+                <dc-import name="CouponCardMini" title="One Home-Cooked Meal" accent="#D4658A" motif="❀" hint-size="158px,86px"></dc-import>
+              </div>
+              <div style="--r:-6deg; position:absolute; bottom:14px; right:30px; width:150px; animation:kcFloat 7.4s ease-in-out 0.9s infinite;">
+                <dc-import name="CouponCardMini" title="One Hype Session" accent="#2E7D6B" motif="✦" hint-size="150px,82px"></dc-import>
+              </div>
+            </div>
+            <div style="font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:38px; line-height:1.04; color:#1A1A2E; letter-spacing:-0.01em; text-wrap:balance;">Give a promise,<br>not a thing.</div>
+            <div style="margin-top:12px; font-size:14.5px; line-height:1.5; color:#2C2C2C; opacity:0.78; max-width:300px;">Hand-craft a set of acts-of-service coupons and send them with a single link. No app for them to download. Just love, redeemable.</div>
+            <button onClick="{{ goCreate }}" style="margin-top:20px; width:100%; border:none; cursor:pointer; background:{{ accent }}; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:15.5px; padding:15px; border-radius:14px; box-shadow:0 16px 30px -14px rgba(194,24,91,0.8);" style-hover="background:#a8154f;">Create My Coupons</button>
+          </div>
+
+          <!-- trending templates -->
+          <div style="padding: 8px 0 20px; background-color: #0a1f44">
+            <div style="padding:0 22px;">
+              <div style="font-family: 'Playfair Display',serif; font-weight: 700; font-size: 22px; color: #eaeaf2">Trending Templates</div>
+              <div style="margin-top: 3px; font-size: 12.5px; color: #fffbfb; opacity: 0.7">{{ templatesSubheading }}</div>
+            </div>
+            <div style="display:flex; gap:13px; overflow-x:auto; padding:16px 22px 6px; scrollbar-width:none;">
+              <sc-for list="{{ templates }}" as="tpl" hint-placeholder-count="5">
+                <div onClick="{{ tpl.onSelect }}" style="flex:none; width:172px; cursor:pointer; background:#fff; border:1px solid rgba(26,26,46,0.08); border-radius:18px; padding:15px 15px 16px; box-shadow:0 14px 30px -22px rgba(26,26,46,0.5); transition:transform .18s ease, box-shadow .18s ease;" style-hover="transform:translateY(-5px); box-shadow:0 22px 38px -22px rgba(26,26,46,0.55);">
+                  <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <div style="width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; color:{{ tpl.accent }}; background:{{ tpl.tint }};">{{ tpl.motif }}</div>
+                    <sc-if value="{{ tpl.ageRestricted }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:9px; font-weight:700; letter-spacing:0.08em; color:{{ accent }}; border:1px solid {{ accent }}; border-radius:999px; padding:2px 7px;">18+</span>
+                    </sc-if>
+                  </div>
+                  <div style="margin-top:12px; font-family:'Playfair Display',serif; font-weight:700; font-size:16.5px; line-height:1.15; color:#1A1A2E;">{{ tpl.name }}</div>
+                  <div style="margin-top:5px; font-size:11.5px; line-height:1.4; color:#2C2C2C; opacity:0.7;">{{ tpl.tagline }}</div>
+                  <div style="margin-top:12px; font-size:11.5px; font-weight:600; color:{{ tpl.accent }};">8 coupons →</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- footer -->
+          <div style="padding: 22px; border-top: 1px solid rgba(26,26,46,0.07); text-align: center; background-color: #fff8f0">
+            <div style="font-family:'Playfair Display',serif; font-style:italic; font-size:15px; color:#1A1A2E; opacity:0.85;">{{ footerTagline }}</div>
+            <div style="margin-top:8px; font-size:10.5px; letter-spacing:0.06em; color:#2C2C2C; opacity:0.45;">KINDNESS CURRENCY</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ CREATE: SELECT ============ -->
+      <sc-if value="{{ isSelect }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex; align-items:center; gap:12px; padding:46px 18px 6px;">
+            <button onClick="{{ goHome }}" style="background:none; border:none; cursor:pointer; font-size:20px; color:#1A1A2E; line-height:1; padding:4px;">‹</button>
+            <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.04em; text-transform:uppercase; color:#2C2C2C; opacity:0.6;">Step 1 of 3</div>
+          </div>
+          <div style="padding:6px 22px 4px;">
+            <div style="font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:28px; color:#1A1A2E;">Pick a template</div>
+            <div style="margin-top:6px; font-size:13px; color:#2C2C2C; opacity:0.72;">Each ships with eight thoughtful coupons, ready to personalise.</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 13px; padding: 16px 22px 30px; background: linear-gradient(90deg, #ffffff, #e8d2bc)">
+            <sc-for list="{{ templates }}" as="tpl" hint-placeholder-count="5">
+              <div onClick="{{ tpl.onSelect }}" style="cursor:pointer; background:#fff; border:1px solid rgba(26,26,46,0.08); border-radius:18px; padding:16px; display:flex; align-items:center; gap:15px; box-shadow:0 14px 30px -24px rgba(26,26,46,0.5); transition:transform .16s ease;" style-hover="transform:translateY(-3px);">
+                <div style="width:54px; height:54px; flex:none; border-radius:15px; display:flex; align-items:center; justify-content:center; font-size:27px; color:{{ tpl.accent }}; background:{{ tpl.tint }};">{{ tpl.motif }}</div>
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="font-family:'Playfair Display',serif; font-weight:700; font-size:18px; color:#1A1A2E;">{{ tpl.name }}</div>
+                    <sc-if value="{{ tpl.ageRestricted }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; color:{{ accent }}; border:1px solid {{ accent }}; border-radius:999px; padding:2px 6px;">18+</span>
+                    </sc-if>
+                  </div>
+                  <div style="margin-top:4px; font-size:12px; line-height:1.4; color:#2C2C2C; opacity:0.7;">{{ tpl.tagline }}</div>
+                </div>
+                <div style="font-size:20px; color:{{ tpl.accent }}; flex:none;">→</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ CREATE: DETAILS ============ -->
+      <sc-if value="{{ isDetails }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex; align-items:center; gap:12px; padding:46px 18px 6px;">
+            <button onClick="{{ backToSelect }}" style="background:none; border:none; cursor:pointer; font-size:20px; color:#1A1A2E; line-height:1; padding:4px;">‹</button>
+            <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.04em; text-transform:uppercase; color:#2C2C2C; opacity:0.6;">Step 2 of 3</div>
+          </div>
+          <div style="padding:6px 22px 0;">
+            <div style="display:inline-flex; align-items:center; gap:9px; background:{{ currentTint }}; padding:7px 13px 7px 9px; border-radius:999px;">
+              <span style="font-size:18px; color:{{ currentAccent }};">{{ currentMotif }}</span>
+              <span style="font-size:12.5px; font-weight:600; color:#1A1A2E;">{{ currentName }}</span>
+            </div>
+            <div style="margin-top:16px; font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:27px; color:#1A1A2E; line-height:1.1;">Who's it for?</div>
+            <div style="margin-top:6px; font-size:13px; color:#2C2C2C; opacity:0.72;">We'll weave these names through the whole gift.</div>
+          </div>
+          <div style="padding:22px; display:flex; flex-direction:column; gap:16px;">
+            <label style="display:block;">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#2C2C2C; opacity:0.6;">Your name</span>
+              <input value="{{ senderName }}" onInput="{{ onSenderInput }}" placeholder="e.g. Alex" style="margin-top:6px; width:100%; border:1.5px solid rgba(26,26,46,0.14); border-radius:12px; padding:13px 14px; font-family:'DM Sans',sans-serif; font-size:15px; color:#1A1A2E; background:#fff; outline:none;" style-focus="border-color:#C2185B;">
+            </label>
+            <label style="display:block;">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#2C2C2C; opacity:0.6;">Their name</span>
+              <input value="{{ recipientName }}" onInput="{{ onRecipientInput }}" placeholder="e.g. Mom" style="margin-top:6px; width:100%; border:1.5px solid rgba(26,26,46,0.14); border-radius:12px; padding:13px 14px; font-family:'DM Sans',sans-serif; font-size:15px; color:#1A1A2E; background:#fff; outline:none;" style-focus="border-color:#C2185B;">
+            </label>
+            <label style="display:block;">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#2C2C2C; opacity:0.6;">Expiry date <span style="opacity:0.6; font-weight:500; text-transform:none; letter-spacing:0;">· optional</span></span>
+              <input value="{{ expiry }}" onInput="{{ onExpiryInput }}" type="date" style="margin-top:6px; width:100%; border:1.5px solid rgba(26,26,46,0.14); border-radius:12px; padding:13px 14px; font-family:'DM Sans',sans-serif; font-size:15px; color:#1A1A2E; background:#fff; outline:none;" style-focus="border-color:#C2185B;">
+            </label>
+            <button onClick="{{ startEditing }}" style="margin-top:6px; width:100%; border:none; cursor:pointer; background:{{ detailsBtnBg }}; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:15.5px; padding:15px; border-radius:14px; box-shadow:0 16px 30px -16px rgba(194,24,91,0.7);">Personalise the coupons →</button>
+            <div style="text-align:center; font-size:11.5px; color:#2C2C2C; opacity:0.55;">{{ detailsHint }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ CREATE: EDIT ============ -->
+      <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ false }}">
+        <div style="padding-bottom:20px;">
+          <div style="position:sticky; top:0; z-index:30; background:rgba(255,248,240,0.92); backdrop-filter:blur(8px); border-bottom:1px solid rgba(26,26,46,0.07);">
+            <div style="display:flex; align-items:center; gap:12px; padding:44px 18px 12px;">
+              <button onClick="{{ backToDetails }}" style="background:none; border:none; cursor:pointer; font-size:20px; color:#1A1A2E; line-height:1; padding:4px;">‹</button>
+              <div style="flex:1; min-width:0;">
+                <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.04em; text-transform:uppercase; color:#2C2C2C; opacity:0.6;">Step 3 of 3 · {{ currentName }}</div>
+                <div style="font-size:11.5px; color:#2C2C2C; opacity:0.6; margin-top:1px;">For {{ recipientDisplay }} · from {{ senderDisplay }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 18px; padding: 18px 18px 4px; background: linear-gradient(90deg, #ffffff, #e8d2bc)">
+            <sc-for list="{{ editCoupons }}" as="c" hint-placeholder-count="8">
+              <div style="background:#fff; border:1px solid rgba(26,26,46,0.07); border-radius:20px; padding:13px; box-shadow:0 12px 28px -22px rgba(26,26,46,0.55);">
+                <!-- live card -->
+                <dc-import name="CouponCard" service-title="{{ c.serviceTitle }}" micro-copy="{{ c.microCopy }}" fine-print="{{ c.finePrint }}" font-choice="{{ c.fontChoice }}" background-color="{{ c.backgroundColor }}" background-effect="{{ c.backgroundEffect }}" accent="{{ c.accent }}" motif="{{ c.motif }}" punch-color="#FFFFFF" hint-size="100%,160px"></dc-import>
+
+                <!-- editable fields -->
+                <div style="margin-top:13px; display:flex; flex-direction:column; gap:9px;">
+                  <input value="{{ c.serviceTitle }}" onInput="{{ c.onTitle }}" placeholder="Service title" style="width:100%; border:1px solid rgba(26,26,46,0.12); border-radius:10px; padding:10px 12px; font-family:'Playfair Display',serif; font-style:italic; font-weight:700; font-size:15px; color:#1A1A2E; background:#FFF8F0; outline:none;" style-focus="border-color:#C2185B;">
+                  <input value="{{ c.microCopy }}" onInput="{{ c.onMicro }}" placeholder="A warm supporting line" style="width:100%; border:1px solid rgba(26,26,46,0.12); border-radius:10px; padding:9px 12px; font-family:'DM Sans',sans-serif; font-size:13px; color:#2C2C2C; background:#FFF8F0; outline:none;" style-focus="border-color:#C2185B;">
+                  <input value="{{ c.finePrint }}" onInput="{{ c.onFine }}" placeholder="Fine print" style="width:100%; border:1px solid rgba(26,26,46,0.12); border-radius:10px; padding:8px 12px; font-family:'DM Sans',sans-serif; font-size:11.5px; color:#2C2C2C; background:#FFF8F0; outline:none;" style-focus="border-color:#C2185B;">
+                </div>
+
+                <!-- controls -->
+                <div style="margin-top:13px; display:flex; flex-direction:column; gap:11px;">
+                  <!-- font -->
+                  <div style="display:flex; align-items:center; gap:9px;">
+                    <span style="font-size:10px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#2C2C2C; opacity:0.5; width:46px; flex:none;">Font</span>
+                    <div style="display:flex; gap:6px; background:#F0ECE4; padding:3px; border-radius:10px;">
+                      <button onClick="{{ c.setPlayfair }}" style="{{ c.playfairStyle }}">Playfair</button>
+                      <button onClick="{{ c.setDmSans }}" style="{{ c.dmSansStyle }}">DM Sans</button>
+                    </div>
+                  </div>
+                  <!-- colour -->
+                  <div style="display:flex; align-items:center; gap:9px;">
+                    <span style="font-size:10px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#2C2C2C; opacity:0.5; width:46px; flex:none;">Colour</span>
+                    <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                      <sc-for list="{{ c.swatches }}" as="sw" hint-placeholder-count="6">
+                        <button onClick="{{ sw.pick }}" style="{{ sw.style }}"></button>
+                      </sc-for>
+                      <label style="position:relative; width:26px; height:26px; border-radius:50%; cursor:pointer; background:conic-gradient(from 0deg, #ff5252, #ffb142, #fffb52, #52ff7a, #52d9ff, #5271ff, #c952ff, #ff52a8, #ff5252); display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px #fff inset;">
+                        <input type="color" value="{{ c.backgroundColor }}" onInput="{{ c.onColor }}" style="position:absolute; inset:0; opacity:0; cursor:pointer;">
+                      </label>
+                    </div>
+                  </div>
+                  <!-- effect -->
+                  <div style="display:flex; align-items:center; gap:9px;">
+                    <span style="font-size:10px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#2C2C2C; opacity:0.5; width:46px; flex:none;">Effect</span>
+                    <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                      <button onClick="{{ c.fxNone }}" style="{{ c.fxNoneStyle }}">None</button>
+                      <button onClick="{{ c.fxConfetti }}" style="{{ c.fxConfettiStyle }}">Confetti</button>
+                      <button onClick="{{ c.fxSparkle }}" style="{{ c.fxSparkleStyle }}">Sparkle</button>
+                      <button onClick="{{ c.fxGlow }}" style="{{ c.fxGlowStyle }}">Soft Glow</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- sticky action bar -->
+          <div style="position:sticky; bottom:0; z-index:40; background:rgba(255,248,240,0.94); backdrop-filter:blur(10px); border-top:1px solid rgba(26,26,46,0.08); padding:13px 18px 16px; display:flex; flex-direction:column; gap:9px;">
+            <button onClick="{{ openPreview }}" style="width:100%; border:1.5px solid #1A1A2E; background:none; cursor:pointer; color:#1A1A2E; font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; padding:12px; border-radius:13px;">Preview All Coupons</button>
+            <div style="display:flex; gap:9px;">
+              <button onClick="{{ openSave }}" style="flex:1; border:1.5px solid {{ accent }}; background:none; cursor:pointer; color:{{ accent }}; font-family:'DM Sans',sans-serif; font-weight:700; font-size:14px; padding:13px; border-radius:13px;">Save My Coupons</button>
+              <button onClick="{{ openSend }}" style="flex:1.3; border:none; cursor:pointer; background:{{ accent }}; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:14px; padding:13px; border-radius:13px; box-shadow:0 14px 26px -14px rgba(194,24,91,0.8);">Send with Love</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ GIFT READY ============ -->
+      <sc-if value="{{ isGiftReady }}" hint-placeholder-val="{{ false }}">
+        <div style="min-height:100%; display:flex; flex-direction:column; padding:0 22px 30px;">
+          <div style="padding-top:54px; text-align:center;">
+            <div style="width:72px; height:72px; margin:0 auto; border-radius:50%; background:{{ accent }}; display:flex; align-items:center; justify-content:center; font-size:34px; color:#fff; animation:kcPop .5s ease both; box-shadow:0 18px 34px -14px rgba(194,24,91,0.7);">♥</div>
+            <div style="margin-top:18px; font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:30px; color:#1A1A2E; animation:kcRise .5s ease .1s both;">Your gift is ready</div>
+            <div style="margin-top:8px; font-size:13.5px; line-height:1.5; color:#2C2C2C; opacity:0.75; animation:kcRise .5s ease .18s both;">{{ giftReadySub }}</div>
+          </div>
+
+          <div style="margin-top:26px; background:#fff; border:1px solid rgba(26,26,46,0.08); border-radius:18px; padding:16px; animation:kcRise .5s ease .26s both;">
+            <div style="font-size:10.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#2C2C2C; opacity:0.55;">Shareable link</div>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+              <div style="flex:1; min-width:0; font-size:12.5px; color:#1A1A2E; background:#FFF8F0; border:1px solid rgba(26,26,46,0.1); border-radius:10px; padding:11px 12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ shareLink }}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; background:#1A1A2E; border-radius:18px; padding:18px; text-align:center; animation:kcRise .5s ease .32s both;">
+            <div style="font-size:10.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.55);">Their 4-digit PIN</div>
+            <div onClick="{{ copyPin }}" style="margin-top:10px; display:flex; align-items:center; justify-content:center; gap:12px; cursor:pointer;">
+              <sc-for list="{{ pinDigits }}" as="d" hint-placeholder-count="4">
+                <span style="width:46px; height:58px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.16); border-radius:12px; font-family:'Playfair Display',serif; font-weight:700; font-size:30px; color:#fff;">{{ d.v }}</span>
+              </sc-for>
+            </div>
+            <div style="margin-top:12px; font-size:11.5px; line-height:1.45; color:#FF8F00;">{{ pinInstruction }}</div>
+          </div>
+
+          <div style="margin-top:18px; display:flex; flex-direction:column; gap:10px; animation:kcRise .5s ease .38s both;">
+            <button onClick="{{ shareWhatsApp }}" style="width:100%; border:none; cursor:pointer; background:#25D366; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:15px; padding:14px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:9px;"><span style="font-size:17px;">✆</span> Share via WhatsApp</button>
+            <div style="display:flex; gap:10px;">
+              <button onClick="{{ copyLink }}" style="flex:1; border:1.5px solid rgba(26,26,46,0.16); background:#fff; cursor:pointer; color:#1A1A2E; font-family:'DM Sans',sans-serif; font-weight:600; font-size:13.5px; padding:12px; border-radius:13px;">{{ copyLinkLabel }}</button>
+              <button onClick="{{ webShare }}" style="flex:1; border:1.5px solid rgba(26,26,46,0.16); background:#fff; cursor:pointer; color:#1A1A2E; font-family:'DM Sans',sans-serif; font-weight:600; font-size:13.5px; padding:12px; border-radius:13px;">Share…</button>
+            </div>
+          </div>
+
+          <button onClick="{{ goGiveFromReady }}" style="margin-top:18px; align-self:center; background:none; border:none; cursor:pointer; color:{{ accent }}; font-size:13px; font-weight:600; text-decoration:underline; text-underline-offset:3px;">Preview what {{ recipientDisplay }} will see →</button>
+        </div>
+      </sc-if>
+
+      <!-- ============ RECIPIENT / GIVE ============ -->
+      <sc-if value="{{ isGive }}" hint-placeholder-val="{{ false }}">
+        <div style="padding-bottom:40px;">
+          <div style="background:linear-gradient(160deg, {{ accent }}, {{ accentDark }}); padding:46px 24px 28px; color:#fff; text-align:center;">
+            <div style="font-size:12px; letter-spacing:0.16em; text-transform:uppercase; opacity:0.8;">A gift for you</div>
+            <div style="margin-top:12px; font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:30px; line-height:1.12;">For {{ giveRecipient }},</div>
+            <div style="margin-top:2px; font-family:'Playfair Display',serif; font-weight:500; font-style:italic; font-size:19px; opacity:0.92;">with love from {{ giveSender }} ♥</div>
+            <div style="margin-top:14px; font-size:13px; line-height:1.5; opacity:0.85; max-width:280px; margin-left:auto; margin-right:auto;">{{ giveCount }} promises, each redeemable whenever you're ready. Tap one to call it in.</div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px; padding: 20px 18px 8px; background: linear-gradient(90deg, #ffffff2c, #e8d2bc)">
+            <sc-for list="{{ giveCoupons }}" as="c" hint-placeholder-count="8">
+              <dc-import name="CouponCard" service-title="{{ c.serviceTitle }}" micro-copy="{{ c.microCopy }}" fine-print="{{ c.finePrint }}" font-choice="{{ c.fontChoice }}" background-color="{{ c.backgroundColor }}" background-effect="{{ c.backgroundEffect }}" accent="{{ c.accent }}" motif="{{ c.motif }}" status="{{ c.status }}" show-redeem="{{ c.showRedeem }}" on-redeem="{{ c.onRedeem }}" hint-size="100%,160px"></dc-import>
+            </sc-for>
+          </div>
+
+          <!-- conversion CTA -->
+          <div style="margin:22px 18px 10px; background:#1A1A2E; border-radius:20px; padding:22px; text-align:center;">
+            <div style="font-family:'Playfair Display',serif; font-style:italic; font-weight:700; font-size:19px; color:#fff;">Loved this gift?</div>
+            <div style="margin-top:6px; font-size:12.5px; color:rgba(255,255,255,0.7);">Create your own — it's free.</div>
+            <button onClick="{{ goCreate }}" style="margin-top:14px; border:none; cursor:pointer; background:#fff; color:#1A1A2E; font-family:'DM Sans',sans-serif; font-weight:700; font-size:14px; padding:12px 22px; border-radius:999px;">Create My Coupons →</button>
+          </div>
+          <div style="text-align:center; padding:10px 0 6px; font-size:10.5px; letter-spacing:0.05em; color:#2C2C2C; opacity:0.4;">Made with Kindness Currency</div>
+        </div>
+      </sc-if>
+
+      <!-- ============ OVERLAYS ============ -->
+      <!-- age gate -->
+      <sc-if value="{{ ageGateOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; inset:0; z-index:80; background:rgba(26,26,46,0.55); backdrop-filter:blur(3px); display:flex; align-items:flex-end;">
+          <div style="width:100%; background:#FFF8F0; border-radius:26px 26px 36px 36px; padding:28px 24px 30px; animation:kcRise .3s ease both;">
+            <div style="width:54px; height:54px; border-radius:16px; background:#7B3F61; display:flex; align-items:center; justify-content:center; font-size:26px; color:#fff;">☾</div>
+            <div style="margin-top:16px; font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:24px; color:#1A1A2E;">A grown-up gift</div>
+            <div style="margin-top:8px; font-size:13.5px; line-height:1.5; color:#2C2C2C; opacity:0.78;">Lover's Intimate Promises contains adult themes. Please confirm you're 18 or older to continue.</div>
+            <div style="margin-top:22px; display:flex; flex-direction:column; gap:10px;">
+              <button onClick="{{ confirmAge }}" style="width:100%; border:none; cursor:pointer; background:{{ accent }}; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:15px; padding:14px; border-radius:14px;">I'm 18+, Continue →</button>
+              <button onClick="{{ dismissAge }}" style="width:100%; border:none; cursor:pointer; background:none; color:#2C2C2C; font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; padding:8px;">Go Back</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- preview overlay -->
+      <sc-if value="{{ previewOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; inset:0; z-index:80; background:#1A1A2E; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:44px 20px 12px;">
+            <div style="color:#fff; font-family:'Playfair Display',serif; font-style:italic; font-weight:700; font-size:19px;">Preview</div>
+            <button onClick="{{ closePreview }}" style="background:rgba(255,255,255,0.1); border:none; cursor:pointer; color:#fff; width:32px; height:32px; border-radius:50%; font-size:17px;">✕</button>
+          </div>
+          <div style="flex:1; overflow-y:auto; padding:8px 18px 26px; display:flex; flex-direction:column; gap:15px;">
+            <sc-for list="{{ editCoupons }}" as="c" hint-placeholder-count="8">
+              <dc-import name="CouponCard" service-title="{{ c.serviceTitle }}" micro-copy="{{ c.microCopy }}" fine-print="{{ c.finePrint }}" font-choice="{{ c.fontChoice }}" background-color="{{ c.backgroundColor }}" background-effect="{{ c.backgroundEffect }}" accent="{{ c.accent }}" motif="{{ c.motif }}" punch-color="#1A1A2E" hint-size="100%,160px"></dc-import>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- auth modal -->
+      <sc-if value="{{ authOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; inset:0; z-index:85; background:rgba(26,26,46,0.55); backdrop-filter:blur(3px); display:flex; align-items:flex-end;">
+          <div style="width:100%; background:#FFF8F0; border-radius:26px 26px 36px 36px; padding:26px 24px 30px; animation:kcRise .3s ease both;">
+            <sc-if value="{{ authFormStep }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:23px; color:#1A1A2E;">Almost there — save your coupons</div>
+                <div style="margin-top:8px; font-size:12.5px; line-height:1.5; color:#2C2C2C; opacity:0.72;">{{ authSubtext }}</div>
+                <div style="margin-top:18px; display:flex; flex-direction:column; gap:11px;">
+                  <input value="{{ authName }}" onInput="{{ onAuthName }}" placeholder="Full name" style="width:100%; border:1.5px solid rgba(26,26,46,0.14); border-radius:12px; padding:13px 14px; font-family:'DM Sans',sans-serif; font-size:15px; color:#1A1A2E; background:#fff; outline:none;" style-focus="border-color:#C2185B;">
+                  <input value="{{ authEmail }}" onInput="{{ onAuthEmail }}" type="email" placeholder="Email address" style="width:100%; border:1.5px solid rgba(26,26,46,0.14); border-radius:12px; padding:13px 14px; font-family:'DM Sans',sans-serif; font-size:15px; color:#1A1A2E; background:#fff; outline:none;" style-focus="border-color:#C2185B;">
+                </div>
+                <button onClick="{{ submitAuth }}" style="margin-top:16px; width:100%; border:none; cursor:pointer; background:{{ accent }}; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:15px; padding:14px; border-radius:14px;">Email me a magic link</button>
+                <button onClick="{{ closeAuth }}" style="margin-top:8px; width:100%; border:none; cursor:pointer; background:none; color:#2C2C2C; font-weight:600; font-size:13.5px; padding:6px; opacity:0.7;">Not yet</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ authOtpStep }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center; padding:6px 0;">
+                <div style="width:56px; height:56px; margin:0 auto; border-radius:16px; background:#FF8F00; display:flex; align-items:center; justify-content:center; font-size:26px; color:#fff;">✉</div>
+                <div style="margin-top:16px; font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:22px; color:#1A1A2E;">Check your inbox</div>
+                <div style="margin-top:8px; font-size:13px; line-height:1.5; color:#2C2C2C; opacity:0.72;">We sent a magic link to <b>{{ authEmailDisplay }}</b>. Tap it to verify — no password needed.</div>
+                <button onClick="{{ verifyOtp }}" style="margin-top:20px; width:100%; border:none; cursor:pointer; background:{{ accent }}; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:15px; padding:14px; border-radius:14px;">✦ Simulate clicking the link</button>
+                <div style="margin-top:10px; font-size:11px; color:#2C2C2C; opacity:0.5;">(Prototype shortcut — real app verifies via email)</div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- redeem modal -->
+      <sc-if value="{{ redeemOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; inset:0; z-index:85; background:rgba(26,26,46,0.6); backdrop-filter:blur(3px); display:flex; align-items:flex-end;">
+          <div style="width:100%; background:#FFF8F0; border-radius:26px 26px 36px 36px; padding:26px 24px 30px; animation:kcRise .3s ease both;">
+            <div style="text-align:center;">
+              <div style="font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:23px; color:#1A1A2E; line-height:1.18;">Redeem this right now?</div>
+              <div style="margin-top:8px; font-size:13px; line-height:1.5; color:#2C2C2C; opacity:0.75;">“{{ redeemTitle }}” — once you redeem, it can't be undone. Ready?</div>
+            </div>
+            <div style="margin-top:20px;">
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#2C2C2C; opacity:0.55; text-align:center;">Enter your 4-digit PIN</div>
+              <input value="{{ pinInput }}" onInput="{{ onPinInput }}" inputmode="numeric" maxlength="4" placeholder="••••" style="margin-top:10px; width:100%; text-align:center; letter-spacing:0.5em; border:1.5px solid {{ pinBorder }}; border-radius:14px; padding:15px; font-family:'Playfair Display',serif; font-weight:700; font-size:26px; color:#1A1A2E; background:#fff; outline:none;">
+              <sc-if value="{{ pinHasError }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:9px; font-size:12.5px; color:#C2185B; text-align:center; line-height:1.4;">{{ pinError }}</div>
+              </sc-if>
+              <div style="margin-top:9px; font-size:11px; color:#2C2C2C; opacity:0.5; text-align:center;">{{ pinDemoHint }}</div>
+            </div>
+            <div style="margin-top:18px; display:flex; flex-direction:column; gap:10px;">
+              <button onClick="{{ confirmRedeem }}" style="width:100%; border:none; cursor:pointer; background:{{ accent }}; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:15px; padding:14px; border-radius:14px;">Yes, redeem with love ♥</button>
+              <button onClick="{{ cancelRedeem }}" style="width:100%; border:none; cursor:pointer; background:none; color:#2C2C2C; font-weight:600; font-size:14px; padding:6px; opacity:0.7;">Not yet</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- redeemed celebration -->
+      <sc-if value="{{ celebrateOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeCelebrate }}" style="position:absolute; inset:0; z-index:90; background:rgba(26,26,46,0.62); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:30px;">
+          <div style="background:#FFF8F0; border-radius:24px; padding:32px 26px; text-align:center; max-width:300px; animation:kcPop .45s ease both;">
+            <div style="font-size:46px; color:{{ accent }}; animation:kcPop .5s ease .1s both;">♥</div>
+            <div style="margin-top:10px; font-family:'Playfair Display',serif; font-weight:800; font-style:italic; font-size:24px; color:#1A1A2E;">This has been redeemed with love</div>
+            <div style="margin-top:10px; font-size:13px; line-height:1.5; color:#2C2C2C; opacity:0.72;">{{ giveSender }} can't wait. Enjoy every moment of it.</div>
+            <button onClick="{{ closeCelebrate }}" style="margin-top:20px; border:none; cursor:pointer; background:#1A1A2E; color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:14px; padding:12px 26px; border-radius:999px;">Lovely ♥</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- toast -->
+      <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; bottom:26px; left:50%; transform:translateX(-50%); z-index:95; background:#1A1A2E; color:#fff; font-size:13px; font-weight:600; padding:11px 20px; border-radius:999px; box-shadow:0 14px 30px -10px rgba(0,0,0,0.6); white-space:nowrap;">{{ toast }}</div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="margin-top:18px; color:rgba(255,255,255,0.4); font-size:12px; text-align:center; max-width:390px; line-height:1.5;">{{ caption }}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;brandColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#C2185B&quot;,&quot;options&quot;:[&quot;#C2185B&quot;,&quot;#B23A6B&quot;,&quot;#7B3F61&quot;,&quot;#1F7A6B&quot;,&quot;#C2571E&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showBanner&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;bannerMessage&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Stand a chance to win a cash prize by using the Mom's Promise Tokens before May 30th 🎉&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;demoTemplate&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;valentines&quot;,&quot;mothers_day&quot;,&quot;birthday&quot;,&quot;lovers&quot;,&quot;besties&quot;],&quot;default&quot;:&quot;valentines&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      screen: 'home',          // home | select | details | edit | giftReady | give
+      ageGate: null,           // pending slug
+      selectedSlug: null,
+      senderName: '', recipientName: '', expiry: '',
+      coupons: [],
+      previewOpen: false,
+      auth: null,              // null | 'form' | 'otp'
+      authName: '', authEmail: '',
+      pin: null, shareLink: '',
+      give: null,              // {slug, senderName, recipientName, coupons}
+      redeem: null,            // couponId
+      pinInput: '', pinError: '',
+      celebrate: false,
+      toast: '', copied: false,
+    };
+    this._toastT = null;
+  }
+
+  // ---------- data ----------
+  templatesData() {
+    return [
+      { slug:'mothers_day', name:"Mom's Promise Tokens", motif:'❀', accent:'#D4658A', tint:'#FBE7EE', tagline:'Warm promises for the woman who does it all.', ageRestricted:false, coupons:[
+        ['One Home-Cooked Meal','Made with extra love, just the way you like it','No expiry · Redeemable anytime'],
+        ['One Errand Run',"Give me the list. I'll handle everything",'No questions asked'],
+        ['One Full Day Together','Your plans, your pace, your person','Phone goes away. You have my full attention'],
+        ['One Grocery Shop','Your favourites, plus a little extra','Just send me the list'],
+        ['One Bedside Visit','Soup, company, and zero judgment',"Redeemable when you're under the weather"],
+        ['One Long Phone Call','No rushing. Just us talking','Anytime you need it'],
+        ['One Surprise Treat','Something sweet, just because','No occasion needed'],
+        ['One Anything You Need',"Whatever it is — I'm already saying yes",'Wildcard · No limits'] ] },
+      { slug:'valentines', name:"Valentine's Love Passes", motif:'❦', accent:'#C2185B', tint:'#FBDCE6', tagline:'Eight ways to say I choose you, again.', ageRestricted:false, coupons:[
+        ['One Romantic Dinner In','Candles, your favourite meal, no interruptions',"Redeemable any evening · Chef's kiss guaranteed"],
+        ['One Breakfast in Bed',"Stay right there. I've got this",'Weekend redemption preferred'],
+        ['One Massage','Full focus. No distractions. Just you','Duration negotiable'],
+        ['One Night, Your Choice','Movie, drive, dancing — you pick, I show up','No vetoes allowed'],
+        ['One Love Letter','Handwritten. From the heart. No edits','Delivered whenever you redeem'],
+        ['One Chore-Free Day',"Rest. I'll handle everything today",'Valid any day you need a break'],
+        ['One Surprise Date',"Just show up. I'll do the rest",'Dress code: whatever makes you feel good'],
+        ['One Wild Card','Anything, anywhere, anytime','No questions asked · No limits'] ] },
+      { slug:'birthday', name:'Birthday Joy Tokens', motif:'✺', accent:'#FF8F00', tint:'#FFEAC9', tagline:'Make their whole birthday month a celebration.', ageRestricted:false, coupons:[
+        ['One Birthday Meal, Your Choice','Restaurant, takeout, or homemade — your call','Valid all birthday month'],
+        ['One Cake of Your Choice','Ordered, baked, or bought — however you want it','Candles included'],
+        ['One Fun Day Out',"Pick the vibe. I'll plan the rest",'No budget complaints'],
+        ['One Sleep-In Morning',"I'll handle the noise. You stay in bed",'Redeemable any weekend'],
+        ['One Playlist Made for You','Every song chosen with you in mind','Delivered within 24 hours of redemption'],
+        ['One Rant Session',"Talk. I'll listen. No advice unless you ask",'Unlimited time · Full attention'],
+        ['One Guilt-Free Treat','Order the expensive one. No comments from me','One-time use · Fully valid'],
+        ['One Birthday Wish Granted',"Whatever you want. Today it's yes",'Wildcard · Birthday rules apply'] ] },
+      { slug:'lovers', name:"Lover's Intimate Promises", motif:'☾', accent:'#7B3F61', tint:'#EFE0EA', tagline:'Tender, unhurried promises for two.', ageRestricted:true, coupons:[
+        ['One Night With No Phones','Just us. The screens can wait','Full evening · No exceptions'],
+        ['One Long Bath Together','Candles, music, no rushing','Redeemable any evening'],
+        ["One Morning We Don't Leave Bed",'Nowhere to be. Nothing to do','Weekend use only'],
+        ['One Dance in the Kitchen','No music required. Just us','Redeemable anytime, without warning'],
+        ['One Honest Conversation','No guards. No defensiveness. Just truth','Safe space guaranteed'],
+        ['One Night You Plan Everything',"I'll just say yes to whatever you decide",'Full surrender of the evening'],
+        ['One Love Language Act',"However you feel most loved — I'm doing that",'You define it. I deliver it'],
+        ['One Anything After Midnight','You know what this means','Wildcard · No elaboration needed'] ] },
+      { slug:'besties', name:"Bestie's Surprise Passes", motif:'✦', accent:'#2E7D6B', tint:'#DCEEE8', tagline:'For the friend who always picks up.', ageRestricted:false, coupons:[
+        ['One Emergency Vent Call',"Drop everything. I'm already listening",'Available 24/7 · No judgment ever'],
+        ['One Unplanned Adventure','Say yes first. Ask questions never','Destination decided on the day'],
+        ['One Ugly Cry Session','Tissues provided. Mascara optional','Full duration · Snacks included'],
+        ['One Honest Opinion','The real answer. Not the nice one','You asked. I delivered'],
+        ['One Hype Session','I will remind you how incredible you are','Redeemable before any big moment'],
+        ['One Night In Together','Snacks, bad TV, no plans, no effort','Comfy clothes mandatory'],
+        ['One Errand Buddy',"I'll come. I'll complain. I'll make it fun",'Available weekends · Complaints are affectionate'],
+        ['One Wildcard Favour','Whatever you need. No explanation required','Best friend card · Always valid'] ] },
+    ];
+  }
+  templateBySlug(slug) { return this.templatesData().find(t => t.slug === slug); }
+
+  // ---------- navigation ----------
+  goHome = () => this.setState({ screen:'home', previewOpen:false, auth:null, ageGate:null });
+  goCreate = () => this.setState({ screen:'select', previewOpen:false, auth:null, ageGate:null });
+  backToSelect = () => this.setState({ screen:'select' });
+  backToDetails = () => this.setState({ screen:'details' });
+  noop = () => this.showToast('Log in is stubbed in this prototype');
+
+  selectTemplate = (slug) => {
+    const t = this.templateBySlug(slug);
+    if (t && t.ageRestricted) { this.setState({ ageGate: slug }); return; }
+    this.loadTemplate(slug);
+  };
+  confirmAge = () => { const slug = this.state.ageGate; this.setState({ ageGate:null }); this.loadTemplate(slug); };
+  dismissAge = () => this.setState({ ageGate:null });
+
+  loadTemplate(slug) {
+    const t = this.templateBySlug(slug);
+    if (!t) return;
+    const coupons = t.coupons.map((c, i) => ({
+      id: slug + '-' + i,
+      serviceTitle: c[0], microCopy: c[1], finePrint: c[2],
+      fontChoice: 'playfair', backgroundColor: '#FFF8F0', backgroundEffect: 'none', status: 'sent',
+    }));
+    this.setState({ selectedSlug: slug, coupons, screen: 'details' });
+  }
+  startEditing = () => {
+    if (!this.state.recipientName.trim()) { this.showToast('Add their name first ♥'); return; }
+    this.setState({ screen: 'edit' });
+  };
+
+  // ---------- field handlers ----------
+  onSenderInput = (e) => this.setState({ senderName: e.target.value });
+  onRecipientInput = (e) => this.setState({ recipientName: e.target.value });
+  onExpiryInput = (e) => this.setState({ expiry: e.target.value });
+
+  patchCoupon(id, patch) {
+    this.setState(s => ({ coupons: s.coupons.map(c => c.id === id ? { ...c, ...patch } : c) }));
+  }
+
+  // ---------- preview ----------
+  openPreview = () => this.setState({ previewOpen: true });
+  closePreview = () => this.setState({ previewOpen: false });
+
+  // ---------- auth / save ----------
+  openSave = () => this.setState({ auth: 'form' });
+  openSend = () => this.setState({ auth: 'form' });
+  closeAuth = () => this.setState({ auth: null });
+  onAuthName = (e) => this.setState({ authName: e.target.value });
+  onAuthEmail = (e) => this.setState({ authEmail: e.target.value });
+  submitAuth = () => {
+    if (!this.state.authEmail.trim()) { this.showToast('Enter your email ♥'); return; }
+    this.setState({ auth: 'otp' });
+  };
+  verifyOtp = () => {
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    const uuid = (Math.random().toString(16).slice(2, 10)) + '-' + (Math.random().toString(16).slice(2, 6));
+    this.setState({ auth: null, pin, shareLink: 'kindnesscurrency.app/give/' + uuid, screen: 'giftReady' });
+  };
+
+  copyPin = () => { this.copy(this.state.pin); this.showToast('PIN copied'); };
+  copyLink = () => { this.copy(this.state.shareLink || 'kindnesscurrency.app/give/demo'); this.setState({ copied: true }); this.showToast('Link copied'); };
+  webShare = () => this.showToast('Opening share sheet…');
+  shareWhatsApp = () => this.showToast('Opening WhatsApp (link only)…');
+  copy(text) { try { navigator.clipboard && navigator.clipboard.writeText(String(text)); } catch (e) {} }
+
+  // ---------- give / recipient ----------
+  buildGive(slug, senderName, recipientName, coupons) {
+    return { slug, senderName, recipientName, coupons: coupons.map(c => ({ ...c })) };
+  }
+  goGiveFromReady = () => {
+    const t = this.templateBySlug(this.state.selectedSlug);
+    const give = this.buildGive(this.state.selectedSlug, this.state.senderName || 'Someone who loves you', this.state.recipientName || 'You', this.state.coupons);
+    this.setState({ give, screen: 'give', pin: this.state.pin });
+  };
+  goGiveDemo = () => {
+    // standalone recipient demo: seeded Valentine's gift
+    if (this.state.give && this.state.screen !== 'give') { this.setState({ screen:'give' }); return; }
+    const slug = this.props.demoTemplate || 'valentines';
+    const t = this.templateBySlug(slug);
+    const coupons = t.coupons.map((c, i) => ({
+      id: 'demo-' + i, serviceTitle: c[0], microCopy: c[1], finePrint: c[2],
+      fontChoice: i % 3 === 0 ? 'dm-sans' : 'playfair',
+      backgroundColor: '#FFF8F0', backgroundEffect: i === 0 ? 'soft-glow' : (i === 4 ? 'sparkle' : 'none'), status: 'sent',
+    }));
+    const give = this.buildGive(slug, 'Jordan', 'Sam', coupons);
+    this.setState({ give, screen: 'give', pin: this.state.pin || '2468' });
+  };
+
+  requestRedeem = (couponId) => this.setState({ redeem: couponId, pinInput: '', pinError: '' });
+  cancelRedeem = () => this.setState({ redeem: null, pinError: '' });
+  onPinInput = (e) => { const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4); this.setState({ pinInput: v, pinError: '' }); };
+  confirmRedeem = () => {
+    const { pinInput, pin, redeem, give } = this.state;
+    if (pinInput !== String(pin)) {
+      const sender = give ? give.senderName : 'them';
+      this.setState({ pinError: "That PIN doesn't match. Check your message from " + sender + '.' });
+      return;
+    }
+    const coupons = give.coupons.map(c => c.id === redeem ? { ...c, status: 'redeemed', redeemedAt: Date.now() } : c);
+    this.setState({ give: { ...give, coupons }, redeem: null, pinInput: '', pinError: '', celebrate: true });
+  };
+  closeCelebrate = () => this.setState({ celebrate: false });
+
+  // ---------- toast ----------
+  showToast(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._toastT);
+    this._toastT = setTimeout(() => this.setState({ toast: '' }), 2200);
+  }
+
+  // ---------- view models ----------
+  shade(hex, amt) {
+    try {
+      let h = String(hex).replace('#', '');
+      if (h.length === 3) h = h.split('').map(c => c + c).join('');
+      const n = parseInt(h, 16);
+      let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      r = Math.max(0, Math.min(255, Math.round(r * (1 + amt))));
+      g = Math.max(0, Math.min(255, Math.round(g * (1 + amt))));
+      b = Math.max(0, Math.min(255, Math.round(b * (1 + amt))));
+      return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+    } catch (e) { return hex; }
+  }
+  navBtn(active, accent) {
+    return 'border:none; cursor:pointer; font-family:\'DM Sans\',sans-serif; font-weight:600; font-size:12.5px; padding:7px 15px; border-radius:999px; ' +
+      (active ? 'background:' + (accent || '#C2185B') + '; color:#fff;' : 'background:transparent; color:rgba(255,255,255,0.65);');
+  }
+  segStyle(active, accent) {
+    return 'border:none; cursor:pointer; font-family:\'DM Sans\',sans-serif; font-weight:600; font-size:11.5px; padding:7px 13px; border-radius:8px; transition:all .15s ease; ' +
+      (active ? 'background:#fff; color:#1A1A2E; box-shadow:0 2px 6px -2px rgba(26,26,46,0.3);' : 'background:transparent; color:#2C2C2C; opacity:0.7;');
+  }
+  chipStyle(active, accent) {
+    return 'border:1px solid ' + (active ? accent : 'rgba(26,26,46,0.16)') + '; cursor:pointer; font-family:\'DM Sans\',sans-serif; font-weight:600; font-size:11px; padding:6px 11px; border-radius:999px; transition:all .15s ease; ' +
+      (active ? 'background:' + accent + '; color:#fff;' : 'background:#fff; color:#2C2C2C;');
+  }
+
+  renderVals() {
+    const s = this.state;
+    const screen = s.screen;
+    const accent = this.props.brandColor || '#C2185B';
+    const accentDark = this.shade(accent, -0.42);
+    const showBanner = this.props.showBanner !== false;
+    const cur = this.templateBySlug(s.selectedSlug);
+    const swatchColors = ['#FFF8F0', '#FBE3EC', '#FFF1D6', '#E7EEF2', '#E6EFE6', '#EFE7F2'];
+
+    const editCoupons = s.coupons.map(c => {
+      const accent = cur ? cur.accent : '#C2185B';
+      const motif = cur ? cur.motif : '❀';
+      return {
+        ...c, accent, motif,
+        onTitle: (e) => this.patchCoupon(c.id, { serviceTitle: e.target.value }),
+        onMicro: (e) => this.patchCoupon(c.id, { microCopy: e.target.value }),
+        onFine: (e) => this.patchCoupon(c.id, { finePrint: e.target.value }),
+        setPlayfair: () => this.patchCoupon(c.id, { fontChoice: 'playfair' }),
+        setDmSans: () => this.patchCoupon(c.id, { fontChoice: 'dm-sans' }),
+        playfairStyle: this.segStyle(c.fontChoice === 'playfair', accent),
+        dmSansStyle: this.segStyle(c.fontChoice === 'dm-sans', accent),
+        onColor: (e) => this.patchCoupon(c.id, { backgroundColor: e.target.value }),
+        swatches: swatchColors.map(col => ({
+          pick: () => this.patchCoupon(c.id, { backgroundColor: col }),
+          style: 'width:26px; height:26px; border-radius:50%; cursor:pointer; padding:0; background:' + col + '; border:' + (c.backgroundColor.toLowerCase() === col.toLowerCase() ? '2px solid #1A1A2E' : '1px solid rgba(26,26,46,0.18)') + ';',
+        })),
+        fxNone: () => this.patchCoupon(c.id, { backgroundEffect: 'none' }),
+        fxConfetti: () => this.patchCoupon(c.id, { backgroundEffect: 'confetti' }),
+        fxSparkle: () => this.patchCoupon(c.id, { backgroundEffect: 'sparkle' }),
+        fxGlow: () => this.patchCoupon(c.id, { backgroundEffect: 'soft-glow' }),
+        fxNoneStyle: this.chipStyle(c.backgroundEffect === 'none', accent),
+        fxConfettiStyle: this.chipStyle(c.backgroundEffect === 'confetti', accent),
+        fxSparkleStyle: this.chipStyle(c.backgroundEffect === 'sparkle', accent),
+        fxGlowStyle: this.chipStyle(c.backgroundEffect === 'soft-glow', accent),
+      };
+    });
+
+    // give coupons: active first, redeemed last
+    let giveCoupons = [];
+    if (s.give) {
+      const t = this.templateBySlug(s.give.slug);
+      const accent = t ? t.accent : '#C2185B';
+      const motif = t ? t.motif : '❀';
+      const active = s.give.coupons.filter(c => c.status !== 'redeemed');
+      const done = s.give.coupons.filter(c => c.status === 'redeemed');
+      giveCoupons = active.concat(done).map(c => ({
+        ...c, accent, motif,
+        showRedeem: c.status !== 'redeemed',
+        onRedeem: () => this.requestRedeem(c.id),
+      }));
+    }
+
+    const redeemCoupon = s.give && s.redeem ? s.give.coupons.find(c => c.id === s.redeem) : null;
+    const pinDigits = String(s.pin || '••••').padEnd(4, '•').slice(0, 4).split('').map(v => ({ v }));
+
+    return {
+      // nav
+      goHome: this.goHome, goCreate: this.goCreate, goGiveDemo: this.goGiveDemo, noop: this.noop,
+      accent, accentDark, showBanner,
+      homeNavPadTop: showBanner ? '14px' : '46px',
+      navHomeStyle: this.navBtn(screen === 'home', accent),
+      navCreateStyle: this.navBtn(['select','details','edit','giftReady'].includes(screen), accent),
+      navGiveStyle: this.navBtn(screen === 'give', accent),
+      // screen flags
+      isHome: screen === 'home', isSelect: screen === 'select', isDetails: screen === 'details',
+      isEdit: screen === 'edit', isGiftReady: screen === 'giftReady', isGive: screen === 'give',
+      // home
+      bannerMsg: this.props.bannerMessage || "Stand a chance to win a cash prize by using the Mom's Promise Tokens before May 30th 🎉",
+      templatesSubheading: 'Customize the perfect coupons. Start free.',
+      footerTagline: 'Because the best gifts are promises kept.',
+      templates: this.templatesData().map(t => ({
+        slug:t.slug, name:t.name, motif:t.motif, accent:t.accent, tint:t.tint,
+        tagline:t.tagline, ageRestricted:t.ageRestricted,
+        onSelect: () => this.selectTemplate(t.slug),
+      })),
+      // create / details
+      currentName: cur ? cur.name : '', currentMotif: cur ? cur.motif : '❀',
+      currentAccent: cur ? cur.accent : '#C2185B', currentTint: cur ? cur.tint : '#FBDCE6',
+      senderName: s.senderName, recipientName: s.recipientName, expiry: s.expiry,
+      onSenderInput: this.onSenderInput, onRecipientInput: this.onRecipientInput, onExpiryInput: this.onExpiryInput,
+      startEditing: this.startEditing, backToSelect: this.backToSelect, backToDetails: this.backToDetails,
+      detailsBtnBg: accent,
+      detailsHint: 'You can save a draft anytime — no account needed yet.',
+      recipientDisplay: s.recipientName.trim() || 'them', senderDisplay: s.senderName.trim() || 'you',
+      // edit
+      editCoupons,
+      openPreview: this.openPreview, openSave: this.openSave, openSend: this.openSend,
+      // preview
+      previewOpen: s.previewOpen, closePreview: this.closePreview,
+      // auth
+      authOpen: !!s.auth, authFormStep: s.auth === 'form', authOtpStep: s.auth === 'otp',
+      authSubtext: 'Your information is safe with us. We use bank-level encryption and will never share your details.',
+      authName: s.authName, authEmail: s.authEmail, authEmailDisplay: s.authEmail || 'your email',
+      onAuthName: this.onAuthName, onAuthEmail: this.onAuthEmail, submitAuth: this.submitAuth, closeAuth: this.closeAuth, verifyOtp: this.verifyOtp,
+      // age gate
+      ageGateOpen: !!s.ageGate, confirmAge: this.confirmAge, dismissAge: this.dismissAge,
+      // gift ready
+      giftReadySub: 'Share the link with ' + (s.recipientName.trim() || 'them') + '. The PIN travels separately — that\u2019s the secret handshake.',
+      shareLink: s.shareLink || 'kindnesscurrency.app/give/…',
+      pinDigits,
+      pinInstruction: 'Share the link via WhatsApp. Send the PIN separately — or whisper it in person.',
+      copyPin: this.copyPin, copyLink: this.copyLink, webShare: this.webShare, shareWhatsApp: this.shareWhatsApp,
+      copyLinkLabel: s.copied ? 'Copied ✓' : 'Copy Link',
+      goGiveFromReady: this.goGiveFromReady,
+      // give
+      giveRecipient: s.give ? s.give.recipientName : 'you',
+      giveSender: s.give ? s.give.senderName : 'someone who loves you',
+      giveCount: s.give ? s.give.coupons.length : 8,
+      giveCoupons,
+      // redeem
+      redeemOpen: !!s.redeem,
+      redeemTitle: redeemCoupon ? redeemCoupon.serviceTitle : '',
+      pinInput: s.pinInput, onPinInput: this.onPinInput,
+      pinHasError: !!s.pinError, pinError: s.pinError,
+      pinBorder: s.pinError ? '#C2185B' : 'rgba(26,26,46,0.14)',
+      pinDemoHint: 'Prototype PIN: ' + (s.pin || '2468'),
+      confirmRedeem: this.confirmRedeem, cancelRedeem: this.cancelRedeem,
+      celebrateOpen: s.celebrate, closeCelebrate: this.closeCelebrate,
+      // toast
+      toastOpen: !!s.toast, toast: s.toast,
+      caption: 'Kindness Currency — mobile web prototype. Use the Prototype switcher above to jump between Home, Create, and the Recipient experience.',
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="position:relative; display:flex; align-items:stretch; width:100%; height:86px; box-sizing:border-box; border:1.5px solid {{ accent }}; border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 12px 26px -14px rgba(26,26,46,0.5);">
+  <div style="flex:1; min-width:0; padding:9px 8px 8px 11px; display:flex; flex-direction:column; justify-content:center;">
+    <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:7px; letter-spacing:0.18em; text-transform:uppercase; color:{{ accent }};">GOOD FOR</div>
+    <div style="margin-top:3px; font-family:'Playfair Display',serif; font-style:italic; font-weight:700; font-size:13px; line-height:1.1; color:#1A1A2E;">{{ title }}</div>
+    <div style="position:absolute; top:4px; right:38px; font-size:24px; color:{{ accent }}; opacity:0.14;">{{ motif }}</div>
+  </div>
+  <div style="width:30px; flex:none; border-left:1.5px dashed {{ accentSoft }}; display:flex; align-items:center; justify-content:center; gap:1.5px;">
+    <div style="width:1.5px; height:58%; background:#1A1A2E; opacity:.75;"></div>
+    <div style="width:3px; height:58%; background:#1A1A2E; opacity:.75;"></div>
+    <div style="width:1.5px; height:58%; background:#1A1A2E; opacity:.75;"></div>
+    <div style="width:2.5px; height:58%; background:#1A1A2E; opacity:.75;"></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:158,&quot;height&quot;:86},&quot;title&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;One Long Bath Together&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#C2185B&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;motif&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;❦&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const accent = p.accent || '#C2185B';
+    return {
+      title: p.title || 'One Kind Act',
+      accent,
+      accentSoft: accent + '66',
+      motif: p.motif || '❀',
+    };
+  }
+}
+</script>
+</body>
+</html>

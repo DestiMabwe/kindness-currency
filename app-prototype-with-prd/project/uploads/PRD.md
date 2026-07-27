@@ -113,30 +113,26 @@ CREATE TABLE template_coupons (
 - `template_type TEXT` is removed
 - `template_id UUID REFERENCES templates(id)` is added
 
-### Module 2 — CouponCard & CouponCardHero
-Two locked-layout coupon card components, both rendering beautifully at 390px+ and both handling the "Redeemed ♥" stamp overlay state.
+### Module 2 — CouponCard
+A single locked-layout coupon card component. Renders beautifully at 390px. Handles the "Redeemed ♥" stamp overlay state.
 
-- `CouponCard` (compact) is used only in the builder's per-coupon edit tile, next to the live input fields.
-- `CouponCardHero` is used on the recipient's gift page and the sender's full-screen "preview all coupons" screen — the two places the coupon is actually being looked at/admired as a finished gift. Its visual spec (below) supersedes the single-card description this section originally had, following a design pass against a concrete HTML/CSS mockup.
-
-**CouponCardHero — LOCKED, never exposed to user control:**
-- Ticket/coupon shape: rounded outer frame with punch-hole circle notches at the perforation (replaces the scalloped/torn clip-path used by the compact `CouponCard`)
-- Barcode graphic and dashed perforation line on the **left** side (visual only, not functional)
-- "GOOD FOR ONE" framing label above every coupon title (hardcoded)
-- Playfair Display Bold for the act-of-service title (no font-choice toggle on this card)
-- Border and punch-hole notch color both driven by the template's `accent` color (per-template, not one fixed red) — the notch color always matches the card's own border, so no `punchColor` prop is needed
+**LOCKED — never exposed to user control:**
+- Ticket/coupon shape with scalloped or torn CSS clip-path edges
+- "Good for a ___" framing label above every coupon title (hardcoded)
+- Playfair Display Bold Italic for the act-of-service title
+- Kindness Red (#C2185B) border
 - Cream (#FFF8F0) default card background
-- Template-specific decorative photo, one per template (`public/images/<slug>.jpg`), positioned bottom-right — falls back to the legacy unicode motif (❀, ❦, ✺, ☾, ✦) as a translucent watermark for any template without a photo asset yet
+- Decorative barcode graphic on the right side (visual only, not functional)
+- Template-specific decorative motif (e.g. flower for Mother's Day, rose for Valentine's, balloon for Birthday, candle for Lovers, lightning bolt for Besties)
 
-**CouponCardHero — EDITABLE, user-controlled props:**
-- `serviceTitle`, `microCopy`, `finePrint` — same meaning as the compact card
+**EDITABLE — user-controlled props:**
+- `serviceTitle` — the act-of-service text (Playfair Display Bold Italic)
+- `microCopy` — supporting line below the title (DM Sans)
+- `finePrint` — small print at the bottom of the card (DM Sans)
+- `fontChoice` — `'playfair' | 'dm-sans'` (applies to title only)
 - `backgroundColor` — hex from colour wheel (replaces card background only, not page)
 - `backgroundEffect` — `'none' | 'confetti' | 'sparkle' | 'soft-glow'`
 - `status` — `'sent' | 'viewed' | 'redeemed'` (drives stamp overlay)
-- `expiresAt` — optional; the barcode stub shows the real formatted expiry date when set, otherwise "NO EXPIRY DATE"
-
-**CouponCard (compact) — unchanged:**
-- Keeps its original locked spec (scalloped/torn clip-path, barcode-right, `accent`-colored border, `punchColor` prop for the punch-hole notches, unicode motif) and its `fontChoice` (`'playfair' | 'dm-sans'`) toggle for the title.
 
 ### Module 3 — CouponSetBuilder (client state)
 Manages the in-progress creation state: selected template, sender/recipient names, expiry date, and the array of eight coupon content objects being edited. Persists to localStorage for Save Draft. Feeds into the save mutation when the user authenticates.
