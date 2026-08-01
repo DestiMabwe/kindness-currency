@@ -11,6 +11,8 @@ export default function CouponHeroDevPreview() {
         serviceTitle="Home Cooked Meal"
         microCopy="Just the way you like it"
         finePrint="No expiry date"
+        accent="#D4658A"
+        backgroundEffect="sparkle"
       />
     </div>
   )

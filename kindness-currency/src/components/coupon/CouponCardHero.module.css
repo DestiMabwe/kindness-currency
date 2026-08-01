@@ -1,5 +1,4 @@
 .card {
-  --hero-accent: #c2185b;
   position: relative;
   width: 620px;
   max-width: 92vw;
@@ -14,7 +13,6 @@
   position: relative;
   width: 100%;
   height: 100%;
-  background: #fff8f0;
   border-radius: 16px;
   display: grid;
   grid-template-columns: 130px 2px 1fr;
@@ -40,6 +38,46 @@
 
 .inner::after {
   bottom: -17px;
+}
+
+.glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.confettiPieceSquare,
+.confettiPieceDot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+}
+
+.confettiPieceSquare {
+  border-radius: 2px;
+  transform: rotate(20deg);
+}
+
+.confettiPieceDot {
+  border-radius: 50%;
+}
+
+.sparkle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sparkle span {
+  position: absolute;
+  font-size: 13px;
+  opacity: 0.45;
 }
 
 .stub {
