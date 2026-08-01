@@ -1,6 +1,12 @@
 import styles from './CouponCardHero.module.css'
 
-export function CouponCardHero() {
+export type CouponCardHeroProps = {
+  serviceTitle: string
+  microCopy?: string | null
+  finePrint?: string | null
+}
+
+export function CouponCardHero({ serviceTitle, microCopy, finePrint }: CouponCardHeroProps) {
   return (
     <div className={styles.card}>
       <div className={styles.inner}>
@@ -9,7 +15,15 @@ export function CouponCardHero() {
         </div>
         <div className={styles.perforation} />
         <div className={styles.content}>
-          <span className={styles.placeholder}>Coupon content placeholder</span>
+          <p className={styles.eyebrow}>GOOD FOR ONE</p>
+          <h1
+            className={styles.headline}
+            style={{ fontFamily: 'var(--font-playfair)', fontWeight: 700 }}
+          >
+            {serviceTitle}
+          </h1>
+          {microCopy && <p className={styles.subline}>{microCopy}</p>}
+          {finePrint && <p className={styles.finePrint}>{finePrint}</p>}
         </div>
       </div>
     </div>

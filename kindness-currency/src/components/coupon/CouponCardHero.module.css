@@ -91,15 +91,52 @@
   position: relative;
 }
 
-.placeholder {
+.eyebrow {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #2c2c2c;
+  opacity: 0.6;
+  margin: 0 0 6px 0;
+}
+
+.headline {
+  font-size: 40px;
+  line-height: 1.02;
+  letter-spacing: 0.5px;
+  color: #1a1a2e;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.subline {
+  margin-top: 10px;
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
   color: #2c2c2c;
-  opacity: 0.5;
+  opacity: 0.75;
+}
+
+.finePrint {
+  margin-top: auto;
+  padding-top: 10px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: #2c2c2c;
+  text-transform: uppercase;
+  opacity: 0.55;
 }
 
 @media (max-width: 560px) {
   .card {
     height: 300px;
+  }
+
+  .headline {
+    font-size: 30px;
   }
 }

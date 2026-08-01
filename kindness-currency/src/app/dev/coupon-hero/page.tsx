@@ -7,7 +7,11 @@ import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 export default function CouponHeroDevPreview() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0e9e4' }}>
-      <CouponCardHero />
+      <CouponCardHero
+        serviceTitle="Home Cooked Meal"
+        microCopy="Just the way you like it"
+        finePrint="No expiry date"
+      />
     </div>
   )
 }
