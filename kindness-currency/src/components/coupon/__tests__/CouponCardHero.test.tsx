@@ -7,6 +7,7 @@ const baseProps = {
   serviceTitle: 'One Home-Cooked Meal',
   accent: '#C2185B',
   backgroundEffect: 'none' as const,
+  motif: '❀',
 }
 
 describe('CouponCardHero', () => {
@@ -99,4 +100,31 @@ describe('CouponCardHero', () => {
       expect(container.querySelector(`.${classForEffect[effect]}`)).toBeInTheDocument()
     },
   )
+
+  it('falls back to the motif watermark when imageSrc is not provided', () => {
+    render(<CouponCardHero {...baseProps} motif="☾" />)
+    expect(screen.getByText('☾')).toBeInTheDocument()
+  })
+
+  it('renders the decorative photo when imageSrc is provided', () => {
+    const { container } = render(<CouponCardHero {...baseProps} imageSrc="/images/mothers_day.png" />)
+    expect(container.querySelector('img')).toHaveAttribute('src', '/images/mothers_day.png')
+  })
+
+  it('does not render the motif watermark when imageSrc is provided', () => {
+    render(<CouponCardHero {...baseProps} motif="☾" imageSrc="/images/mothers_day.png" />)
+    expect(screen.queryByText('☾')).not.toBeInTheDocument()
+  })
+
+  it('reserves space for the photo so it does not cover the text column', () => {
+    const { container } = render(<CouponCardHero {...baseProps} imageSrc="/images/mothers_day.png" />)
+    const content = container.querySelector(`.${styles.content}`) as HTMLElement
+    expect(content).toHaveClass(styles.contentWithImage)
+  })
+
+  it('does not reserve photo space when there is no photo', () => {
+    const { container } = render(<CouponCardHero {...baseProps} />)
+    const content = container.querySelector(`.${styles.content}`) as HTMLElement
+    expect(content.className).not.toContain(styles.contentWithImage)
+  })
 })

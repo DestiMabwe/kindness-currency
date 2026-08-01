@@ -9,6 +9,8 @@ export type CouponCardHeroProps = {
   accent: string
   backgroundColor?: string | null
   backgroundEffect: BackgroundEffect
+  motif: string
+  imageSrc?: string | null
 }
 
 export function CouponCardHero({
@@ -18,6 +20,8 @@ export function CouponCardHero({
   accent,
   backgroundColor,
   backgroundEffect,
+  motif,
+  imageSrc,
 }: CouponCardHeroProps) {
   return (
     <div className={styles.card} style={{ '--hero-accent': accent } as CSSProperties}>
@@ -49,7 +53,7 @@ export function CouponCardHero({
           <div className={styles.barcode} />
         </div>
         <div className={styles.perforation} />
-        <div className={styles.content}>
+        <div className={imageSrc ? `${styles.content} ${styles.contentWithImage}` : styles.content}>
           <p className={styles.eyebrow}>GOOD FOR ONE</p>
           <h1
             className={styles.headline}
@@ -59,6 +63,13 @@ export function CouponCardHero({
           </h1>
           {microCopy && <p className={styles.subline}>{microCopy}</p>}
           {finePrint && <p className={styles.finePrint}>{finePrint}</p>}
+          {imageSrc ? (
+            <img className={styles.decorativeImage} src={imageSrc} alt="" />
+          ) : (
+            <div className={styles.decorativeMotif} style={{ color: accent }}>
+              {motif}
+            </div>
+          )}
         </div>
       </div>
     </div>

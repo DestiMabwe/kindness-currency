@@ -13,6 +13,8 @@ export default function CouponHeroDevPreview() {
         finePrint="No expiry date"
         accent="#D4658A"
         backgroundEffect="sparkle"
+        motif="❀"
+        imageSrc="/images/mothers_day.png"
       />
     </div>
   )

@@ -169,6 +169,31 @@
   opacity: 0.55;
 }
 
+.contentWithImage {
+  padding-right: 160px;
+}
+
+.decorativeImage {
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  width: 130px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 8px;
+  opacity: 0.95;
+}
+
+.decorativeMotif {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 46px;
+  line-height: 1;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
 @media (max-width: 560px) {
   .card {
     height: 300px;
