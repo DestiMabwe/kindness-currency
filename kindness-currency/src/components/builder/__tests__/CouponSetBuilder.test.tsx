@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CouponSetBuilder } from '../CouponSetBuilder'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -119,7 +119,7 @@ describe('CouponSetBuilder', () => {
   }
 
   describe('coupon editor', () => {
-    it('updates the live CouponCard preview as the title is edited', async () => {
+    it('updates the live coupon preview as the title is edited', async () => {
       await goToEditor()
 
       const titleInput = screen.getByLabelText('Service title')
@@ -127,16 +127,14 @@ describe('CouponSetBuilder', () => {
       await userEvent.type(titleInput, 'One Homemade Feast')
 
       expect(titleInput).toHaveValue('One Homemade Feast')
-      expect(screen.getByText('One Homemade Feast')).toBeInTheDocument() // live CouponCard title
+      expect(screen.getByText('One Homemade Feast')).toBeInTheDocument() // live CouponCardHero title
     })
 
-    it('switches the title font when DM Sans is selected', async () => {
+    it('does not show a font choice toggle, since CouponCardHero has no font-choice toggle', async () => {
       await goToEditor()
 
-      await userEvent.click(screen.getByRole('button', { name: 'DM Sans' }))
-
-      const cardTitle = screen.getByText('One Home-Cooked Meal')
-      expect(cardTitle).toHaveStyle({ fontStyle: 'normal' })
+      expect(screen.queryByRole('button', { name: 'Playfair' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'DM Sans' })).not.toBeInTheDocument()
     })
 
     it('applies a background effect selection', async () => {
@@ -145,6 +143,24 @@ describe('CouponSetBuilder', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Confetti' }))
 
       expect(screen.getByRole('button', { name: 'Confetti' })).toHaveStyle({ color: '#fff' })
+    })
+
+    it("renders the template's real photo in the edit tile", async () => {
+      await goToEditor()
+
+      // Decorative photo has alt="" (role="presentation"), so query by tag rather than getByRole('img').
+      expect(document.querySelector('img')).toHaveAttribute('src', '/images/mothers_day.png')
+    })
+
+    it('shows the real expiry date in the edit tile once set on the details step', async () => {
+      render(<CouponSetBuilder templates={[template()]} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      fireEvent.change(screen.getByLabelText(/expiry date/i), { target: { value: '2026-12-25' } })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      expect(screen.getByText('DEC 25, 2026')).toBeInTheDocument()
     })
   })
 

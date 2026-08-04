@@ -58,13 +58,13 @@ Do not invent new flows, states, or data models unless the PRD explicitly requir
 
 ## UI rules
 - Mobile-first: every component must work at 390px first.
-- CouponCard locked elements are never user-controlled:
-  - ticket/coupon shape,
-  - scalloped clip-path,
-  - “Good for a ___” framing label,
-  - Kindness Red border,
+- CouponCardHero locked elements are never user-controlled (see PRD.md Module 2 for the full list):
+  - ticket/coupon shape with punch-hole notches,
+  - “GOOD FOR ONE” framing label,
+  - Playfair Display Bold title — no font-choice toggle anywhere in the product,
+  - border/notch color driven by the template's `accent`,
   - barcode graphic,
-  - template decorative motif.
+  - template decorative photo (falls back to unicode motif).
 - Add `'use client'` only when state, effects, refs, localStorage, or event handlers require it.
 - Do not add `'use client'` to layouts, server components, or data-fetching modules.
 
@@ -83,7 +83,7 @@ Do not invent new flows, states, or data models unless the PRD explicitly requir
 
 ## Module map
 - TemplateRepository — `src/lib/templateRepository.ts`
-- CouponCard — `src/components/coupon/CouponCard.tsx`
+- CouponCardHero — `src/components/coupon/CouponCardHero.tsx`
 - CouponSetBuilder UI — `src/components/builder/CouponSetBuilder.tsx`
 - CouponSetBuilder state — `src/hooks/useCouponSetBuilder.ts`
 - PINVerificationModal — `src/components/modals/PINVerificationModal.tsx`
@@ -116,7 +116,7 @@ Do not invent new flows, states, or data models unless the PRD explicitly requir
 Test external behavior, not implementation details.
 Priority test files:
 - `src/lib/__tests__/redemptionEngine.test.ts`
-- `src/components/coupon/__tests__/CouponCard.test.tsx`
+- `src/components/coupon/__tests__/CouponCardHero.test.tsx`
 - `src/components/modals/__tests__/PINVerificationModal.test.tsx`
 - `src/components/modals/__tests__/AgeGate.test.tsx`
 - `src/hooks/__tests__/useCouponSetBuilder.test.ts`
@@ -125,7 +125,7 @@ Required behaviors:
 - Correct PIN redeems.
 - Wrong PIN returns a soft error.
 - Already-redeemed remains idempotent.
-- Locked CouponCard elements always appear.
+- Locked CouponCardHero elements always appear.
 - Age gate blocks restricted templates until confirmation.
 - Draft state persists to localStorage and rehydrates on reload.
 

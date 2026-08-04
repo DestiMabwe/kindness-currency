@@ -113,30 +113,28 @@ CREATE TABLE template_coupons (
 - `template_type TEXT` is removed
 - `template_id UUID REFERENCES templates(id)` is added
 
-### Module 2 — CouponCard & CouponCardHero
-Two locked-layout coupon card components, both rendering beautifully at 390px+ and both handling the "Redeemed ♥" stamp overlay state.
+### Module 2 — CouponCardHero
+Single locked-layout coupon card component, rendering beautifully at 390px+ and handling the "Redeemed ♥" stamp overlay state.
 
-- `CouponCard` (compact) is used only in the builder's per-coupon edit tile, next to the live input fields.
-- `CouponCardHero` is used on the recipient's gift page and the sender's full-screen "preview all coupons" screen — the two places the coupon is actually being looked at/admired as a finished gift. Its visual spec (below) supersedes the single-card description this section originally had, following a design pass against a concrete HTML/CSS mockup.
+`CouponCardHero` is used everywhere a coupon is rendered: the recipient's gift page, the sender's full-screen "preview all coupons" screen, and the builder's per-coupon edit tile. There is deliberately only one card component now — the compact `CouponCard` (scalloped clip-path, barcode-right, `fontChoice` toggle) has been retired; every screen shows the same design the recipient will actually receive, including while editing, so nothing the sender tweaks can look different from the final coupon. Its visual spec (below) supersedes the single-card description this section originally had, following a design pass against a concrete HTML/CSS mockup.
 
 **CouponCardHero — LOCKED, never exposed to user control:**
-- Ticket/coupon shape: rounded outer frame with punch-hole circle notches at the perforation (replaces the scalloped/torn clip-path used by the compact `CouponCard`)
+- Ticket/coupon shape: rounded outer frame with punch-hole circle notches at the perforation
 - Barcode graphic and dashed perforation line on the **left** side (visual only, not functional)
 - "GOOD FOR ONE" framing label above every coupon title (hardcoded)
-- Playfair Display Bold for the act-of-service title (no font-choice toggle on this card)
+- Playfair Display Bold for the act-of-service title — no font-choice toggle exists anywhere in the product anymore
 - Border and punch-hole notch color both driven by the template's `accent` color (per-template, not one fixed red) — the notch color always matches the card's own border, so no `punchColor` prop is needed
 - Cream (#FFF8F0) default card background
 - Template-specific decorative photo, one per template (`public/images/<slug>.png`, all 5 templates have one), positioned bottom-right — falls back to the legacy unicode motif (❀, ❦, ✺, ☾, ✦) as a translucent watermark for any template without a photo asset
 
 **CouponCardHero — EDITABLE, user-controlled props:**
-- `serviceTitle`, `microCopy`, `finePrint` — same meaning as the compact card
+- `serviceTitle`, `microCopy`, `finePrint`
 - `backgroundColor` — hex from colour wheel (replaces card background only, not page)
 - `backgroundEffect` — `'none' | 'confetti' | 'sparkle' | 'soft-glow'`
 - `status` — `'sent' | 'viewed' | 'redeemed'` (drives stamp overlay)
 - `expiresAt` — optional; the barcode stub shows the real formatted expiry date when set, otherwise "NO EXPIRY DATE"
 
-**CouponCard (compact) — unchanged:**
-- Keeps its original locked spec (scalloped/torn clip-path, barcode-right, `accent`-colored border, `punchColor` prop for the punch-hole notches, unicode motif) and its `fontChoice` (`'playfair' | 'dm-sans'`) toggle for the title.
+The `font_choice` field remains in the schema/DB/save payload for now (unused, always `'playfair'`) rather than being ripped out — a data-model cleanup treated as a separate follow-up, not bundled into the card unification above.
 
 ### Module 3 — CouponSetBuilder (client state)
 Manages the in-progress creation state: selected template, sender/recipient names, expiry date, and the array of eight coupon content objects being edited. Persists to localStorage for Save Draft. Feeds into the save mutation when the user authenticates.
@@ -322,7 +320,7 @@ Test external behaviour, not implementation. A good test asks "does the user see
 **Modules to test:**
 
 - **RedemptionEngine** — unit test the PIN comparison, status transition, and Zod validation. Test: correct PIN redeems; wrong PIN returns error; already-redeemed coupon is idempotent.
-- **CouponCard** — component test that locked visual elements (shape class, barcode, border colour) are always present regardless of props passed. Test that the "Redeemed ♥" stamp renders when `status === 'redeemed'`.
+- **CouponCardHero** — component test that locked visual elements (shape, barcode, border colour, eyebrow label) are always present regardless of props passed. Test that the "Redeemed ♥" stamp renders when `status === 'redeemed'`.
 - **PINVerificationModal** — component test: modal renders on "Redeem This ♥" click; soft error message appears on wrong PIN; success callback fires on correct PIN.
 - **AgeGate** — component test: modal fires for `is_age_restricted: true` templates; template is not selected if user clicks "Go Back"; template is selected after "I'm 18+, Continue".
 - **CouponSetBuilder state** — unit test the draft persistence to localStorage and rehydration on page reload.

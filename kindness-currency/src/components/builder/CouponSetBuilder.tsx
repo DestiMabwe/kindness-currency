@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useCouponSetBuilder, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { AuthGate } from '@/components/modals/AuthGate'
-import { CouponCard } from '@/components/coupon/CouponCard'
+import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
 import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -106,6 +106,8 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
           coupons={builder.state.coupons}
           accent={visuals.accent}
           motif={visuals.motif}
+          imageSrc={visuals.imageSrc}
+          expiresAt={builder.state.expiryDate || null}
           saving={saving}
           saveError={saveError}
           onBack={builder.backToDetails}
@@ -117,7 +119,14 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
       )}
 
       {previewOpen && (
-        <PreviewOverlay coupons={builder.state.coupons} accent={visuals?.accent ?? '#C2185B'} motif={visuals?.motif ?? ''} onClose={() => setPreviewOpen(false)} />
+        <PreviewOverlay
+          coupons={builder.state.coupons}
+          accent={visuals?.accent ?? '#C2185B'}
+          motif={visuals?.motif ?? ''}
+          imageSrc={visuals?.imageSrc ?? null}
+          expiresAt={builder.state.expiryDate || null}
+          onClose={() => setPreviewOpen(false)}
+        />
       )}
 
       {pendingTemplate && (
@@ -292,6 +301,8 @@ function EditScreen({
   coupons,
   accent,
   motif,
+  imageSrc,
+  expiresAt,
   saving,
   saveError,
   onBack,
@@ -306,6 +317,8 @@ function EditScreen({
   coupons: BuilderCoupon[]
   accent: string
   motif: string
+  imageSrc: string
+  expiresAt: string | null
   saving: boolean
   saveError: string
   onBack: () => void
@@ -334,7 +347,15 @@ function EditScreen({
 
       <div className="flex flex-col gap-4.5 px-4.5 pt-4.5">
         {coupons.map((coupon) => (
-          <CouponEditorCard key={coupon.id} coupon={coupon} accent={accent} motif={motif} onPatch={(patch) => onPatchCoupon(coupon.id, patch)} />
+          <CouponEditorCard
+            key={coupon.id}
+            coupon={coupon}
+            accent={accent}
+            motif={motif}
+            imageSrc={imageSrc}
+            expiresAt={expiresAt}
+            onPatch={(patch) => onPatchCoupon(coupon.id, patch)}
+          />
         ))}
       </div>
 
@@ -370,27 +391,33 @@ function CouponEditorCard({
   coupon,
   accent,
   motif,
+  imageSrc,
+  expiresAt,
   onPatch,
 }: {
   coupon: BuilderCoupon
   accent: string
   motif: string
+  imageSrc: string
+  expiresAt: string | null
   onPatch: (patch: Partial<BuilderCoupon>) => void
 }) {
   return (
     <div className="rounded-[20px] border border-[#1A1A2E]/7 bg-white p-3.5 shadow-[0_12px_28px_-22px_rgba(26,26,46,0.55)]">
-      <CouponCard
-        serviceTitle={coupon.serviceTitle}
-        microCopy={coupon.microCopy}
-        finePrint={coupon.finePrint}
-        fontChoice={coupon.fontChoice}
-        backgroundColor={coupon.backgroundColor}
-        backgroundEffect={coupon.backgroundEffect}
-        status="sent"
-        accent={accent}
-        motif={motif}
-        punchColor="#FFFFFF"
-      />
+      <div className="flex justify-center">
+        <CouponCardHero
+          serviceTitle={coupon.serviceTitle}
+          microCopy={coupon.microCopy}
+          finePrint={coupon.finePrint}
+          backgroundColor={coupon.backgroundColor}
+          backgroundEffect={coupon.backgroundEffect}
+          status="sent"
+          accent={accent}
+          motif={motif}
+          imageSrc={imageSrc}
+          expiresAt={expiresAt}
+        />
+      </div>
 
       <div className="mt-3.5 flex flex-col gap-2.5">
         <input
@@ -418,26 +445,6 @@ function CouponEditorCard({
       </div>
 
       <div className="mt-3.5 flex flex-col gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <span className="w-[46px] shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-50">Font</span>
-          <div className="flex gap-1.5 rounded-[10px] bg-[#F0ECE4] p-[3px]">
-            {(['playfair', 'dm-sans'] as const).map((choice) => (
-              <button
-                key={choice}
-                type="button"
-                onClick={() => onPatch({ fontChoice: choice })}
-                className="rounded-[8px] px-2.5 py-1.5 text-xs font-semibold"
-                style={{
-                  backgroundColor: coupon.fontChoice === choice ? '#fff' : 'transparent',
-                  color: coupon.fontChoice === choice ? '#1A1A2E' : '#2C2C2C99',
-                }}
-              >
-                {choice === 'playfair' ? 'Playfair' : 'DM Sans'}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="flex items-center gap-2.5">
           <span className="w-[46px] shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-50">Colour</span>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -497,11 +504,15 @@ function PreviewOverlay({
   coupons,
   accent,
   motif,
+  imageSrc,
+  expiresAt,
   onClose,
 }: {
   coupons: BuilderCoupon[]
   accent: string
   motif: string
+  imageSrc: string | null
+  expiresAt: string | null
   onClose: () => void
 }) {
   return (
@@ -514,20 +525,20 @@ function PreviewOverlay({
           ✕
         </button>
       </div>
-      <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-4.5 pb-6.5">
+      <div className="flex flex-1 flex-col items-center gap-6 overflow-y-auto px-4.5 pb-6.5">
         {coupons.map((coupon) => (
-          <CouponCard
+          <CouponCardHero
             key={coupon.id}
             serviceTitle={coupon.serviceTitle}
             microCopy={coupon.microCopy}
             finePrint={coupon.finePrint}
-            fontChoice={coupon.fontChoice}
             backgroundColor={coupon.backgroundColor}
             backgroundEffect={coupon.backgroundEffect}
             status="sent"
             accent={accent}
             motif={motif}
-            punchColor="#1A1A2E"
+            imageSrc={imageSrc}
+            expiresAt={expiresAt}
           />
         ))}
       </div>
