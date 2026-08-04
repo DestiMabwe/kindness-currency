@@ -126,7 +126,7 @@ Two locked-layout coupon card components, both rendering beautifully at 390px+ a
 - Playfair Display Bold for the act-of-service title (no font-choice toggle on this card)
 - Border and punch-hole notch color both driven by the template's `accent` color (per-template, not one fixed red) — the notch color always matches the card's own border, so no `punchColor` prop is needed
 - Cream (#FFF8F0) default card background
-- Template-specific decorative photo, one per template (`public/images/<slug>.jpg`), positioned bottom-right — falls back to the legacy unicode motif (❀, ❦, ✺, ☾, ✦) as a translucent watermark for any template without a photo asset yet
+- Template-specific decorative photo, one per template (`public/images/<slug>.png`, all 5 templates have one), positioned bottom-right — falls back to the legacy unicode motif (❀, ❦, ✺, ☾, ✦) as a translucent watermark for any template without a photo asset
 
 **CouponCardHero — EDITABLE, user-controlled props:**
 - `serviceTitle`, `microCopy`, `finePrint` — same meaning as the compact card

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { CouponCardHero } from '../CouponCardHero'
 import styles from '../CouponCardHero.module.css'
@@ -8,6 +8,7 @@ const baseProps = {
   accent: '#C2185B',
   backgroundEffect: 'none' as const,
   motif: '❀',
+  status: 'sent' as const,
 }
 
 describe('CouponCardHero', () => {
@@ -137,5 +138,37 @@ describe('CouponCardHero', () => {
     render(<CouponCardHero {...baseProps} expiresAt="2026-08-15" />)
     expect(screen.getByText('AUG 15, 2026')).toBeInTheDocument()
     expect(screen.queryByText('NO EXPIRY DATE')).not.toBeInTheDocument()
+  })
+
+  describe('redeemed state', () => {
+    it('shows the "Redeemed ♥" stamp overlay when status is redeemed', () => {
+      render(<CouponCardHero {...baseProps} status="redeemed" />)
+      expect(screen.getByText('Redeemed ♥')).toBeInTheDocument()
+    })
+
+    it('does not show the stamp overlay when status is sent or viewed', () => {
+      render(<CouponCardHero {...baseProps} status="sent" />)
+      expect(screen.queryByText('Redeemed ♥')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('redeem action', () => {
+    it('shows the redeem button when showRedeem is true and not yet redeemed', () => {
+      render(<CouponCardHero {...baseProps} showRedeem status="sent" onRedeem={() => {}} />)
+      expect(screen.getByRole('button', { name: 'Redeem This ♥' })).toBeInTheDocument()
+    })
+
+    it('hides the redeem button once redeemed even if showRedeem is true', () => {
+      render(<CouponCardHero {...baseProps} showRedeem status="redeemed" onRedeem={() => {}} />)
+      expect(screen.queryByRole('button', { name: 'Redeem This ♥' })).not.toBeInTheDocument()
+    })
+
+    it('calls onRedeem when the redeem button is clicked', async () => {
+      const onRedeem = vi.fn()
+      const { default: userEvent } = await import('@testing-library/user-event')
+      render(<CouponCardHero {...baseProps} showRedeem status="sent" onRedeem={onRedeem} />)
+      await userEvent.click(screen.getByRole('button', { name: 'Redeem This ♥' }))
+      expect(onRedeem).toHaveBeenCalledOnce()
+    })
   })
 })

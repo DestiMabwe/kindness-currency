@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CouponCard } from './CouponCard'
+import { CouponCardHero } from './CouponCardHero'
 import { PINVerificationModal } from '@/components/modals/PINVerificationModal'
 import { sortCouponsForDisplay, type GiveCoupon } from '@/lib/giveRepository'
 import { redeemCouponAction } from '@/app/give/[id]/actions'
@@ -12,9 +12,18 @@ export type RecipientCouponListProps = {
   senderName: string
   accent: string
   motif: string
+  imageSrc: string
+  expiresAt: string | null
 }
 
-export function RecipientCouponList({ initialCoupons, senderName, accent, motif }: RecipientCouponListProps) {
+export function RecipientCouponList({
+  initialCoupons,
+  senderName,
+  accent,
+  motif,
+  imageSrc,
+  expiresAt,
+}: RecipientCouponListProps) {
   const [coupons, setCoupons] = useState(initialCoupons)
   const [redeemingId, setRedeemingId] = useState<string | null>(null)
   const [celebrating, setCelebrating] = useState(false)
@@ -34,19 +43,20 @@ export function RecipientCouponList({ initialCoupons, senderName, accent, motif 
 
   return (
     <>
-      <div className="flex flex-col gap-4 px-4 pt-5 pb-2">
+      <div className="flex flex-col items-center gap-6 px-4 pt-5 pb-2">
         {sortCouponsForDisplay(coupons).map((coupon) => (
-          <CouponCard
+          <CouponCardHero
             key={coupon.id}
             serviceTitle={coupon.service_title}
             microCopy={coupon.micro_copy}
             finePrint={coupon.fine_print}
-            fontChoice={coupon.font_choice}
             backgroundColor={coupon.background_color}
             backgroundEffect={coupon.background_effect}
             status={coupon.status}
             accent={accent}
             motif={motif}
+            imageSrc={imageSrc}
+            expiresAt={expiresAt}
             showRedeem
             onRedeem={() => setRedeemingId(coupon.id)}
           />

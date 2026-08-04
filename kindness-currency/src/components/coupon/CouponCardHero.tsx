@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
-import type { BackgroundEffect } from '@/schemas/couponSchema'
+import type { BackgroundEffect, CouponStatus } from '@/schemas/couponSchema'
+import { ctaCopy } from '@/constants/ctaCopy'
 import styles from './CouponCardHero.module.css'
 
 export type CouponCardHeroProps = {
@@ -12,6 +13,9 @@ export type CouponCardHeroProps = {
   motif: string
   imageSrc?: string | null
   expiresAt?: string | null
+  status: CouponStatus
+  showRedeem?: boolean
+  onRedeem?: () => void
 }
 
 function formatStubLabel(expiresAt?: string | null): string {
@@ -30,7 +34,12 @@ export function CouponCardHero({
   motif,
   imageSrc,
   expiresAt,
+  status,
+  showRedeem = false,
+  onRedeem,
 }: CouponCardHeroProps) {
+  const isRedeemed = status === 'redeemed'
+
   return (
     <div className={styles.card} style={{ '--hero-accent': accent } as CSSProperties}>
       <div className={styles.inner} style={{ backgroundColor: backgroundColor ?? '#FFF8F0' }}>
@@ -79,8 +88,18 @@ export function CouponCardHero({
               {motif}
             </div>
           )}
+          {showRedeem && !isRedeemed && (
+            <button type="button" onClick={onRedeem} className={styles.redeemButton}>
+              {ctaCopy.recipientRedeemButton}
+            </button>
+          )}
         </div>
       </div>
+      {isRedeemed && (
+        <div className={styles.redeemedOverlay}>
+          <div className={styles.redeemedStamp}>Redeemed ♥</div>
+        </div>
+      )}
     </div>
   )
 }

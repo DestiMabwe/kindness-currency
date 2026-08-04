@@ -16,6 +16,7 @@ export default function CouponHeroDevPreview() {
         motif="❀"
         imageSrc="/images/mothers_day.png"
         expiresAt="2026-12-25"
+        status="sent"
       />
     </div>
   )

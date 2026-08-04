@@ -38,6 +38,8 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
         senderName={giveData.sender_name}
         accent={visuals.accent}
         motif={visuals.motif}
+        imageSrc={visuals.imageSrc}
+        expiresAt={giveData.expiry_date}
       />
 
       <div className="mx-4 mt-6 rounded-[20px] bg-[#1A1A2E] p-5 text-center">

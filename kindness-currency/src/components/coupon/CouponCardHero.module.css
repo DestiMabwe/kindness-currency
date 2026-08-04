@@ -2,7 +2,7 @@
   position: relative;
   width: 620px;
   max-width: 92vw;
-  height: 260px;
+  min-height: 260px;
   background: var(--hero-accent);
   border-radius: 26px;
   padding: 14px;
@@ -208,9 +208,49 @@
   pointer-events: none;
 }
 
+.redeemButton {
+  align-self: flex-start;
+  margin-top: 13px;
+  border-radius: 999px;
+  background: #c2185b;
+  padding: 10px 18px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 8px 18px -8px rgba(194, 24, 91, 0.7);
+  border: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.redeemedOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.redeemedStamp {
+  transform: rotate(-11deg);
+  border-radius: 10px;
+  border: 3px solid #c2185b;
+  background: rgba(255, 248, 240, 0.62);
+  padding: 7px 16px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  font-style: italic;
+  color: #c2185b;
+  box-shadow: 0 4px 14px -6px rgba(194, 24, 91, 0.5);
+}
+
 @media (max-width: 560px) {
   .card {
-    height: 300px;
+    min-height: 300px;
   }
 
   .headline {
