@@ -127,4 +127,15 @@ describe('CouponCardHero', () => {
     const content = container.querySelector(`.${styles.content}`) as HTMLElement
     expect(content.className).not.toContain(styles.contentWithImage)
   })
+
+  it('renders "NO EXPIRY DATE" in the stub label when expiresAt is not set', () => {
+    render(<CouponCardHero {...baseProps} />)
+    expect(screen.getByText('NO EXPIRY DATE')).toBeInTheDocument()
+  })
+
+  it('renders the formatted real date in the stub label when expiresAt is set', () => {
+    render(<CouponCardHero {...baseProps} expiresAt="2026-08-15" />)
+    expect(screen.getByText('AUG 15, 2026')).toBeInTheDocument()
+    expect(screen.queryByText('NO EXPIRY DATE')).not.toBeInTheDocument()
+  })
 })

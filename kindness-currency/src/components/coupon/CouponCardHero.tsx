@@ -11,6 +11,13 @@ export type CouponCardHeroProps = {
   backgroundEffect: BackgroundEffect
   motif: string
   imageSrc?: string | null
+  expiresAt?: string | null
+}
+
+function formatStubLabel(expiresAt?: string | null): string {
+  if (!expiresAt) return 'NO EXPIRY DATE'
+  const date = new Date(`${expiresAt}T00:00:00`)
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
 }
 
 export function CouponCardHero({
@@ -22,6 +29,7 @@ export function CouponCardHero({
   backgroundEffect,
   motif,
   imageSrc,
+  expiresAt,
 }: CouponCardHeroProps) {
   return (
     <div className={styles.card} style={{ '--hero-accent': accent } as CSSProperties}>
@@ -51,6 +59,7 @@ export function CouponCardHero({
         )}
         <div className={styles.stub}>
           <div className={styles.barcode} />
+          <div className={styles.stubLabel}>{formatStubLabel(expiresAt)}</div>
         </div>
         <div className={styles.perforation} />
         <div className={imageSrc ? `${styles.content} ${styles.contentWithImage}` : styles.content}>

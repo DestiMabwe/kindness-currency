@@ -10,11 +10,12 @@ export default function CouponHeroDevPreview() {
       <CouponCardHero
         serviceTitle="Home Cooked Meal"
         microCopy="Just the way you like it"
-        finePrint="No expiry date"
+        finePrint="Redeemable anytime"
         accent="#D4658A"
         backgroundEffect="sparkle"
         motif="❀"
         imageSrc="/images/mothers_day.png"
+        expiresAt="2026-12-25"
       />
     </div>
   )

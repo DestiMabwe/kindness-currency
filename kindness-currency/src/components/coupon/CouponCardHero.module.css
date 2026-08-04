@@ -88,6 +88,20 @@
   padding: 18px 10px;
 }
 
+.stubLabel {
+  position: absolute;
+  left: 50%;
+  top: 15%;
+  transform: translate(-15%, -70%) rotate(-90deg);
+  white-space: nowrap;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #6b6b6b;
+  margin-top: 92px;
+}
+
 .barcode {
   width: 50px;
   height: 190px;
