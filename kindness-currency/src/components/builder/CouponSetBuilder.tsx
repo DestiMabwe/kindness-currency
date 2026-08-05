@@ -10,6 +10,7 @@ import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/consta
 import { ctaCopy } from '@/constants/ctaCopy'
 import { createClient } from '@/lib/supabase/client'
 import { saveCouponSetAction } from '@/app/create/actions'
+import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
 import type { TemplateWithCoupons } from '@/lib/templateRepository'
 
 export type CouponSetBuilderProps = {
@@ -425,6 +426,7 @@ function CouponEditorCard({
           onChange={(e) => onPatch({ serviceTitle: e.target.value })}
           placeholder="Service title"
           aria-label="Service title"
+          maxLength={SERVICE_TITLE_MAX_LENGTH}
           className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#FFF8F0] p-2.5 text-[15px] font-bold text-[#1A1A2E] italic outline-none"
           style={{ fontFamily: 'var(--font-playfair)' }}
         />

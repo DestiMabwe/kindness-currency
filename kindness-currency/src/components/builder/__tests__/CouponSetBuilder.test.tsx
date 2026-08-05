@@ -162,6 +162,22 @@ describe('CouponSetBuilder', () => {
 
       expect(screen.getByText('DEC 25, 2026')).toBeInTheDocument()
     })
+
+    it('caps the service title input at 40 characters', async () => {
+      await goToEditor()
+
+      expect(screen.getByLabelText('Service title')).toHaveAttribute('maxlength', '40')
+    })
+
+    it('does not allow typing a title longer than 40 characters', async () => {
+      await goToEditor()
+
+      const titleInput = screen.getByLabelText('Service title')
+      await userEvent.clear(titleInput)
+      await userEvent.type(titleInput, 'A'.repeat(50))
+
+      expect((titleInput as HTMLInputElement).value).toHaveLength(40)
+    })
   })
 
   describe('preview overlay', () => {

@@ -16,9 +16,13 @@ export const CouponSetMutationSchema = z.object({
   expiry_date: z.string().date().optional(),
 })
 
+// Longest seeded service_title is 31 chars ("One Birthday Meal, Your Choice"); this caps
+// input at 40 so CouponCardHero's fixed-height layout never has to silently overflow.
+export const SERVICE_TITLE_MAX_LENGTH = 40
+
 // Individual coupon mutation schema
 export const CouponMutationSchema = z.object({
-  service_title: z.string().min(1),
+  service_title: z.string().min(1).max(SERVICE_TITLE_MAX_LENGTH),
   micro_copy: z.string().optional(),
   fine_print: z.string().optional(),
   font_choice: FontChoiceSchema,
