@@ -3,6 +3,7 @@ export const ctaCopy = {
   sendWithLove: 'Send with Love',
   saveMyCoupons: 'Save My Coupons',
   previewAllCoupons: 'Preview All Coupons',
+  previewSampleCoupons: 'See a Coupon Sample',
   authModalHeading: 'Almost there — save your coupons',
   authModalSubtext:
     'Your information is safe with us. We use bank-level encryption and will never share your details.',

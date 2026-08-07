@@ -42,7 +42,7 @@ const initialState: BuilderState = {
   savedResult: null,
 }
 
-function couponsFromTemplate(template: TemplateWithCoupons): BuilderCoupon[] {
+export function couponsFromTemplate(template: TemplateWithCoupons): BuilderCoupon[] {
   return template.template_coupons.map((c) => ({
     id: c.id,
     sortOrder: c.sort_order,

@@ -91,27 +91,24 @@ export default async function HomePage() {
               <Link
                 key={template.id}
                 href="/create"
-                className="w-[172px] shrink-0 rounded-[18px] border border-[#1A1A2E]/8 bg-white p-3.75 shadow-[0_14px_30px_-22px_rgba(26,26,46,0.5)]"
+                className="w-[172px] shrink-0 overflow-hidden rounded-[18px] border border-[#1A1A2E]/8 bg-white shadow-[0_14px_30px_-22px_rgba(26,26,46,0.5)]"
               >
-                <div className="flex items-center justify-between">
-                  <div
-                    className="flex h-[42px] w-[42px] items-center justify-center rounded-xl text-[22px]"
-                    style={{ color: visuals.accent, backgroundColor: visuals.tint }}
-                  >
-                    {visuals.motif}
-                  </div>
+                <div className="relative aspect-[1748/1240] w-full">
+                  <img src={visuals.coverImageSrc} alt={template.name} className="h-full w-full object-cover" />
                   {template.is_age_restricted && (
-                    <span className="rounded-full border border-[#C2185B] px-1.75 py-0.5 text-[9px] font-bold tracking-[0.08em] text-[#C2185B]">
+                    <span className="absolute top-2 right-2 rounded-full border border-[#C2185B] bg-white/92 px-1.75 py-0.5 text-[9px] font-bold tracking-[0.08em] text-[#C2185B]">
                       18+
                     </span>
                   )}
                 </div>
-                <div className="mt-3 text-[16.5px] leading-tight font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
-                  {template.name}
-                </div>
-                <div className="mt-1.25 text-[11.5px] leading-snug text-[#2C2C2C] opacity-70">{template.theme}</div>
-                <div className="mt-3 text-[11.5px] font-semibold" style={{ color: visuals.accent }}>
-                  8 coupons →
+                <div className="p-3.75">
+                  <div className="text-[16.5px] leading-tight font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
+                    {template.name}
+                  </div>
+                  <div className="mt-1.25 text-[11.5px] leading-snug text-[#2C2C2C] opacity-70">{template.theme}</div>
+                  <div className="mt-3 text-[11.5px] font-semibold" style={{ color: visuals.accent }}>
+                    8 coupons →
+                  </div>
                 </div>
               </Link>
             )

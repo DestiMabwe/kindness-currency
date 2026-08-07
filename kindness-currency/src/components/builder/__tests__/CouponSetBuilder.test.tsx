@@ -56,6 +56,55 @@ describe('CouponSetBuilder', () => {
       expect(screen.getByText("Who's it for?")).toBeInTheDocument()
       expect(screen.queryByText('A grown-up gift')).not.toBeInTheDocument()
     })
+
+    it("shows the template's emotional_tone as a description", () => {
+      render(
+        <CouponSetBuilder
+          templates={[template({ emotional_tone: 'Everyday acts of care for the person who raised you.' })]}
+        />
+      )
+
+      expect(screen.getByText('Everyday acts of care for the person who raised you.')).toBeInTheDocument()
+    })
+  })
+
+  describe('sample preview', () => {
+    it('shows the template\'s own default coupons when "See a Coupon Sample" is clicked', async () => {
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+
+      expect(screen.getByText('Preview')).toBeInTheDocument()
+      expect(screen.getByText('One Home-Cooked Meal')).toBeInTheDocument()
+    })
+
+    it('closes via the existing close button', async () => {
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+      await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
+
+      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+    })
+
+    it('shows the age gate instead of the preview for a restricted template', async () => {
+      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+
+      expect(screen.getByText('A grown-up gift')).toBeInTheDocument()
+      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+    })
+
+    it('opens the preview, not the details screen, after confirming the age gate from the sample-preview path', async () => {
+      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+      await userEvent.click(screen.getByRole('button', { name: "I'm 18+, Continue →" }))
+
+      expect(screen.getByText('Preview')).toBeInTheDocument()
+      expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
+    })
   })
 
   describe('age gate', () => {

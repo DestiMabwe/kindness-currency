@@ -22,10 +22,43 @@ export const colorWheelSwatches = [
 
 export type TemplateSlug = 'mothers_day' | 'valentines' | 'birthday' | 'lovers' | 'besties'
 
-export const templateVisuals: Record<TemplateSlug, { accent: string; tint: string; motif: string; imageSrc: string }> = {
-  mothers_day: { accent: 'rgb(131, 131, 228)', tint: '#FBE7EE', motif: '❀', imageSrc: '/images/mothers_day.png' },
-  valentines: { accent: '#C2185B', tint: '#FBDCE6', motif: '❦', imageSrc: '/images/valentines.png' },
-  birthday: { accent: '#FF8F00', tint: '#FFEAC9', motif: '✺', imageSrc: '/images/birthday.png' },
-  lovers: { accent: '#7B3F61', tint: '#EFE0EA', motif: '☾', imageSrc: '/images/lovers.png' },
-  besties: { accent: '#2E7D6B', tint: '#DCEEE8', motif: '✦', imageSrc: '/images/besties.png' },
+export const templateVisuals: Record<
+  TemplateSlug,
+  { accent: string; tint: string; motif: string; imageSrc: string; coverImageSrc: string }
+> = {
+  mothers_day: {
+    accent: 'rgb(131, 131, 228)',
+    tint: '#FBE7EE',
+    motif: '❀',
+    imageSrc: '/images/mothers_day.png',
+    coverImageSrc: '/images/covers/mothers_day.png',
+  },
+  valentines: {
+    accent: '#C2185B',
+    tint: '#FBDCE6',
+    motif: '❦',
+    imageSrc: '/images/valentines.png',
+    coverImageSrc: '/images/covers/valentines.png',
+  },
+  birthday: {
+    accent: '#FF8F00',
+    tint: '#FFEAC9',
+    motif: '✺',
+    imageSrc: '/images/birthday.png',
+    coverImageSrc: '/images/covers/birthday.png',
+  },
+  lovers: {
+    accent: '#7B3F61',
+    tint: '#EFE0EA',
+    motif: '☾',
+    imageSrc: '/images/lovers.png',
+    coverImageSrc: '/images/covers/lovers.png',
+  },
+  besties: {
+    accent: '#2E7D6B',
+    tint: '#DCEEE8',
+    motif: '✦',
+    imageSrc: '/images/besties.png',
+    coverImageSrc: '/images/covers/besties.png',
+  },
 }

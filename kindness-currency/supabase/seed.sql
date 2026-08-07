@@ -1,13 +1,13 @@
 -- ============================================================
 -- Templates
 -- ============================================================
-INSERT INTO templates (slug, name, theme, decorative_element, is_age_restricted, is_active, sort_order)
+INSERT INTO templates (slug, name, theme, decorative_element, emotional_tone, is_age_restricted, is_active, sort_order)
 VALUES
-  ('mothers_day', 'Mom''s Promise Tokens',       'Promise', 'Flower or ribbon',       false, true, 1),
-  ('valentines',  'Valentine''s Love Passes',     'Pass',    'Rose or sparkle',        false, true, 2),
-  ('birthday',    'Birthday Joy Tokens',           'Token',   'Balloon or confetti',    false, true, 3),
-  ('lovers',      'Lover''s Intimate Promises',    'Promise', 'Candle or moon',         true,  true, 4),
-  ('besties',     'Bestie''s Surprise Passes',     'Pass',    'Star or lightning bolt', false, true, 5);
+  ('mothers_day', 'Mom''s Promise Tokens',       'Promise', 'Flower or ribbon',       'Everyday acts of care — meals, errands, and undivided time — for the person who''s always taken care of you.', false, true, 1),
+  ('valentines',  'Valentine''s Love Passes',     'Pass',    'Rose or sparkle',        'Romantic gestures big and small, from breakfast in bed to a night entirely on their terms.',                    false, true, 2),
+  ('birthday',    'Birthday Joy Tokens',           'Token',   'Balloon or confetti',    'A year''s worth of little celebrations — cake, treats, and a day built entirely around them.',                 false, true, 3),
+  ('lovers',      'Lover''s Intimate Promises',    'Promise', 'Candle or moon',         'Slow, intimate promises for couples — undivided attention, no phones, no rushing.',                             true,  true, 4),
+  ('besties',     'Bestie''s Surprise Passes',     'Pass',    'Star or lightning bolt', 'Ride-or-die favours for your best friend — vent sessions, spontaneous plans, zero judgment.',                    false, true, 5);
 
 -- ============================================================
 -- Mom's Promise Tokens — mothers_day

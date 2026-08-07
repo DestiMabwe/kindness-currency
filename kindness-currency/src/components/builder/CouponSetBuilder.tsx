@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useCouponSetBuilder, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
+import { useCouponSetBuilder, couponsFromTemplate, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { AuthGate } from '@/components/modals/AuthGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
@@ -17,9 +17,12 @@ export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
 }
 
+type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
+
 export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
-  const [pendingAgeGateSlug, setPendingAgeGateSlug] = useState<TemplateSlug | null>(null)
+  const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
+  const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -56,19 +59,30 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
 
   const handleSelectTemplate = (template: TemplateWithCoupons) => {
     if (template.is_age_restricted) {
-      setPendingAgeGateSlug(template.slug as TemplateSlug)
+      setPendingAgeGate({ template, action: 'select' })
       return
     }
     builder.loadTemplate(template.slug as TemplateSlug)
   }
 
-  const confirmAgeGate = () => {
-    if (!pendingAgeGateSlug) return
-    builder.loadTemplate(pendingAgeGateSlug)
-    setPendingAgeGateSlug(null)
+  const handlePreviewSample = (template: TemplateWithCoupons) => {
+    if (template.is_age_restricted) {
+      setPendingAgeGate({ template, action: 'preview' })
+      return
+    }
+    setSampleTemplate(template)
   }
 
-  const pendingTemplate = pendingAgeGateSlug ? templates.find((t) => t.slug === pendingAgeGateSlug) : null
+  const confirmAgeGate = () => {
+    if (!pendingAgeGate) return
+    if (pendingAgeGate.action === 'select') {
+      builder.loadTemplate(pendingAgeGate.template.slug as TemplateSlug)
+    } else {
+      setSampleTemplate(pendingAgeGate.template)
+    }
+    setPendingAgeGate(null)
+  }
+
   const selectedTemplate = builder.templateBySlug(builder.state.selectedTemplateSlug as TemplateSlug)
   const visuals = builder.state.selectedTemplateSlug ? templateVisuals[builder.state.selectedTemplateSlug] : null
 
@@ -83,7 +97,9 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
 
   return (
     <div className="min-h-screen">
-      {builder.state.screen === 'select' && <TemplateSelectScreen templates={templates} onSelect={handleSelectTemplate} />}
+      {builder.state.screen === 'select' && (
+        <TemplateSelectScreen templates={templates} onSelect={handleSelectTemplate} onPreviewSample={handlePreviewSample} />
+      )}
 
       {builder.state.screen === 'details' && (
         <DetailsFormScreen
@@ -130,8 +146,19 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
         />
       )}
 
-      {pendingTemplate && (
-        <AgeGate templateName={pendingTemplate.name} onConfirm={confirmAgeGate} onDismiss={() => setPendingAgeGateSlug(null)} />
+      {sampleTemplate && (
+        <PreviewOverlay
+          coupons={couponsFromTemplate(sampleTemplate)}
+          accent={templateVisuals[sampleTemplate.slug as TemplateSlug].accent}
+          motif={templateVisuals[sampleTemplate.slug as TemplateSlug].motif}
+          imageSrc={templateVisuals[sampleTemplate.slug as TemplateSlug].imageSrc}
+          expiresAt={null}
+          onClose={() => setSampleTemplate(null)}
+        />
+      )}
+
+      {pendingAgeGate && (
+        <AgeGate templateName={pendingAgeGate.template.name} onConfirm={confirmAgeGate} onDismiss={() => setPendingAgeGate(null)} />
       )}
 
       {authOpen && <AuthGate onClose={() => setAuthOpen(false)} />}
@@ -142,9 +169,11 @@ export function CouponSetBuilder({ templates }: CouponSetBuilderProps) {
 function TemplateSelectScreen({
   templates,
   onSelect,
+  onPreviewSample,
 }: {
   templates: TemplateWithCoupons[]
   onSelect: (template: TemplateWithCoupons) => void
+  onPreviewSample: (template: TemplateWithCoupons) => void
 }) {
   return (
     <div>
@@ -157,39 +186,41 @@ function TemplateSelectScreen({
         </div>
         <div className="mt-1.5 text-[13px] text-[#2C2C2C] opacity-72">Each ships with eight thoughtful coupons, ready to personalise.</div>
       </div>
-      <div className="flex flex-col gap-3.5 px-5.5 pt-4 pb-7.5">
+      <div className="flex flex-col gap-5 px-5.5 pt-4 pb-7.5">
         {templates.map((template) => {
           const visuals = templateVisuals[template.slug as TemplateSlug]
           return (
-            <button
+            <div
               key={template.id}
-              type="button"
-              onClick={() => onSelect(template)}
-              className="flex items-center gap-3.5 rounded-2xl border border-[#1A1A2E]/8 bg-white p-4 text-left shadow-[0_14px_30px_-24px_rgba(26,26,46,0.5)]"
+              className="overflow-hidden rounded-2xl border border-[#1A1A2E]/8 bg-white shadow-[0_14px_30px_-24px_rgba(26,26,46,0.5)]"
             >
-              <div
-                className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-2xl text-[27px]"
-                style={{ color: visuals.accent, backgroundColor: visuals.tint }}
-              >
-                {visuals.motif}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
-                    {template.name}
+              <button type="button" onClick={() => onSelect(template)} className="block w-full text-left">
+                <img src={visuals.coverImageSrc} alt={template.name} className="aspect-[1748/1240] w-full object-cover" />
+                <div className="px-4 pt-3.5">
+                  <div className="flex items-center gap-2">
+                    <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
+                      {template.name}
+                    </div>
+                    {template.is_age_restricted && (
+                      <span className="rounded-full border border-[#C2185B] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.08em] text-[#C2185B]">
+                        18+
+                      </span>
+                    )}
                   </div>
-                  {template.is_age_restricted && (
-                    <span className="rounded-full border border-[#C2185B] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.08em] text-[#C2185B]">
-                      18+
-                    </span>
+                  {template.emotional_tone && (
+                    <div className="mt-1 text-xs leading-snug text-[#2C2C2C] opacity-70">{template.emotional_tone}</div>
                   )}
                 </div>
-                <div className="mt-1 text-xs leading-snug text-[#2C2C2C] opacity-70">{template.theme}</div>
-              </div>
-              <div className="shrink-0 text-xl" style={{ color: visuals.accent }}>
-                →
-              </div>
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={() => onPreviewSample(template)}
+                className="mx-4 mt-2.5 mb-3.5 text-xs font-semibold underline underline-offset-2"
+                style={{ color: visuals.accent }}
+              >
+                {ctaCopy.previewSampleCoupons}
+              </button>
+            </div>
           )
         })}
       </div>
