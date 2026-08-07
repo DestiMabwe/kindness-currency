@@ -3,16 +3,9 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createTemplateRepository } from '@/lib/templateRepository'
 import { createCampaignBannerRepository } from '@/lib/campaignBannerRepository'
 import { CampaignBanner } from '@/components/shared/CampaignBanner'
-import { CouponCardMini } from '@/components/coupon/CouponCardMini'
+import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { templateVisuals, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
-
-const HERO_FLOATS: { top?: string; bottom?: string; left?: string; right?: string; rotate: number; duration: string; delay: string; width: string }[] = [
-  { top: '6px', left: '6px', rotate: -8, duration: '6s', delay: '0s', width: '38%' },
-  { top: '30px', right: '2px', rotate: 7, duration: '7s', delay: '0.6s', width: '38%' },
-  { bottom: '0px', left: '24px', rotate: 5, duration: '6.6s', delay: '0.3s', width: '38%' },
-  { bottom: '14px', right: '30px', rotate: -6, duration: '7.4s', delay: '0.9s', width: '36%' },
-]
 
 export default async function HomePage() {
   const supabase = createServiceClient()
@@ -21,57 +14,63 @@ export default async function HomePage() {
 
   const [templates, banner] = await Promise.all([templateRepo.getActiveTemplatesWithCoupons(), bannerRepo.getActiveBanner()])
 
-  const heroTemplates = templates.filter((t) => !t.is_age_restricted).slice(0, 4)
+  const heroTemplates = templates.filter((t) => !t.is_age_restricted)
+  const marqueeItems = [...heroTemplates, ...heroTemplates] // duplicated so the scroll loop is seamless
 
   return (
     <div className="flex min-h-screen flex-col">
       {banner && <CampaignBanner message={banner.message} />}
 
       <div className="flex items-center justify-between px-4.5 pt-3.5 pb-3">
-        <span className="font-sans text-lg font-extrabold text-[#1A1A2E]">Kindness Currency</span>
+        <img src="/logo.png" alt="Kindness Currency" className="h-9 w-auto" />
         <button type="button" className="rounded-full border border-[#1A1A2E]/18 px-4 py-1.75 font-sans text-[12.5px] font-semibold text-[#1A1A2E]">
           Log In
         </button>
       </div>
 
-      <div className="relative overflow-hidden px-5.5 pt-3.5 pb-6.5">
-        <div className="relative mx-[-6px] mb-1.5 h-[188px]">
-          {heroTemplates.map((template, i) => {
-            const visuals = templateVisuals[template.slug as TemplateSlug]
-            const float = HERO_FLOATS[i]
-            const coupon = template.template_coupons[0]
-            if (!float || !coupon) return null
-            return (
-              <div
-                key={template.id}
-                className="kc-float absolute"
-                style={{
-                  top: float.top,
-                  bottom: float.bottom,
-                  left: float.left,
-                  right: float.right,
-                  width: float.width,
-                  ['--kc-float-rotate' as string]: `${float.rotate}deg`,
-                  ['--kc-float-duration' as string]: float.duration,
-                  ['--kc-float-delay' as string]: float.delay,
-                }}
-              >
-                <CouponCardMini title={coupon.service_title} accent={visuals.accent} motif={visuals.motif} />
-              </div>
-            )
-          })}
+      <div className="kc-hero-wash relative overflow-hidden px-5.5 pt-3.5 pb-6.5">
+        <div className="relative mb-3.5 flex h-[270px] items-center overflow-hidden">
+          <div className="kc-marquee-track flex w-max items-center gap-6">
+            {marqueeItems.map((template, i) => {
+              const visuals = templateVisuals[template.slug as TemplateSlug]
+              const coupon = template.template_coupons[0]
+              if (!coupon) return null
+              return (
+                <div key={`${template.id}-${i}`} className="shrink-0" style={{ transform: 'scale(0.62)' }}>
+                  <CouponCardHero
+                    serviceTitle={coupon.service_title}
+                    microCopy={coupon.micro_copy}
+                    finePrint={coupon.fine_print}
+                    accent={visuals.accent}
+                    backgroundEffect="none"
+                    motif={visuals.motif}
+                    imageSrc={visuals.imageSrc}
+                    expiresAt={null}
+                    status="sent"
+                  />
+                </div>
+              )
+            })}
+          </div>
         </div>
-        <div className="text-[38px] leading-[1.04] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+        <div
+          className="kc-rise text-[38px] leading-[1.04] font-extrabold text-[#1A1A2E] italic"
+          style={{ fontFamily: 'var(--font-playfair)', ['--kc-rise-delay' as string]: '0.05s' }}
+        >
           Give a promise,
           <br />
           not a thing.
         </div>
-        <div className="mt-3 max-w-[300px] text-[14.5px] leading-relaxed text-[#2C2C2C] opacity-78">
+        <div
+          className="kc-rise mt-3 max-w-[300px] text-[14.5px] leading-relaxed text-[#2C2C2C] opacity-78"
+          style={{ ['--kc-rise-delay' as string]: '0.18s' }}
+        >
           Hand-craft a set of acts-of-service coupons and send them with a single link. No app for them to download. Just love, redeemable.
         </div>
         <Link
           href="/create"
-          className="mt-5 block w-full rounded-2xl bg-[#C2185B] p-3.75 text-center font-sans text-[15.5px] font-bold text-white shadow-[0_16px_30px_-14px_rgba(194,24,91,0.8)]"
+          className="kc-rise mt-5 block w-full rounded-2xl bg-[#C2185B] p-3.75 text-center font-sans text-[15.5px] font-bold text-white shadow-[0_16px_30px_-14px_rgba(194,24,91,0.8)]"
+          style={{ ['--kc-rise-delay' as string]: '0.3s' }}
         >
           {ctaCopy.heroCta}
         </Link>
