@@ -73,18 +73,18 @@ export function CouponCardHero({
         <div className={styles.perforation} />
         <div className={imageSrc ? `${styles.content} ${styles.contentWithImage}` : styles.content}>
           <p className={styles.eyebrow}>GOOD FOR ONE</p>
-          <h1
+          <h2
             className={styles.headline}
             style={{ fontFamily: 'var(--font-playfair)', fontWeight: 700 }}
           >
             {serviceTitle}
-          </h1>
+          </h2>
           {microCopy && <p className={styles.subline}>{microCopy}</p>}
           {finePrint && <p className={styles.finePrint}>{finePrint}</p>}
           {imageSrc ? (
             <img className={styles.decorativeImage} src={imageSrc} alt="" />
           ) : (
-            <div className={styles.decorativeMotif} style={{ color: accent }}>
+            <div aria-hidden="true" className={styles.decorativeMotif} style={{ color: accent }}>
               {motif}
             </div>
           )}

@@ -17,6 +17,14 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Every interactive element in this app removes the default outline for a cleaner
+   look; this restores a visible indicator for keyboard focus specifically, without
+   reintroducing an outline on mouse/touch interaction. */
+:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
 /* Slow-drifting wash through the 5 template accent colors, at low opacity over cream. */
 @keyframes kc-hero-wash {
   0% { background-position: 0% 50%; }
@@ -34,7 +42,13 @@ body {
     rgba(131, 131, 228, 0.16)
   );
   background-size: 300% 300%;
-  animation: kc-hero-wash 16s ease-in-out infinite alternate;
+}
+
+/* Auto-playing motion only runs when the visitor hasn't asked for less of it (WCAG 2.2.2). */
+@media (prefers-reduced-motion: no-preference) {
+  .kc-hero-wash {
+    animation: kc-hero-wash 16s ease-in-out infinite alternate;
+  }
 }
 
 @keyframes kc-rise {
@@ -53,6 +67,8 @@ body {
   to { transform: translateX(-50%); }
 }
 
-.kc-marquee-track {
-  animation: kc-marquee 20s linear infinite;
+@media (prefers-reduced-motion: no-preference) {
+  .kc-marquee-track {
+    animation: kc-marquee 20s linear infinite;
+  }
 }

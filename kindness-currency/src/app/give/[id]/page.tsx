@@ -4,6 +4,7 @@ import { createGiveRepository, sortCouponsForDisplay } from '@/lib/giveRepositor
 import { templateVisuals } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { RecipientCouponList } from '@/components/coupon/RecipientCouponList'
+import { SiteHeader } from '@/components/shared/SiteHeader'
 
 export default async function GivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,14 +18,15 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="flex min-h-screen flex-col pb-10">
+      <SiteHeader />
       <div
-        className="px-6 pt-12 pb-7 text-center text-white"
+        className="px-6 pt-7 pb-7 text-center text-white"
         style={{ background: `linear-gradient(160deg, ${visuals.accent}, #1A1A2E)` }}
       >
         <div className="text-xs tracking-[0.16em] uppercase opacity-80">A gift for you</div>
-        <div className="mt-3 text-3xl leading-[1.12] font-extrabold italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+        <h1 className="mt-3 text-3xl leading-[1.12] font-extrabold italic" style={{ fontFamily: 'var(--font-playfair)' }}>
           For {giveData.recipient_name},
-        </div>
+        </h1>
         <div className="mt-0.5 text-lg font-medium italic opacity-90" style={{ fontFamily: 'var(--font-playfair)' }}>
           with love from {giveData.sender_name} ♥
         </div>
@@ -54,7 +56,7 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
           {ctaCopy.recipientConversionButton}
         </a>
       </div>
-      <div className="pt-2.5 pb-1.5 text-center text-[10.5px] tracking-[0.05em] text-[#2C2C2C] opacity-40">
+      <div className="pt-2.5 pb-1.5 text-center text-[10.5px] tracking-[0.05em] text-[#2C2C2C] opacity-80">
         Made with Kindness Currency
       </div>
     </div>

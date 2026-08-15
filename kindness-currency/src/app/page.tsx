@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createTemplateRepository } from '@/lib/templateRepository'
 import { createCampaignBannerRepository } from '@/lib/campaignBannerRepository'
 import { CampaignBanner } from '@/components/shared/CampaignBanner'
+import { SiteHeader } from '@/components/shared/SiteHeader'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { templateVisuals, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -21,15 +23,10 @@ export default async function HomePage() {
     <div className="flex min-h-screen flex-col">
       {banner && <CampaignBanner message={banner.message} />}
 
-      <div className="flex items-center justify-between px-4.5 pt-3.5 pb-3">
-        <img src="/logo.png" alt="Kindness Currency" className="h-9 w-auto" />
-        <button type="button" className="rounded-full border border-[#1A1A2E]/18 px-4 py-1.75 font-sans text-[12.5px] font-semibold text-[#1A1A2E]">
-          Log In
-        </button>
-      </div>
+      <SiteHeader />
 
       <div className="kc-hero-wash relative overflow-hidden px-5.5 pt-3.5 pb-6.5">
-        <div className="relative mb-3.5 flex h-[270px] items-center overflow-hidden">
+        <div aria-hidden="true" className="relative mb-3.5 flex h-[270px] items-center overflow-hidden">
           <div className="kc-marquee-track flex w-max items-center gap-6">
             {marqueeItems.map((template, i) => {
               const visuals = templateVisuals[template.slug as TemplateSlug]
@@ -53,19 +50,19 @@ export default async function HomePage() {
             })}
           </div>
         </div>
-        <div
+        <h1
           className="kc-rise text-[38px] leading-[1.04] font-extrabold text-[#1A1A2E] italic"
           style={{ fontFamily: 'var(--font-playfair)', ['--kc-rise-delay' as string]: '0.05s' }}
         >
-          Give a promise,
+          Connection,
           <br />
-          not a thing.
-        </div>
+          without complication
+        </h1>
         <div
           className="kc-rise mt-3 max-w-[300px] text-[14.5px] leading-relaxed text-[#2C2C2C] opacity-78"
           style={{ ['--kc-rise-delay' as string]: '0.18s' }}
         >
-          Hand-craft a set of acts-of-service coupons and send them with a single link. No app for them to download. Just love, redeemable.
+          Kindness Currency lets you give time, care, and love. The gifts that matter most. Share promises, surprises, and acts of service — all wrapped in a single link.
         </div>
         <Link
           href="/create"
@@ -93,7 +90,7 @@ export default async function HomePage() {
                 className="w-[172px] shrink-0 overflow-hidden rounded-[18px] border border-[#1A1A2E]/8 bg-white shadow-[0_14px_30px_-22px_rgba(26,26,46,0.5)]"
               >
                 <div className="relative aspect-[1748/1240] w-full">
-                  <img src={visuals.coverImageSrc} alt={template.name} className="h-full w-full object-cover" />
+                  <Image src={visuals.coverImageSrc} alt={template.name} fill sizes="172px" className="object-cover" />
                   {template.is_age_restricted && (
                     <span className="absolute top-2 right-2 rounded-full border border-[#C2185B] bg-white/92 px-1.75 py-0.5 text-[9px] font-bold tracking-[0.08em] text-[#C2185B]">
                       18+
@@ -119,7 +116,7 @@ export default async function HomePage() {
         <div className="text-[15px] text-[#1A1A2E] italic opacity-85" style={{ fontFamily: 'var(--font-playfair)' }}>
           {ctaCopy.footerTagline}
         </div>
-        <div className="mt-2 text-[10.5px] tracking-[0.06em] text-[#2C2C2C] opacity-45">KINDNESS CURRENCY</div>
+        <div className="mt-2 text-[10.5px] tracking-[0.06em] text-[#2C2C2C] opacity-80">KINDNESS CURRENCY</div>
       </div>
     </div>
   )

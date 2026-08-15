@@ -22,7 +22,7 @@
 
   position: relative;
   width: 620px;
-  max-width: 92vw;
+  max-width: min(92vw, 100%);
   min-height: clamp(140px, 38.6vw, 260px);
   background: var(--hero-accent);
   border-radius: 26px;
@@ -169,7 +169,7 @@
   font-weight: 800;
   letter-spacing: 1.5px;
   color: #2c2c2c;
-  opacity: 0.6;
+  opacity: 0.85;
   margin: 0 0 6px 0;
 }
 
@@ -206,7 +206,7 @@
   letter-spacing: 0.08em;
   color: #2c2c2c;
   text-transform: uppercase;
-  opacity: 0.55;
+  opacity: 0.78;
 }
 
 .contentWithImage {
@@ -220,7 +220,7 @@
   width: var(--image-w);
   height: var(--image-h);
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 14px;
   opacity: 0.95;
 }
 
@@ -262,7 +262,7 @@
 
 .redeemedStamp {
   transform: rotate(-11deg);
-  border-radius: 10px;
+  border-radius: 14px;
   border: 3px solid #c2185b;
   background: rgba(255, 248, 240, 0.62);
   padding: clamp(5px, 1.04vw, 7px) clamp(11px, 2.37vw, 16px);
