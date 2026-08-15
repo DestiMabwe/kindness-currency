@@ -6,9 +6,10 @@ import { ctaCopy } from '@/constants/ctaCopy'
 export type GiftReadyScreenProps = {
   shareLink: string
   pin: string
+  onStartOver: () => void
 }
 
-export function GiftReadyScreen({ shareLink, pin }: GiftReadyScreenProps) {
+export function GiftReadyScreen({ shareLink, pin, onStartOver }: GiftReadyScreenProps) {
   const [copied, setCopied] = useState(false)
 
   const copyLink = async () => {
@@ -40,16 +41,16 @@ export function GiftReadyScreen({ shareLink, pin }: GiftReadyScreenProps) {
         <div className="mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#C2185B] text-[34px] text-white">
           ♥
         </div>
-        <div className="mt-4.5 text-[30px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+        <h1 className="mt-4.5 text-[30px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
           Your gift is ready
-        </div>
+        </h1>
         <div className="mt-2 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-75">
           Share the link and PIN separately, so the surprise stays a surprise.
         </div>
       </div>
 
       <div className="mt-6.5 rounded-[18px] border border-[#1A1A2E]/8 bg-white p-4">
-        <div className="text-[10.5px] font-semibold tracking-[0.1em] text-[#2C2C2C] uppercase opacity-55">Shareable link</div>
+        <div className="text-[10.5px] font-semibold tracking-[0.1em] text-[#2C2C2C] uppercase opacity-85">Shareable link</div>
         <div className="mt-2 truncate rounded-[10px] border border-[#1A1A2E]/10 bg-[#FFF8F0] p-2.75 text-[12.5px] text-[#1A1A2E]">
           {shareLink}
         </div>
@@ -95,6 +96,13 @@ export function GiftReadyScreen({ shareLink, pin }: GiftReadyScreenProps) {
             Share…
           </button>
         </div>
+        <button
+          type="button"
+          onClick={onStartOver}
+          className="mt-1.5 p-1.5 text-center font-sans text-[12.5px] font-semibold text-[#2C2C2C] opacity-70"
+        >
+          {ctaCopy.giftReadyStartOver}
+        </button>
       </div>
     </div>
   )

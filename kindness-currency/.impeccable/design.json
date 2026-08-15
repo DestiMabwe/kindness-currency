@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-11T00:00:00.000Z",
+  "title": "Design System: Kindness Currency",
+  "extensions": {
+    "colorMeta": {
+      "kindness-red": {
+        "role": "primary",
+        "displayName": "Kindness Red",
+        "canonical": "#C2185B",
+        "tonalRamp": ["#3D0616", "#5C0A21", "#7C0F2D", "#9C1440", "#C2185B", "#DB4E82", "#EB90AC", "#F8D2E0"]
+      },
+      "warmth-amber": {
+        "role": "secondary",
+        "displayName": "Warmth Amber",
+        "canonical": "#FF8F00",
+        "tonalRamp": ["#502D00", "#7A4500", "#A35C00", "#CC7400", "#FF8F00", "#FFAD40", "#FFCB80", "#FFE7C0"]
+      },
+      "deep-ink": {
+        "role": "neutral",
+        "displayName": "Deep Ink",
+        "canonical": "#1A1A2E",
+        "tonalRamp": ["#08080D", "#111119", "#1A1A2E", "#2E2E4D", "#46466E", "#6E6E96", "#A2A2C0", "#D6D6E8"]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "canonical": "#FFF8F0",
+        "tonalRamp": ["#4D4033", "#786651", "#A38C70", "#CDB292", "#FFF8F0", "#FFFAF5", "#FFFCF9", "#FFFEFC"]
+      },
+      "near-black": {
+        "role": "neutral",
+        "displayName": "Near Black",
+        "canonical": "#2C2C2C",
+        "tonalRamp": ["#0A0A0A", "#161616", "#2C2C2C", "#454545", "#5E5E5E", "#7A7A7A", "#A3A3A3", "#D1D1D1"]
+      },
+      "mothers-periwinkle": {
+        "role": "template-accent",
+        "displayName": "Mother's Periwinkle",
+        "canonical": "rgb(131, 131, 228)",
+        "tonalRamp": ["#1F1F5C", "#2E2E82", "#4444A8", "#6363C6", "#8383E4", "#A6A6EC", "#C9C9F4", "#ECECFB"]
+      },
+      "lovers-plum": {
+        "role": "template-accent",
+        "displayName": "Lovers Plum",
+        "canonical": "#7B3F61",
+        "tonalRamp": ["#26141F", "#3B1F30", "#552C44", "#6A3654", "#7B3F61", "#9C6183", "#BE94AA", "#DFC9D4"]
+      },
+      "besties-teal": {
+        "role": "template-accent",
+        "displayName": "Besties Teal",
+        "canonical": "#2E7D6B",
+        "tonalRamp": ["#0F2820", "#173E33", "#215747", "#26694D", "#2E7D6B", "#5AA391", "#8FC5B7", "#C7E4DC"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The coupon's act-of-service headline, and the PIN entry field. The largest, most emotionally weighted text in the product." },
+      "title": { "displayName": "Title", "purpose": "Italic Playfair section and modal headings — confirmation prompts, page identity headings." },
+      "body": { "displayName": "Body", "purpose": "Button labels and primary interactive DM Sans text." },
+      "label": { "displayName": "Label", "purpose": "Uppercase wide-tracked eyebrows and fine print, always at reduced opacity." }
+    },
+    "shadows": [
+      { "name": "ticket-elevation", "value": "0 12px 30px rgba(0,0,0,0.18)", "purpose": "The coupon ticket only — the sole elevated surface in the system." },
+      { "name": "colored-action", "value": "0 8px 18px -8px rgba(194,24,91,0.7)", "purpose": "Kindness-Red glow under the coupon's own Redeem This button." },
+      { "name": "stamp-shadow", "value": "0 4px 14px -6px rgba(194,24,91,0.5)", "purpose": "The Redeemed stamp overlay." }
+    ],
+    "motion": [
+      { "name": "kc-hero-wash", "value": "16s ease-in-out infinite alternate, background-position 0%->200% 50%", "purpose": "Slow drifting gradient wash through all five template accent colors on the home hero." },
+      { "name": "kc-rise", "value": "0.75s cubic-bezier(0.16, 1, 0.3, 1) both, opacity 0->1 + translateY 16px->0", "purpose": "Staggered rise-in for hero content, using --kc-rise-delay per element." },
+      { "name": "kc-marquee", "value": "20s linear infinite, translateX 0->-50%", "purpose": "Infinite horizontal scroll for the hero's coupon showcase strip." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main CTA — Send with Love, Save My Coupons, Yes redeem with love.",
+      "html": "<button class=\"ds-btn-primary\">Send with Love</button>",
+      "css": ".ds-btn-primary { background: #C2185B; color: #FFFFFF; font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; font-size: 15px; font-weight: 700; padding: 14px 24px; border-radius: 14px; border: none; cursor: pointer; transition: opacity 0.15s; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; } .ds-btn-primary:focus-visible { outline: 2px solid #C2185B; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Dismiss / secondary action — Not yet, Go Back.",
+      "html": "<button class=\"ds-btn-ghost\">Not yet</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: #1A1A2E; opacity: 0.7; font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 600; padding: 6px; border: none; cursor: pointer; } .ds-btn-ghost:hover { opacity: 1; }"
+    },
+    {
+      "name": "Coupon Redeem Button",
+      "kind": "button",
+      "refersTo": "coupon-redeem-button",
+      "description": "Pill button on the coupon ticket itself, with its own colored shadow.",
+      "html": "<button class=\"ds-btn-redeem\">Redeem This ♥</button>",
+      "css": ".ds-btn-redeem { background: #C2185B; color: #FFFFFF; font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 600; padding: 10px 18px; border-radius: 999px; border: none; cursor: pointer; box-shadow: 0 8px 18px -8px rgba(194,24,91,0.7); }"
+    },
+    {
+      "name": "Generic Content Card",
+      "kind": "card",
+      "refersTo": "card-generic",
+      "description": "Flat list card, e.g. a coupon set row on the Profile page. Deliberately has no shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Mom</div><div class=\"ds-card-meta\">3 of 8 redeemed</div></div>",
+      "css": ".ds-card { background: #FFFFFF; border: 1px solid rgba(26,26,46,0.08); border-radius: 16px; padding: 16px; font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; } .ds-card-title { color: #1A1A2E; font-size: 15.5px; font-weight: 700; } .ds-card-meta { color: #C2185B; font-size: 12.5px; font-weight: 600; margin-top: 10px; }"
+    },
+    {
+      "name": "PIN Input",
+      "kind": "input",
+      "refersTo": "input-pin",
+      "description": "Signature numeric input for redemption — borrows the Display typeface.",
+      "html": "<input class=\"ds-input-pin\" inputmode=\"numeric\" maxlength=\"4\" placeholder=\"••••\" aria-label=\"4-digit PIN\" />",
+      "css": ".ds-input-pin { width: 100%; background: #FFFFFF; border: 1.5px solid rgba(26,26,46,0.14); border-radius: 14px; padding: 15px; text-align: center; font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; letter-spacing: 0.5em; color: #1A1A2E; outline: none; } .ds-input-pin.ds-input-error { border-color: #C2185B; }"
+    },
+    {
+      "name": "Nav Hamburger Trigger",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "Circular outline button that opens the right-side nav drawer.",
+      "html": "<button class=\"ds-nav-trigger\" aria-label=\"Open menu\"><span></span><span></span><span></span></button>",
+      "css": ".ds-nav-trigger { width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(26,26,46,0.18); background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; } .ds-nav-trigger span { width: 16px; height: 1.5px; border-radius: 999px; background: #1A1A2E; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Promise Ticket",
+    "overview": "Kindness Currency's whole visual system exists to make one object convincing: a redeemable ticket for a kept promise. Every recurring device — the barcode stub, the dashed perforation with its two punch-hole notches, the \"GOOD FOR ONE\" eyebrow, the two-tone bold-outer/soft-inner frame — exists to make the coupon read as a real, physical, tearable ticket rather than a generic card or a text message dressed up. That ticket is the single hero object of the entire product; every other surface (navigation, modals, list views) is deliberately quieter so the ticket is the one thing that ever competes for attention. Outside the ticket itself, the system is warm and unpretentious: a cream page, near-black body text, rounded corners everywhere, no sharp edges, no dark chrome. The five gift templates (Mom's, Valentine's, Birthday, Lovers, Besties) never change the ticket's shape or structure — only its accent color, tint, and decorative motif change, because the shape is what makes every gift feel premium and the color/motif is what makes each one feel personal to its occasion.",
+    "keyCharacteristics": [
+      "One hero object (the coupon ticket), one elevation language: it is the only shadowed, lifted surface in the product.",
+      "Rounded everywhere — no unrounded corners anywhere in the system, from 14px inputs to fully circular pill buttons.",
+      "Five template identities expressed purely through accent color + tint + motif; shape and layout are always identical.",
+      "Playfair Display marks anything that is 'the promise' (coupon titles, modal confirmation headings, page headings); DM Sans marks everything functional (buttons, labels, body copy, forms)."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Exactly one template accent is visible on screen at a time — the moment a sender picks a template, that color becomes the coupon frame, notch, and default text-accent color for the whole flow. Two template accents never appear together.", "section": "colors" },
+      { "name": "The No-Promise-Without-Serif Rule", "body": "Playfair Display only ever labels a promise or a moment of consequence (a coupon title, a confirmation heading, a page's identity heading). It never appears on a button, a nav link, or a form field label — those stay DM Sans, no exceptions.", "section": "typography" },
+      { "name": "The Sole Elevation Rule", "body": "Only the coupon ticket ever receives a box-shadow. Every other card, list item, and container stays flat with at most a hairline border. Adding a shadow anywhere else is a violation of this rule, not a style choice.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the coupon ticket as the only surface in the product that receives a box-shadow (The Sole Elevation Rule).",
+      "Do express template identity (Mom's / Valentine's / Birthday / Lovers / Besties) only through accent color, tint, and motif — the coupon's shape and layout never change between templates.",
+      "Do use Playfair Display only for promises and moments of consequence (coupon titles, confirmation headings, page identity headings); DM Sans for everything functional.",
+      "Do keep every corner in the system rounded — 14px minimum, up to fully circular for pill buttons and the hamburger trigger.",
+      "Do use the exact CTA copy registry (src/constants/ctaCopy.ts) — no generic labels like \"Submit\" or \"Confirm\" anywhere."
+    ],
+    "donts": [
+      "Don't add a shadow to any card, list item, or container other than the coupon ticket.",
+      "Don't set the coupon title in italic — it is Playfair Display Bold, not Bold Italic, despite older project drafts saying otherwise; the current implementation is normative.",
+      "Don't put the PIN anywhere in the URL — it is entered through the PIN input component only, never a query parameter.",
+      "Don't use \"100% free, always\" anywhere in copy — the approved phrase is \"Start free.\"",
+      "Don't mix two template accent colors on screen at once (The One Accent Rule)."
+    ]
+  }
+}

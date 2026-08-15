@@ -10,12 +10,12 @@ describe('GiftReadyScreen', () => {
   })
 
   it('displays the shareable link', () => {
-    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" />)
+    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" onStartOver={vi.fn()} />)
     expect(screen.getByText('https://kindnesscurrency.app/give/abc123')).toBeInTheDocument()
   })
 
   it('displays the PIN as 4 separate digits', () => {
-    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" />)
+    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" onStartOver={vi.fn()} />)
     expect(screen.getByText('4')).toBeInTheDocument()
     expect(screen.getByText('8')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
@@ -23,7 +23,7 @@ describe('GiftReadyScreen', () => {
   })
 
   it('copies the link (not the PIN) to the clipboard', async () => {
-    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" />)
+    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" onStartOver={vi.fn()} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Copy Link' }))
 
@@ -32,7 +32,7 @@ describe('GiftReadyScreen', () => {
   })
 
   it('shares only the link via WhatsApp, never the PIN', async () => {
-    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" />)
+    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" onStartOver={vi.fn()} />)
 
     await userEvent.click(screen.getByRole('button', { name: /Share via WhatsApp/ }))
 
@@ -43,5 +43,14 @@ describe('GiftReadyScreen', () => {
     )
     const calledUrl = (window.open as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
     expect(calledUrl).not.toContain('4821')
+  })
+
+  it('offers a way back to start a new coupon set', async () => {
+    const onStartOver = vi.fn()
+    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" onStartOver={onStartOver} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /Start a new coupon set/ }))
+
+    expect(onStartOver).toHaveBeenCalledOnce()
   })
 })
