@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ctaCopy } from '@/constants/ctaCopy'
+import { useDialogA11y } from '@/hooks/useDialogA11y'
 
 export type PINVerificationModalProps = {
   couponTitle: string
@@ -14,6 +15,7 @@ export function PINVerificationModal({ couponTitle, senderName, onVerify, onClos
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
 
   const handleConfirm = async () => {
     if (pin.length !== 4 || submitting) return
@@ -28,11 +30,17 @@ export function PINVerificationModal({ couponTitle, senderName, onVerify, onClos
 
   return (
     <div className="fixed inset-0 z-[85] flex items-end bg-[#1A1A2E]/60 backdrop-blur-[3px]">
-      <div className="w-full rounded-t-[26px] rounded-b-[36px] bg-[#FFF8F0] px-6 pt-6.5 pb-7.5">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pin-modal-heading"
+        className="w-full rounded-t-[26px] rounded-b-[36px] bg-[#FFF8F0] px-6 pt-6.5 pb-7.5"
+      >
         <div className="text-center">
-          <div className="text-[23px] leading-[1.18] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+          <h2 id="pin-modal-heading" className="text-[23px] leading-[1.18] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
             Redeem this right now?
-          </div>
+          </h2>
           <div className="mt-2 text-[13px] leading-relaxed text-[#2C2C2C] opacity-75">
             &ldquo;{couponTitle}&rdquo; — once you redeem, it can&apos;t be undone. Ready?
           </div>
@@ -55,7 +63,11 @@ export function PINVerificationModal({ couponTitle, senderName, onVerify, onClos
             className="mt-2.5 w-full rounded-[14px] border-[1.5px] bg-white p-[15px] text-center text-[26px] font-bold text-[#1A1A2E] tracking-[0.5em] outline-none"
             style={{ borderColor: error ? '#C2185B' : 'rgba(26,26,46,0.14)', fontFamily: 'var(--font-playfair)' }}
           />
-          {error && <div className="mt-2 text-center text-[12.5px] leading-tight text-[#C2185B]">{error}</div>}
+          {error && (
+            <div role="alert" className="mt-2 text-center text-[12.5px] leading-tight text-[#C2185B]">
+              {error}
+            </div>
+          )}
         </div>
 
         <div className="mt-4.5 flex flex-col gap-2.5">
