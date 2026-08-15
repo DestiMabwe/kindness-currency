@@ -109,6 +109,30 @@ describe('useCouponSetBuilder', () => {
     })
   })
 
+  describe('patchAllCoupons', () => {
+    it('applies a color/effect patch to every coupon at once', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      act(() => result.current.patchAllCoupons({ backgroundColor: '#DCEEE8', backgroundEffect: 'confetti' }))
+
+      expect(result.current.state.coupons).toHaveLength(2)
+      for (const coupon of result.current.state.coupons) {
+        expect(coupon.backgroundColor).toBe('#DCEEE8')
+        expect(coupon.backgroundEffect).toBe('confetti')
+      }
+    })
+
+    it('does not touch text fields', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      act(() => result.current.patchAllCoupons({ backgroundColor: '#DCEEE8' }))
+
+      expect(result.current.state.coupons[0].serviceTitle).toBe('One Home-Cooked Meal')
+    })
+  })
+
   describe('toSavePayload', () => {
     it('builds a save payload matching SaveCouponSetInputSchema', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
@@ -145,6 +169,23 @@ describe('useCouponSetBuilder', () => {
       expect(result.current.state.screen).toBe('giftReady')
       expect(result.current.state.savedResult).toEqual({ setId: 'set-1', pin: '4821' })
       expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
+    })
+  })
+
+  describe('startNewSet', () => {
+    it('resets back to the select screen and clears the saved result', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821' }))
+
+      act(() => result.current.startNewSet())
+
+      expect(result.current.state.screen).toBe('select')
+      expect(result.current.state.savedResult).toBeNull()
+      expect(result.current.state.coupons).toHaveLength(0)
+      // The persistence effect re-writes the (now-empty) draft on the next render, which is
+      // harmless — hasSaveableDraft is false for a fresh 'select' screen, so nothing auto-resumes.
+      expect(JSON.parse(window.localStorage.getItem(DRAFT_KEY) ?? 'null')).toMatchObject({ screen: 'select', coupons: [] })
     })
   })
 })

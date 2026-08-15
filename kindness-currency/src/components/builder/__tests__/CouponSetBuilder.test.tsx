@@ -49,7 +49,7 @@ describe('CouponSetBuilder', () => {
 
   describe('template selection', () => {
     it('advances straight to the details screen for a non-restricted template', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
 
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
 
@@ -61,6 +61,7 @@ describe('CouponSetBuilder', () => {
       render(
         <CouponSetBuilder
           templates={[template({ emotional_tone: 'Everyday acts of care for the person who raised you.' })]}
+          isLoggedIn={false}
         />
       )
 
@@ -70,7 +71,7 @@ describe('CouponSetBuilder', () => {
 
   describe('sample preview', () => {
     it('shows the template\'s own default coupons when "See a Coupon Sample" is clicked', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
 
@@ -79,7 +80,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('closes via the existing close button', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
@@ -88,7 +89,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('shows the age gate instead of the preview for a restricted template', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} isLoggedIn={false} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
 
@@ -97,7 +98,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('opens the preview, not the details screen, after confirming the age gate from the sample-preview path', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} isLoggedIn={false} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: "I'm 18+, Continue →" }))
@@ -109,7 +110,7 @@ describe('CouponSetBuilder', () => {
 
   describe('age gate', () => {
     it('shows the age gate for a restricted template instead of advancing immediately', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} isLoggedIn={false} />)
 
       await userEvent.click(screen.getByText("Lover's Intimate Promises"))
 
@@ -118,7 +119,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('does not advance to details if the user clicks "Go Back"', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} isLoggedIn={false} />)
 
       await userEvent.click(screen.getByText("Lover's Intimate Promises"))
       await userEvent.click(screen.getByRole('button', { name: 'Go Back' }))
@@ -129,7 +130,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('advances to details after confirming 18+', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} isLoggedIn={false} />)
 
       await userEvent.click(screen.getByText("Lover's Intimate Promises"))
       await userEvent.click(screen.getByRole('button', { name: "I'm 18+, Continue →" }))
@@ -140,7 +141,7 @@ describe('CouponSetBuilder', () => {
 
   describe('details form', () => {
     it('blocks continuing to the editor without a recipient name', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
 
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
@@ -150,7 +151,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('advances to the editor once a recipient name is entered', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
 
@@ -160,27 +161,62 @@ describe('CouponSetBuilder', () => {
     })
   })
 
-  async function goToEditor() {
-    render(<CouponSetBuilder templates={[template()]} />)
+  async function goToEditor(isLoggedIn = false) {
+    render(<CouponSetBuilder templates={[template()]} isLoggedIn={isLoggedIn} />)
     await userEvent.click(screen.getByText("Mom's Promise Tokens"))
     await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
     await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
   }
 
+  async function expandCoupon(title: string | RegExp) {
+    await userEvent.click(screen.getByRole('button', { name: title }))
+  }
+
   describe('coupon editor', () => {
+    it('defaults every coupon card to collapsed, hiding the field inputs', async () => {
+      await goToEditor()
+
+      expect(screen.getByRole('button', { name: /One Home-Cooked Meal/ })).toBeInTheDocument()
+      expect(screen.queryByLabelText('Service title')).not.toBeInTheDocument()
+    })
+
+    it('shows a customized-vs-default progress count in the sticky header', async () => {
+      await goToEditor()
+      expect(screen.getByText(/0 of 1 customized/)).toBeInTheDocument()
+
+      await expandCoupon(/One Home-Cooked Meal/)
+      await userEvent.clear(screen.getByLabelText('Service title'))
+      await userEvent.type(screen.getByLabelText('Service title'), 'One Homemade Feast')
+
+      expect(screen.getByText(/1 of 1 customized/)).toBeInTheDocument()
+    })
+
+    it('expands a card to reveal its fields, and collapses it again on second click', async () => {
+      await goToEditor()
+
+      await expandCoupon(/One Home-Cooked Meal/)
+      expect(screen.getByLabelText('Service title')).toBeInTheDocument()
+
+      await expandCoupon(/One Home-Cooked Meal/)
+      expect(screen.queryByLabelText('Service title')).not.toBeInTheDocument()
+    })
+
     it('updates the live coupon preview as the title is edited', async () => {
       await goToEditor()
+      await expandCoupon(/One Home-Cooked Meal/)
 
       const titleInput = screen.getByLabelText('Service title')
       await userEvent.clear(titleInput)
       await userEvent.type(titleInput, 'One Homemade Feast')
 
       expect(titleInput).toHaveValue('One Homemade Feast')
-      expect(screen.getByText('One Homemade Feast')).toBeInTheDocument() // live CouponCardHero title
+      // live CouponCardHero title; the collapsed-row summary also echoes the name, so scope to the heading
+      expect(screen.getByRole('heading', { level: 2, name: 'One Homemade Feast' })).toBeInTheDocument()
     })
 
     it('does not show a font choice toggle, since CouponCardHero has no font-choice toggle', async () => {
       await goToEditor()
+      await expandCoupon(/One Home-Cooked Meal/)
 
       expect(screen.queryByRole('button', { name: 'Playfair' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'DM Sans' })).not.toBeInTheDocument()
@@ -188,6 +224,7 @@ describe('CouponSetBuilder', () => {
 
     it('applies a background effect selection', async () => {
       await goToEditor()
+      await expandCoupon(/One Home-Cooked Meal/)
 
       await userEvent.click(screen.getByRole('button', { name: 'Confetti' }))
 
@@ -196,36 +233,49 @@ describe('CouponSetBuilder', () => {
 
     it("renders the template's real photo in the edit tile", async () => {
       await goToEditor()
+      await expandCoupon(/One Home-Cooked Meal/)
 
       // Decorative photo has alt="" (role="presentation"), so query by tag rather than getByRole('img').
       expect(document.querySelector('img')).toHaveAttribute('src', '/images/mothers_day.png')
     })
 
     it('shows the real expiry date in the edit tile once set on the details step', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       fireEvent.change(screen.getByLabelText(/expiry date/i), { target: { value: '2026-12-25' } })
 
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await expandCoupon(/One Home-Cooked Meal/)
 
       expect(screen.getByText('DEC 25, 2026')).toBeInTheDocument()
     })
 
     it('caps the service title input at 40 characters', async () => {
       await goToEditor()
+      await expandCoupon(/One Home-Cooked Meal/)
 
       expect(screen.getByLabelText('Service title')).toHaveAttribute('maxlength', '40')
     })
 
     it('does not allow typing a title longer than 40 characters', async () => {
       await goToEditor()
+      await expandCoupon(/One Home-Cooked Meal/)
 
       const titleInput = screen.getByLabelText('Service title')
       await userEvent.clear(titleInput)
       await userEvent.type(titleInput, 'A'.repeat(50))
 
       expect((titleInput as HTMLInputElement).value).toHaveLength(40)
+    })
+
+    it('applying a color to all coupons from the bulk picker updates the collapsed card swatch', async () => {
+      await goToEditor()
+      const swatchDot = screen.getByRole('button', { name: /One Home-Cooked Meal/ }).querySelector('span')
+
+      await userEvent.click(screen.getByRole('button', { name: "Set all coupons' background colour #DCEEE8" }))
+
+      expect(swatchDot).toHaveStyle({ backgroundColor: 'rgb(220, 238, 232)' })
     })
   })
 
@@ -256,6 +306,28 @@ describe('CouponSetBuilder', () => {
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
 
       expect(screen.getByText(ctaCopy.authModalHeading)).toBeInTheDocument()
+    })
+
+    it('skips AuthGate and saves directly when "Save My Coupons" is clicked by an already-logged-in giver', async () => {
+      saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      await goToEditor(true)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+
+      expect(screen.queryByText(ctaCopy.authModalHeading)).not.toBeInTheDocument()
+      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
+      expect(saveCouponSetAction).toHaveBeenCalledOnce()
+    })
+
+    it('skips AuthGate and saves directly when "Send with Love" is clicked by an already-logged-in giver', async () => {
+      saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      await goToEditor(true)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+
+      expect(screen.queryByText(ctaCopy.authModalHeading)).not.toBeInTheDocument()
+      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
+      expect(saveCouponSetAction).toHaveBeenCalledOnce()
     })
   })
 
@@ -292,7 +364,7 @@ describe('CouponSetBuilder', () => {
       getSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
       saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
 
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
 
       expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
       expect(saveCouponSetAction).toHaveBeenCalledOnce()
@@ -302,7 +374,7 @@ describe('CouponSetBuilder', () => {
       seedUnsavedDraft()
       getSession.mockResolvedValue({ data: { session: null } })
 
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
 
       await new Promise((resolve) => setTimeout(resolve, 0))
       expect(saveCouponSetAction).not.toHaveBeenCalled()

@@ -120,6 +120,10 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     setState((s) => ({ ...s, coupons: s.coupons.map((c) => (c.id === id ? { ...c, ...patch } : c)) }))
   }, [])
 
+  const patchAllCoupons = useCallback((patch: Partial<Pick<BuilderCoupon, 'backgroundColor' | 'backgroundEffect'>>) => {
+    setState((s) => ({ ...s, coupons: s.coupons.map((c) => ({ ...c, ...patch })) }))
+  }, [])
+
   const toSavePayload = useCallback((): SaveCouponSetInput | null => {
     if (!state.selectedTemplateId || state.coupons.length === 0) return null
     return {
@@ -144,6 +148,11 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     setState((s) => ({ ...s, screen: 'giftReady', savedResult: result }))
   }, [])
 
+  const startNewSet = useCallback(() => {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(DRAFT_STORAGE_KEY)
+    setState(initialState)
+  }, [])
+
   const hasSaveableDraft = state.screen === 'edit' && state.coupons.length === 8
 
   return {
@@ -157,8 +166,10 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     setExpiryDate,
     startEditing,
     patchCoupon,
+    patchAllCoupons,
     toSavePayload,
     completeSave,
+    startNewSet,
     hasSaveableDraft,
   }
 }
