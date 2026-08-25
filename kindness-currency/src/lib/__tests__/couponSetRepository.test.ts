@@ -91,4 +91,43 @@ describe('CouponSetRepository', () => {
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
     })
   })
+
+  describe('linkRecipient', () => {
+    function makeLinkSupabase(updateResult: { error: unknown }) {
+      const eq = vi.fn().mockResolvedValue(updateResult)
+      const update = vi.fn().mockReturnValue({ eq })
+      const from = vi.fn().mockReturnValue({ update })
+      return { supabase: { from }, update, eq }
+    }
+
+    it("sets the coupon set's recipient_user_id to the given user", async () => {
+      const { supabase, update, eq } = makeLinkSupabase({ error: null })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.linkRecipient('set-1', 'recipient-user-1')
+
+      expect(result).toEqual({ success: true })
+      expect(update).toHaveBeenCalledWith({ recipient_user_id: 'recipient-user-1' })
+      expect(eq).toHaveBeenCalledWith('id', 'set-1')
+    })
+
+    it('succeeds again, unchanged, when called a second time for the same user', async () => {
+      const { supabase } = makeLinkSupabase({ error: null })
+      const repo = createCouponSetRepository(supabase as never)
+
+      await repo.linkRecipient('set-1', 'recipient-user-1')
+      const secondResult = await repo.linkRecipient('set-1', 'recipient-user-1')
+
+      expect(secondResult).toEqual({ success: true })
+    })
+
+    it('returns an error result if the update fails', async () => {
+      const { supabase } = makeLinkSupabase({ error: { message: 'db error' } })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.linkRecipient('set-1', 'recipient-user-1')
+
+      expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+    })
+  })
 })
