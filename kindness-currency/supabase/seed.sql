@@ -72,22 +72,7 @@ SELECT id, 8, 'One Birthday Wish Granted',      'Whatever you want. Today it''s 
 -- ============================================================
 -- Lover's Intimate Promises — lovers (age restricted)
 -- ============================================================
-INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy, fine_print)
-SELECT id, 1, 'One Night With No Phones',       'Just us. The screens can wait',               'Full evening · No exceptions'                  FROM templates WHERE slug = 'lovers';
-INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy, fine_print)
-SELECT id, 2, 'One Long Bath Together',         'Candles, music, no rushing',                  'Redeemable any evening'                        FROM templates WHERE slug = 'lovers';
-INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy, fine_print)
-SELECT id, 3, 'One Morning We Don''t Leave Bed','Nowhere to be. Nothing to do',                'Weekend use only'                              FROM templates WHERE slug = 'lovers';
-INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy, fine_print)
-SELECT id, 4, 'One Dance in the Kitchen',       'No music required. Just us',                  'Redeemable anytime, without warning'           FROM templates WHERE slug = 'lovers';
-INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy, fine_print)
-SELECT id, 5, 'One Honest Conversation',        'No guards. No defensiveness. Just truth',     'Safe space guaranteed'                         FROM templates WHERE slug = 'lovers';
-INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy, fine_print)
-SELECT id, 6, 'One Night You Plan Everything',  'I''ll just say yes to whatever you decide',   'Full surrender of the evening'                 FROM templates WHERE slug = 'lovers';
-INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy, fine_print)
-SELECT id, 7, 'One Love Language Act',          'However you feel most loved — I''m doing that','You define it. I deliver it'                  FROM templates WHERE slug = 'lovers';
-INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy, fine_print)
-SELECT id, 8, 'One Anything After Midnight',    'You know what this means',                    'Wildcard · No elaboration needed'              FROM templates WHERE slug = 'lovers';
+
 
 -- ============================================================
 -- Bestie's Surprise Passes — besties
@@ -119,3 +104,79 @@ VALUES (
   '2026-05-24T00:00:00Z',
   '2026-05-30T23:59:59Z'
 );
+
+-- ============================================================
+-- Coming Soon templates (teasers only, no template_coupons)
+-- ============================================================
+INSERT INTO coming_soon_templates (slug, name, blurb_points, cover_image_path, sort_order)
+VALUES
+  ('dads', 'Dad''s Promise Tokens',
+    ARRAY[
+      'Guy time and shared hobbies — golf, garage projects, the game',
+      'Dad jokes, sports talk, and showing up without being asked',
+      'For the dad who shows love by doing, not saying'
+    ],
+    '/images/coming-soon/dads.png', 1),
+  ('siblings', 'Sibling Adventure Tokens',
+    ARRAY[
+      'Spontaneous plans, inside jokes, and zero apologies for chaos',
+      'For the sibling who''s part rival, part best friend',
+      'Built for teasing, loyalty, and everything in between'
+    ],
+    '/images/coming-soon/siblings.png', 2),
+  ('made-by-him', 'Made By Him: Lover''s Promises',
+    ARRAY[
+      'He writes his own — no guessing what he actually wants',
+      'Pairs with "Made By Her" for couples who want to trade, not assume',
+      'For any romantic partner, whatever "him" means to you'
+    ],
+    '/images/coming-soon/made-by-him.png', 3),
+  ('made-by-her', 'Made By Her: Lover''s Promises',
+    ARRAY[
+      'She writes her own — no guessing what she actually wants',
+      'Pairs with "Made By Him" for couples who want to trade, not assume',
+      'For any romantic partner, whatever "her" means to you'
+    ],
+    '/images/coming-soon/made-by-her.png', 4),
+  ('long-distance-lovers', 'Always Close Promises',
+    ARRAY[
+      'Made for love that''s stretched across time zones',
+      'Promises that travel — no shared address required',
+      'For couples counting down to the next visit'
+    ],
+    '/images/coming-soon/long-distance-lovers.png', 5),
+  ('meal-coupons', 'Good Food Tokens',
+    ARRAY[
+      'Their favorite meal, their call — cooked at home or out on the town',
+      'For any loved one with a craving and someone willing to deliver',
+      'No occasion required, just an appetite'
+    ],
+    '/images/coming-soon/meal-coupons.png', 6),
+  ('movie-marathon', 'Movie Night Passes',
+    ARRAY[
+      'A full marathon, their picks, snacks included',
+      'For the loved one who wants a couch, a blanket, and no interruptions',
+      'Popcorn optional, commitment mandatory'
+    ],
+    '/images/coming-soon/movie-marathon.png', 7),
+  ('shopping-spree', 'Shop Till We Drop Passes',
+    ARRAY[
+      'A day of browsing, trying on, and saying yes to the cart',
+      'For the loved one who deserves company and zero budget guilt',
+      'Redeemable in-store, online, or both'
+    ],
+    '/images/coming-soon/shopping-spree.png', 8),
+  ('travel-buddies', 'Travel Buddy Passes',
+    ARRAY[
+      'A companion for the trip, the road, or the weekend getaway',
+      'For the loved one who''s always ready to go somewhere',
+      'Destination optional, presence mandatory'
+    ],
+    '/images/coming-soon/travel-buddies.png', 9),
+  ('christmas', 'Christmas Joy Tokens',
+    ARRAY[
+      'Little holiday magic — stockings, traditions, and one big surprise',
+      'For anyone on your list who deserves more than a gift card',
+      'Built for the whole season, not just one morning'
+    ],
+    '/images/coming-soon/christmas.png', 10);

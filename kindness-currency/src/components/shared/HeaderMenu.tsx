@@ -71,6 +71,9 @@ export function HeaderMenu({ isLoggedIn }: HeaderMenuProps) {
               <Link href="/about" onClick={() => setOpen(false)} className={linkClasses}>
                 {ctaCopy.navAboutUs}
               </Link>
+              <Link href="/templates" onClick={() => setOpen(false)} className={linkClasses}>
+                {ctaCopy.navTemplates}
+              </Link>
               <Link href="/profile" onClick={() => setOpen(false)} className={linkClasses}>
                 {ctaCopy.navProfile}
               </Link>

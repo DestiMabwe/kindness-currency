@@ -64,13 +64,20 @@ export default async function HomePage() {
         >
           Kindness Currency lets you give time, care, and love. The gifts that matter most. Share promises, surprises, and acts of service — all wrapped in a single link.
         </div>
-        <Link
-          href="/create"
-          className="kc-rise mt-5 block w-full rounded-2xl bg-[#C2185B] p-3.75 text-center font-sans text-[15.5px] font-bold text-white shadow-[0_16px_30px_-14px_rgba(194,24,91,0.8)]"
-          style={{ ['--kc-rise-delay' as string]: '0.3s' }}
-        >
-          {ctaCopy.heroCta}
-        </Link>
+        <div className="kc-rise mt-5 flex gap-2.5" style={{ ['--kc-rise-delay' as string]: '0.3s' }}>
+          <Link
+            href="/create"
+            className="flex-1 rounded-2xl bg-[#C2185B] p-3.75 text-center font-sans text-[15.5px] font-bold text-white shadow-[0_16px_30px_-14px_rgba(194,24,91,0.8)]"
+          >
+            {ctaCopy.heroCta}
+          </Link>
+          <Link
+            href="/templates"
+            className="flex-1 rounded-2xl bg-[#1A1A2E] p-3.75 text-center font-sans text-[15.5px] font-bold text-white shadow-[0_16px_30px_-14px_rgba(26,26,46,0.5)]"
+          >
+            {ctaCopy.browseTemplates}
+          </Link>
+        </div>
       </div>
 
       <div className="bg-[#0a1f44] py-5">

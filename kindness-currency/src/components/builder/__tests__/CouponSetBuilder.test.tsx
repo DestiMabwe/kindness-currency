@@ -60,6 +60,21 @@ describe('CouponSetBuilder', () => {
     saveCouponSetAction.mockReset()
   })
 
+  describe('home logo link', () => {
+    it('shows a clickable logo link to home on the template-select screen', () => {
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
+
+      expect(screen.getByRole('link', { name: 'Kindness Currency home' })).toHaveAttribute('href', '/')
+    })
+
+    it('does not show the logo link on the details screen', async () => {
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+
+      expect(screen.queryByRole('link', { name: 'Kindness Currency home' })).not.toBeInTheDocument()
+    })
+  })
+
   describe('template selection', () => {
     it('advances straight to the details screen for a non-restricted template', async () => {
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)

@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useCouponSetBuilder, couponsFromTemplate, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
+import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
 import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
 import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -199,7 +201,10 @@ function TemplateSelectScreen({
 }) {
   return (
     <div>
-      <div className="px-4.5 pt-11.5 pb-1.5">
+      <div className="flex items-center gap-2.5 px-4.5 pt-11.5 pb-1.5">
+        <Link href="/" aria-label="Kindness Currency home">
+          <Image src="/logo.png" alt="" width={359} height={257} className="h-6 w-auto" />
+        </Link>
         <div className="font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Step 1 of 3</div>
       </div>
       <div className="px-5.5 pt-1.5">
@@ -666,64 +671,3 @@ function CouponEditorCard({
   )
 }
 
-function PreviewOverlay({
-  coupons,
-  accent,
-  motif,
-  imageSrc,
-  expiresAt,
-  maxVisible,
-  onViewAll,
-  onClose,
-}: {
-  coupons: BuilderCoupon[]
-  accent: string
-  motif: string
-  imageSrc: string | null
-  expiresAt: string | null
-  maxVisible?: number
-  onViewAll?: () => void
-  onClose: () => void
-}) {
-  const isCapped = maxVisible !== undefined && coupons.length > maxVisible
-  const visibleCoupons = isCapped ? coupons.slice(0, maxVisible) : coupons
-
-  return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-[#1A1A2E]">
-      <div className="flex items-center justify-between px-5 pt-11 pb-3">
-        <div className="text-lg font-bold text-white italic" style={{ fontFamily: 'var(--font-playfair)' }}>
-          Preview
-        </div>
-        <button type="button" onClick={onClose} aria-label="Close preview" className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white">
-          ✕
-        </button>
-      </div>
-      <div className="flex flex-1 flex-col items-center gap-6 overflow-y-auto px-4.5 pb-6.5">
-        {visibleCoupons.map((coupon) => (
-          <CouponCardHero
-            key={coupon.id}
-            serviceTitle={coupon.serviceTitle}
-            microCopy={coupon.microCopy}
-            finePrint={coupon.finePrint}
-            backgroundColor={coupon.backgroundColor}
-            backgroundEffect={coupon.backgroundEffect}
-            status="sent"
-            accent={accent}
-            motif={motif}
-            imageSrc={imageSrc}
-            expiresAt={expiresAt}
-          />
-        ))}
-        {isCapped && (
-          <button
-            type="button"
-            onClick={onViewAll}
-            className="mb-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-semibold text-white"
-          >
-            {ctaCopy.previewViewAllCoupons}
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
