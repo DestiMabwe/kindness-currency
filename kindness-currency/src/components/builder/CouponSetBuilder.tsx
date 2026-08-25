@@ -170,6 +170,11 @@ export function CouponSetBuilder({ templates, isLoggedIn }: CouponSetBuilderProp
           motif={templateVisuals[sampleTemplate.slug as TemplateSlug].motif}
           imageSrc={templateVisuals[sampleTemplate.slug as TemplateSlug].imageSrc}
           expiresAt={null}
+          maxVisible={3}
+          onViewAll={() => {
+            setSampleTemplate(null)
+            handleSelectTemplate(sampleTemplate)
+          }}
           onClose={() => setSampleTemplate(null)}
         />
       )}
@@ -667,6 +672,8 @@ function PreviewOverlay({
   motif,
   imageSrc,
   expiresAt,
+  maxVisible,
+  onViewAll,
   onClose,
 }: {
   coupons: BuilderCoupon[]
@@ -674,8 +681,13 @@ function PreviewOverlay({
   motif: string
   imageSrc: string | null
   expiresAt: string | null
+  maxVisible?: number
+  onViewAll?: () => void
   onClose: () => void
 }) {
+  const isCapped = maxVisible !== undefined && coupons.length > maxVisible
+  const visibleCoupons = isCapped ? coupons.slice(0, maxVisible) : coupons
+
   return (
     <div className="fixed inset-0 z-[80] flex flex-col bg-[#1A1A2E]">
       <div className="flex items-center justify-between px-5 pt-11 pb-3">
@@ -687,7 +699,7 @@ function PreviewOverlay({
         </button>
       </div>
       <div className="flex flex-1 flex-col items-center gap-6 overflow-y-auto px-4.5 pb-6.5">
-        {coupons.map((coupon) => (
+        {visibleCoupons.map((coupon) => (
           <CouponCardHero
             key={coupon.id}
             serviceTitle={coupon.serviceTitle}
@@ -702,6 +714,15 @@ function PreviewOverlay({
             expiresAt={expiresAt}
           />
         ))}
+        {isCapped && (
+          <button
+            type="button"
+            onClick={onViewAll}
+            className="mb-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-semibold text-white"
+          >
+            {ctaCopy.previewViewAllCoupons}
+          </button>
+        )}
       </div>
     </div>
   )

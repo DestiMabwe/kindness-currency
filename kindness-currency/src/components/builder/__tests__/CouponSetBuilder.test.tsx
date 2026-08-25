@@ -40,6 +40,19 @@ const restrictedTemplate = template({
   sort_order: 2,
 })
 
+function manyCoupons(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `m${i + 1}`,
+    template_id: 'aaaaaaaa-0000-0000-0000-000000000001',
+    sort_order: i + 1,
+    service_title: `Coupon ${i + 1}`,
+    micro_copy: '',
+    fine_print: '',
+  }))
+}
+
+const templateWithFourCoupons = template({ template_coupons: manyCoupons(4) })
+
 describe('CouponSetBuilder', () => {
   beforeEach(() => {
     window.localStorage.clear()
@@ -70,6 +83,47 @@ describe('CouponSetBuilder', () => {
   })
 
   describe('sample preview', () => {
+    it('shows only the first 3 default coupons when the template has more than 3', async () => {
+      render(<CouponSetBuilder templates={[templateWithFourCoupons]} isLoggedIn={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+
+      expect(screen.getByText('Coupon 1')).toBeInTheDocument()
+      expect(screen.getByText('Coupon 2')).toBeInTheDocument()
+      expect(screen.getByText('Coupon 3')).toBeInTheDocument()
+      expect(screen.queryByText('Coupon 4')).not.toBeInTheDocument()
+    })
+
+    it('shows a "click to view all coupons" CTA once capped', async () => {
+      render(<CouponSetBuilder templates={[templateWithFourCoupons]} isLoggedIn={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+
+      expect(screen.getByRole('button', { name: ctaCopy.previewViewAllCoupons })).toBeInTheDocument()
+    })
+
+    it('closes the preview and selects the template when the CTA is clicked, for a non-restricted template', async () => {
+      render(<CouponSetBuilder templates={[templateWithFourCoupons]} isLoggedIn={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewViewAllCoupons }))
+
+      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+      expect(screen.getByText("Who's it for?")).toBeInTheDocument()
+    })
+
+    it('shows the age gate, not the details screen, when the CTA is clicked for a restricted template', async () => {
+      render(<CouponSetBuilder templates={[template({ ...restrictedTemplate, template_coupons: manyCoupons(4) })]} isLoggedIn={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+      await userEvent.click(screen.getByRole('button', { name: "I'm 18+, Continue →" }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewViewAllCoupons }))
+
+      expect(screen.getByText('A grown-up gift')).toBeInTheDocument()
+      expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
+      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+    })
+
     it('shows the template\'s own default coupons when "See a Coupon Sample" is clicked', async () => {
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
 
@@ -105,6 +159,14 @@ describe('CouponSetBuilder', () => {
 
       expect(screen.getByText('Preview')).toBeInTheDocument()
       expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
+    })
+
+    it('shows no "click to view all coupons" CTA when the template has 3 or fewer default coupons', async () => {
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+
+      expect(screen.queryByRole('button', { name: ctaCopy.previewViewAllCoupons })).not.toBeInTheDocument()
     })
   })
 
@@ -288,6 +350,19 @@ describe('CouponSetBuilder', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
       expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+    })
+
+    it('shows every one of the sender\'s own coupons, uncapped, even with more than 3', async () => {
+      render(<CouponSetBuilder templates={[templateWithFourCoupons]} isLoggedIn={false} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
+
+      expect(screen.getByRole('heading', { level: 2, name: 'Coupon 1' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 2, name: 'Coupon 4' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: ctaCopy.previewViewAllCoupons })).not.toBeInTheDocument()
     })
   })
 

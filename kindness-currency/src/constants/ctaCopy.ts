@@ -4,6 +4,7 @@ export const ctaCopy = {
   saveMyCoupons: 'Save My Coupons',
   previewAllCoupons: 'Preview All Coupons',
   previewSampleCoupons: 'See a Coupon Sample',
+  previewViewAllCoupons: 'Click to View All Coupons',
   authModalHeading: 'Almost there — save your coupons',
   authModalSubtext:
     'Your information is safe with us. We use bank-level encryption and will never share your details.',
