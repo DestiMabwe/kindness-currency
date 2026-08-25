@@ -88,7 +88,7 @@ export function RecipientCouponList({
               {ctaCopy.postRedemptionState}
             </div>
             <div className="mt-2.5 text-[13px] leading-relaxed text-[#2C2C2C] opacity-70">
-              {senderName} can&apos;t wait. Enjoy every moment of it.
+              {`${senderName} can't wait. Enjoy every moment of it.`}
             </div>
             <button
               type="button"

@@ -26,7 +26,9 @@ export function AgeGate({ templateName, onConfirm, onDismiss }: AgeGateProps) {
           A grown-up gift
         </h2>
         <div className="mt-2 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-78">
-          {templateName} contains adult themes. Please confirm you&apos;re 18 or older to continue.
+          {templateName}
+          {' '}
+          contains adult themes. Please confirm you&apos;re 18 or older to continue.
         </div>
         <div className="mt-5.5 flex flex-col gap-2.5">
           <button

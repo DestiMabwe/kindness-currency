@@ -23,7 +23,6 @@
   position: relative;
   width: 620px;
   max-width: min(92vw, 100%);
-  min-height: clamp(140px, 38.6vw, 260px);
   background: var(--hero-accent);
   border-radius: 26px;
   padding: 14px;
@@ -33,7 +32,19 @@
 .inner {
   position: relative;
   width: 100%;
-  height: 100%;
+  /* The floor height lives here (not on .card, with .inner at height:100%, and
+     not via .card{display:flex}+stretch) so .inner sizes to its own content
+     directly — a plain min-height on the element whose content must fit is the
+     only version of this that reliably grows past the floor instead of clipping
+     it. Both of the other approaches were measured to still lock at the floor
+     height in real Chrome: a block parent with only min-height resolves a
+     height:100% child against that floor rather than letting it grow, and
+     .inner (a CSS Grid container) sized via flex "stretch" prioritizes the
+     available/floor space over its own intrinsic content height. Value is the
+     original min-height minus .card's 28px vertical padding, so short-content
+     cards keep the exact same overall footprint as before.
+  */
+  min-height: clamp(112px, calc(38.6vw - 28px), 232px);
   border-radius: 16px;
   display: grid;
   grid-template-columns: var(--stub-col) 2px 1fr;
