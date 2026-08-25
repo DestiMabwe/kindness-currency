@@ -4,14 +4,16 @@ import userEvent from '@testing-library/user-event'
 import { AuthGate } from '../AuthGate'
 
 const signInWithOtp = vi.fn()
+const signInWithOAuth = vi.fn()
 
 vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({ auth: { signInWithOtp } }),
+  createClient: () => ({ auth: { signInWithOtp, signInWithOAuth } }),
 }))
 
 describe('AuthGate', () => {
   beforeEach(() => {
     signInWithOtp.mockReset()
+    signInWithOAuth.mockReset()
   })
 
   it('renders the exact auth modal heading and subtext', () => {
@@ -64,5 +66,39 @@ describe('AuthGate', () => {
 
     expect(await screen.findByText(/Something went wrong sending your link/)).toBeInTheDocument()
     expect(screen.queryByText('Check your inbox')).not.toBeInTheDocument()
+  })
+
+  describe('Google sign-in', () => {
+    it('calls signInWithOAuth with the google provider and an environment-aware redirect', async () => {
+      signInWithOAuth.mockResolvedValue({ error: null })
+      render(<AuthGate onClose={vi.fn()} />)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+
+      expect(signInWithOAuth).toHaveBeenCalledWith({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      })
+    })
+
+    it('shows an error if Google sign-in fails to start', async () => {
+      signInWithOAuth.mockResolvedValue({ error: { message: 'provider not configured' } })
+      render(<AuthGate onClose={vi.fn()} />)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+
+      expect(await screen.findByText(/Something went wrong signing in with Google/)).toBeInTheDocument()
+    })
+
+    it('does not affect the existing email magic-link flow', async () => {
+      signInWithOtp.mockResolvedValue({ error: null })
+      render(<AuthGate onClose={vi.fn()} />)
+
+      await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+      await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+
+      expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
+      expect(signInWithOAuth).not.toHaveBeenCalled()
+    })
   })
 })

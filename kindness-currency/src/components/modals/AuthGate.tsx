@@ -40,6 +40,18 @@ export function AuthGate({ onClose }: AuthGateProps) {
     setStep('otp')
   }
 
+  const handleGoogleSignIn = async () => {
+    setError('')
+    const supabase = createClient()
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (oauthError) {
+      setError('Something went wrong signing in with Google. Please try again.')
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[85] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">
       <div
@@ -55,7 +67,19 @@ export function AuthGate({ onClose }: AuthGateProps) {
               {ctaCopy.authModalHeading}
             </h2>
             <div className="mt-2 text-[12.5px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.authModalSubtext}</div>
-            <div className="mt-4.5 flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="mt-4.5 w-full rounded-2xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 font-sans text-[15px] font-bold text-[#1A1A2E]"
+            >
+              Continue with Google
+            </button>
+            <div className="mt-3.5 flex items-center gap-2.5 text-[11.5px] font-semibold text-[#2C2C2C] opacity-50">
+              <span className="h-px flex-1 bg-[#1A1A2E]/14" />
+              or
+              <span className="h-px flex-1 bg-[#1A1A2E]/14" />
+            </div>
+            <div className="mt-3.5 flex flex-col gap-2.5">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
