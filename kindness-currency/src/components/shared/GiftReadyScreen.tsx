@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 
 export type GiftReadyScreenProps = {
@@ -37,7 +39,21 @@ export function GiftReadyScreen({ shareLink, pin, onStartOver }: GiftReadyScreen
 
   return (
     <div className="flex min-h-screen flex-col px-5.5 pb-7.5">
-      <div className="pt-13 text-center">
+      <div className="flex items-center justify-between pt-3.5">
+        <Link href="/" aria-label="Kindness Currency home" className="flex items-center gap-2">
+          <Image src="/logo.png" alt="" width={359} height={257} priority className="h-8 w-auto" />
+          <span className="font-sans text-base font-extrabold text-[#1A1A2E]">Kindness Currency</span>
+        </Link>
+        <Link
+          href="/"
+          aria-label="Exit"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[#1A1A2E]/18 text-[15px] text-[#1A1A2E]"
+        >
+          ✕
+        </Link>
+      </div>
+
+      <div className="pt-9 text-center">
         <div className="mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#C2185B] text-[34px] text-white">
           ♥
         </div>

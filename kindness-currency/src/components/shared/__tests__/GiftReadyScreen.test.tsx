@@ -53,4 +53,22 @@ describe('GiftReadyScreen', () => {
 
     expect(onStartOver).toHaveBeenCalledOnce()
   })
+
+  it('shows the "spot another template" phrasing rather than "spot a typo"', () => {
+    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" onStartOver={vi.fn()} />)
+
+    expect(screen.getByText(/Spot another template\?/)).toBeInTheDocument()
+  })
+
+  it('links the logo home', () => {
+    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" onStartOver={vi.fn()} />)
+
+    expect(screen.getByRole('link', { name: 'Kindness Currency home' })).toHaveAttribute('href', '/')
+  })
+
+  it('shows an exit link back home', () => {
+    render(<GiftReadyScreen shareLink="https://kindnesscurrency.app/give/abc123" pin="4821" onStartOver={vi.fn()} />)
+
+    expect(screen.getByRole('link', { name: 'Exit' })).toHaveAttribute('href', '/')
+  })
 })
