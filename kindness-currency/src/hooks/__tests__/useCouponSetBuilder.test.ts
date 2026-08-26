@@ -95,7 +95,7 @@ describe('useCouponSetBuilder', () => {
   })
 
   describe('startEditing', () => {
-    it('refuses to advance to the edit screen without a recipient name', () => {
+    it('refuses to advance to the edit screen without a recipient name or a sender name', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
       act(() => result.current.loadTemplate('mothers_day'))
 
@@ -108,9 +108,24 @@ describe('useCouponSetBuilder', () => {
       expect(result.current.state.screen).toBe('details')
     })
 
-    it('advances to the edit screen once a recipient name is set', () => {
+    it('refuses to advance with a recipient name but no sender name', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
       act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setRecipientName('Mom'))
+
+      let advanced = true
+      act(() => {
+        advanced = result.current.startEditing()
+      })
+
+      expect(advanced).toBe(false)
+      expect(result.current.state.screen).toBe('details')
+    })
+
+    it('advances to the edit screen once both a sender name and a recipient name are set', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderName('Alex'))
       act(() => result.current.setRecipientName('Mom'))
 
       act(() => result.current.startEditing())
@@ -205,7 +220,7 @@ describe('useCouponSetBuilder', () => {
   })
 
   describe('completeSave', () => {
-    it('moves to the giftReady screen and stores the result', () => {
+    it('moves to the giftReady screen, stores the result, and clears the localStorage draft', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
       act(() => result.current.loadTemplate('mothers_day'))
 
@@ -213,16 +228,9 @@ describe('useCouponSetBuilder', () => {
 
       expect(result.current.state.screen).toBe('giftReady')
       expect(result.current.state.savedResult).toEqual({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false })
-    })
-
-    it('keeps the giftReady screen persisted, so a reload (e.g. an auth redirect) restores it', () => {
-      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
-      act(() => result.current.loadTemplate('mothers_day'))
-
-      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false }))
-
-      const persisted = JSON.parse(window.localStorage.getItem(DRAFT_KEY) ?? 'null')
-      expect(persisted).toMatchObject({ screen: 'giftReady', savedResult: { setId: 'set-1', pin: '4821' } })
+      // Cleared, not just skipped-on-write: a later reload of /create (e.g. from the nav
+      // link) must start fresh at template-select, not resume this finished session.
+      expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
     })
   })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -9,7 +9,7 @@ import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
 import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
-import { SaveToAccountBanner } from '@/components/shared/SaveToAccountBanner'
+import { SaveToAccountBanner, pendingLinkKey } from '@/components/shared/SaveToAccountBanner'
 import { EarlyAccessSignupForm } from '@/components/templates/EarlyAccessSignupForm'
 import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -43,14 +43,52 @@ export type CouponSetBuilderProps = {
 
 type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
 
+// Deliberately separate from the builder's own draft persistence (which clears on
+// save, so a later /create visit starts fresh rather than resuming a finished
+// session). This one exists only to survive the full-page redirect an auth
+// provider forces mid "save to your account" click — see the effects below.
+const PENDING_SENDER_READY_KEY = 'kindness-currency:pending-sender-ready'
+
 export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLoggedIn = false, userEmail = null }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
   const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
   const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [editMessageOpen, setEditMessageOpen] = useState(false)
   const [featureInterestModal, setFeatureInterestModal] = useState<FeatureInterestSlug | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const attemptedResume = useRef(false)
+
+  // Right after an anonymous save, remember {setId, pin} so that if the sender clicks
+  // "Save this to your account" and gets redirected away for auth, the reload below can
+  // find it again — the builder's own draft was already cleared by completeSave.
+  useEffect(() => {
+    if (typeof window === 'undefined' || isLoggedIn || builder.state.screen !== 'giftReady' || !builder.state.savedResult) return
+    window.localStorage.setItem(PENDING_SENDER_READY_KEY, JSON.stringify(builder.state.savedResult))
+  }, [isLoggedIn, builder.state.screen, builder.state.savedResult])
+
+  // Only resumes the ready screen when the viewer is now logged in AND actually mid a
+  // pending "save to your account" link (set by SaveToAccountBanner right before it opens
+  // AuthGate) — a plain revisit to /create must still start fresh at template-select.
+  useEffect(() => {
+    if (attemptedResume.current || !isLoggedIn) return
+    attemptedResume.current = true
+    if (typeof window === 'undefined') return
+    const raw = window.localStorage.getItem(PENDING_SENDER_READY_KEY)
+    if (!raw) return
+    try {
+      const pending = JSON.parse(raw) as { setId: string; pin: string }
+      if (window.localStorage.getItem(pendingLinkKey('sender', pending.setId)) === 'true') {
+        builder.completeSave({ setId: pending.setId, pin: pending.pin, wasLinkedAtSave: false })
+      }
+    } catch {
+      // Malformed leftover — ignore rather than block a normal /create visit.
+    } finally {
+      window.localStorage.removeItem(PENDING_SENDER_READY_KEY)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to resume a pending sender link, not on every state change
+  }, [isLoggedIn])
 
   const handleSaveOrSend = () => {
     void performSave()
@@ -152,6 +190,7 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
           templateName={selectedTemplate?.name ?? ''}
           senderName={builder.state.senderName}
           recipientName={builder.state.recipientName}
+          senderMessage={builder.state.senderMessage}
           coupons={builder.state.coupons}
           originalCoupons={selectedTemplate?.template_coupons ?? []}
           accent={visuals.accent}
@@ -164,8 +203,17 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
           onPatchCoupon={builder.patchCoupon}
           onPatchAllCoupons={builder.patchAllCoupons}
           onPreview={() => setPreviewOpen(true)}
+          onEditMessage={() => setEditMessageOpen(true)}
           onSave={handleSaveOrSend}
           onSend={handleSaveOrSend}
+        />
+      )}
+
+      {editMessageOpen && (
+        <EditMessageModal
+          senderMessage={builder.state.senderMessage}
+          onSave={builder.setSenderMessage}
+          onClose={() => setEditMessageOpen(false)}
         />
       )}
 
@@ -176,6 +224,7 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
           motif={visuals?.motif ?? ''}
           imageSrc={visuals?.imageSrc ?? null}
           expiresAt={builder.state.expiryDate || null}
+          recipientPreview={{ senderName: builder.state.senderName, senderMessage: builder.state.senderMessage || null }}
           onClose={() => setPreviewOpen(false)}
         />
       )}
@@ -424,7 +473,8 @@ function DetailsFormScreen({
             value={senderName}
             onChange={(e) => onSenderChange(e.target.value)}
             placeholder="e.g. Alex"
-            className="mt-1.5 w-full rounded-xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
+            className="mt-1.5 w-full rounded-xl border-[1.5px] p-3.5 text-[15px] text-[#1A1A2E] outline-none"
+            style={{ borderColor: attempted && !senderName.trim() ? '#C2185B' : 'rgba(26,26,46,0.14)' }}
           />
         </label>
         <label className="block">
@@ -468,6 +518,9 @@ function DetailsFormScreen({
         >
           Personalise the coupons →
         </button>
+        {attempted && !senderName.trim() && (
+          <div className="text-center text-[11.5px] text-[#C2185B]">Add your name first ♥</div>
+        )}
         {attempted && !recipientName.trim() && (
           <div className="text-center text-[11.5px] text-[#C2185B]">Add their name first ♥</div>
         )}
@@ -578,6 +631,7 @@ function EditScreen({
   templateName,
   senderName,
   recipientName,
+  senderMessage,
   coupons,
   originalCoupons,
   accent,
@@ -590,12 +644,14 @@ function EditScreen({
   onPatchCoupon,
   onPatchAllCoupons,
   onPreview,
+  onEditMessage,
   onSave,
   onSend,
 }: {
   templateName: string
   senderName: string
   recipientName: string
+  senderMessage: string
   coupons: BuilderCoupon[]
   originalCoupons: TemplateCoupon[]
   accent: string
@@ -608,6 +664,7 @@ function EditScreen({
   onPatchCoupon: (id: string, patch: Partial<BuilderCoupon>) => void
   onPatchAllCoupons: (patch: Partial<Pick<BuilderCoupon, 'backgroundColor' | 'backgroundEffect'>>) => void
   onPreview: () => void
+  onEditMessage: () => void
   onSave: () => void
   onSend: () => void
 }) {
@@ -626,6 +683,15 @@ function EditScreen({
 
   return (
     <div className="pb-5">
+      <button
+        type="button"
+        onClick={onEditMessage}
+        aria-label={senderMessage.trim() ? ctaCopy.editMessageEditLabel : ctaCopy.editMessageWriteLabel}
+        className="fixed top-4 right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full border border-[#1A1A2E]/10 bg-white text-lg text-[#1A1A2E]"
+      >
+        ✉
+      </button>
+
       <div className="sticky top-0 z-30 border-b border-[#1A1A2E]/7 bg-[#FFF8F0]/92 backdrop-blur-sm">
         <div className="flex items-center gap-3 px-4.5 pt-11.5 pb-3">
           <button type="button" onClick={onBack} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
@@ -690,6 +756,60 @@ function EditScreen({
             {ctaCopy.sendWithLove}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function EditMessageModal({
+  senderMessage,
+  onSave,
+  onClose,
+}: {
+  senderMessage: string
+  onSave: (value: string) => void
+  onClose: () => void
+}) {
+  const [draft, setDraft] = useState(senderMessage)
+  const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
+
+  const handleSave = () => {
+    onSave(draft)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[85] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-message-heading"
+        className="w-full rounded-t-[26px] rounded-b-[36px] bg-[#FFF8F0] px-6 pt-6.5 pb-7.5"
+      >
+        <h2 id="edit-message-heading" className="text-[21px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+          {senderMessage.trim() ? ctaCopy.editMessageEditLabel : ctaCopy.editMessageWriteLabel}
+        </h2>
+        <div className="mt-2 text-[12.5px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.editMessageSubtext}</div>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Something to say before they open it…"
+          aria-label="Your message"
+          maxLength={SENDER_MESSAGE_MAX_LENGTH}
+          rows={4}
+          className="mt-4 w-full resize-none rounded-xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          className="mt-4 w-full rounded-2xl bg-[#C2185B] p-3.5 font-sans text-[15px] font-bold text-white"
+        >
+          {ctaCopy.editMessageSave}
+        </button>
+        <button type="button" onClick={onClose} className="mt-2 w-full p-1.5 text-center font-sans text-[13.5px] font-semibold text-[#2C2C2C] opacity-70">
+          Cancel
+        </button>
       </div>
     </div>
   )

@@ -75,4 +75,8 @@ export const ctaCopy = {
   giftReminderMonthly: 'Once a month',
   giftReminderQuarterly: 'Every 90 days',
   giftReminderOff: "Don't remind me",
+  editMessageWriteLabel: 'Write a message',
+  editMessageEditLabel: 'Edit your message',
+  editMessageSubtext: "Something to say before they open it — optional, but it makes this feel like you.",
+  editMessageSave: 'Save Message',
 } as const

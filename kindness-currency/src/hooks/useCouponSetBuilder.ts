@@ -92,11 +92,8 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     if (draft) setState(draft)
   }, [])
 
-  // Persists through the giftReady screen too (not just draft-in-progress screens) so
-  // a reload — including the full-page redirect an auth provider forces mid "save to
-  // your account" — lands the sender back on the same ready screen instead of losing it.
   useEffect(() => {
-    if (!hydrated.current || typeof window === 'undefined') return
+    if (!hydrated.current || typeof window === 'undefined' || state.screen === 'giftReady') return
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
@@ -126,10 +123,10 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   const setSenderMessage = useCallback((senderMessage: string) => setState((s) => ({ ...s, senderMessage })), [])
 
   const startEditing = useCallback(() => {
-    if (!state.recipientName.trim()) return false
+    if (!state.senderName.trim() || !state.recipientName.trim()) return false
     setState((s) => ({ ...s, screen: 'edit' }))
     return true
-  }, [state.recipientName])
+  }, [state.senderName, state.recipientName])
 
   const patchCoupon = useCallback((id: string, patch: Partial<BuilderCoupon>) => {
     setState((s) => ({ ...s, coupons: s.coupons.map((c) => (c.id === id ? { ...c, ...patch } : c)) }))
@@ -160,6 +157,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   }, [state])
 
   const completeSave = useCallback((result: SavedResult) => {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(DRAFT_STORAGE_KEY)
     setState((s) => ({ ...s, screen: 'giftReady', savedResult: result }))
   }, [])
 

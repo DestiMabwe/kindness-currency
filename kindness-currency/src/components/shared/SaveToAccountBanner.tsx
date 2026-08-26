@@ -19,7 +19,8 @@ export type SaveToAccountBannerProps = {
 }
 
 const dismissedKey = (scope: string, setId: string) => `kindness-currency:save-banner-dismissed:${scope}:${setId}`
-const pendingLinkKey = (scope: string, setId: string) => `kindness-currency:pending-link:${scope}:${setId}`
+/** Exported so a caller whose own screen state doesn't survive the auth redirect (e.g. CouponSetBuilder's giftReady screen) can check whether one of its links is mid-redirect and needs restoring. */
+export const pendingLinkKey = (scope: string, setId: string) => `kindness-currency:pending-link:${scope}:${setId}`
 
 export function SaveToAccountBanner({ setId, isLoggedIn, alreadyLinked, linkAction, redirectTo, storageScope }: SaveToAccountBannerProps) {
   const [ready, setReady] = useState(false)
