@@ -26,18 +26,27 @@ describe('FeedbackForm', () => {
   it('blocks submission when the message is empty, even with a type chosen', async () => {
     render(<FeedbackForm isLoggedIn={false} />)
 
-    await userEvent.selectOptions(screen.getByLabelText('Feedback type'), 'bug')
+    await userEvent.click(screen.getByRole('radio', { name: 'Bug' }))
     await userEvent.click(screen.getByRole('button', { name: 'Send Feedback' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent(/share a few words/i)
     expect(submitFeedbackAction).not.toHaveBeenCalled()
   })
 
+  it('marks the chosen type pill as checked and the others as not', async () => {
+    render(<FeedbackForm isLoggedIn={false} />)
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Bug' }))
+
+    expect(screen.getByRole('radio', { name: 'Bug' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Suggestion' })).toHaveAttribute('aria-checked', 'false')
+  })
+
   it('submits the selected type along with the message', async () => {
     submitFeedbackAction.mockResolvedValue({ success: true })
     render(<FeedbackForm isLoggedIn={false} />)
 
-    await userEvent.selectOptions(screen.getByLabelText('Feedback type'), 'suggestion')
+    await userEvent.click(screen.getByRole('radio', { name: 'Suggestion' }))
     await userEvent.type(screen.getByLabelText('Feedback message'), 'Add dark mode')
     await userEvent.click(screen.getByRole('button', { name: 'Send Feedback' }))
 
@@ -48,7 +57,7 @@ describe('FeedbackForm', () => {
     submitFeedbackAction.mockResolvedValue({ success: true })
     render(<FeedbackForm isLoggedIn={false} />)
 
-    await userEvent.selectOptions(screen.getByLabelText('Feedback type'), 'question')
+    await userEvent.click(screen.getByRole('radio', { name: 'Question' }))
     await userEvent.type(screen.getByLabelText('Feedback message'), 'How do I redeem?')
     await userEvent.click(screen.getByRole('button', { name: 'Send Feedback' }))
 

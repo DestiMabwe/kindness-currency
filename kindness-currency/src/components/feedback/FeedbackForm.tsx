@@ -50,24 +50,30 @@ export function FeedbackForm({ isLoggedIn }: FeedbackFormProps) {
 
   return (
     <div className="mt-6 flex flex-col gap-2.5">
-      <select
-        value={type}
-        onChange={(e) => {
-          setType(e.target.value as FeedbackType)
-          setError('')
-        }}
-        aria-label="Feedback type"
-        className="w-full rounded-xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
-      >
-        <option value="" disabled>
-          Select a type
-        </option>
-        {FEEDBACK_TYPES.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div>
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-60">Type</span>
+        <div role="radiogroup" aria-label="Feedback type" className="mt-1.5 flex flex-wrap gap-1.5">
+          {FEEDBACK_TYPES.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={type === option.value}
+              onClick={() => {
+                setType(option.value)
+                setError('')
+              }}
+              className="rounded-full px-4 py-2.5 text-[13px] font-semibold"
+              style={{
+                backgroundColor: type === option.value ? '#C2185B' : '#F0ECE4',
+                color: type === option.value ? '#fff' : '#2C2C2C',
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <textarea
         value={message}
         onChange={(e) => {
