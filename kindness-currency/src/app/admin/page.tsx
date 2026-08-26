@@ -6,6 +6,7 @@ import { createAdminRepository } from '@/lib/adminRepository'
 import { createFeatureInterestRepository } from '@/lib/featureInterestRepository'
 import { createFeedbackRepository } from '@/lib/feedbackRepository'
 import { SiteHeader } from '@/components/shared/SiteHeader'
+import { FeedbackFeed } from '@/components/admin/FeedbackFeed'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -78,24 +79,9 @@ export default async function AdminPage() {
 
         <section className="mt-10">
           <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Feedback Submissions</h2>
-          {feedbackEntries.length === 0 ? (
-            <div className="mt-3 text-[13px] text-[#2C2C2C] opacity-60">No feedback yet.</div>
-          ) : (
-            <div className="mt-3 flex flex-col gap-3">
-              {feedbackEntries.map((entry) => (
-                <div key={entry.id} className="rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10.5px] font-semibold tracking-[0.05em] text-[#C2185B] uppercase">{entry.type}</span>
-                    <span className="text-[11px] text-[#2C2C2C] opacity-50">{formatDate(entry.createdAt)}</span>
-                  </div>
-                  <div className="mt-1.5 text-[13.5px] leading-relaxed text-[#2C2C2C]">{entry.message}</div>
-                  <div className="mt-2 text-[12.5px] font-semibold text-[#1A1A2E]">
-                    {entry.email ? <a href={`mailto:${entry.email}`}>{entry.email}</a> : <span className="opacity-50">No email on file</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="mt-3">
+            <FeedbackFeed entries={feedbackEntries} />
+          </div>
         </section>
 
         <section className="mt-10">

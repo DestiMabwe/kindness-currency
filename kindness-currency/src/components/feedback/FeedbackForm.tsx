@@ -3,18 +3,11 @@
 import { useState } from 'react'
 import { submitFeedbackAction } from '@/app/feedback/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
-import type { FeedbackType } from '@/schemas/feedbackSchema'
+import { FEEDBACK_TYPES, type FeedbackType } from '@/schemas/feedbackSchema'
 
 export type FeedbackFormProps = {
   isLoggedIn: boolean
 }
-
-const FEEDBACK_TYPES: { value: FeedbackType; label: string }[] = [
-  { value: 'bug', label: 'Bug' },
-  { value: 'suggestion', label: 'Suggestion' },
-  { value: 'question', label: 'Question' },
-  { value: 'other', label: 'Other' },
-]
 
 export function FeedbackForm({ isLoggedIn }: FeedbackFormProps) {
   const [type, setType] = useState<FeedbackType | ''>('')
