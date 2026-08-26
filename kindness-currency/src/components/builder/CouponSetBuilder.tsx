@@ -9,12 +9,23 @@ import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
 import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
+import { EarlyAccessSignupForm } from '@/components/templates/EarlyAccessSignupForm'
 import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { createClient } from '@/lib/supabase/client'
 import { saveCouponSetAction } from '@/app/create/actions'
 import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
+import { useDialogA11y } from '@/hooks/useDialogA11y'
 import type { TemplateCoupon, TemplateWithCoupons } from '@/lib/templateRepository'
+import type { ComingSoonTemplate } from '@/lib/comingSoonTemplateRepository'
+
+// Made By Him / Made By Her are two halves of one paired idea — a couple makes
+// one each and swaps. Look up each other's display name by slug so the on-card
+// badge stays correct if a name changes, instead of hardcoding it here.
+const PAIRED_SLUGS: Record<string, string> = {
+  'made-by-him': 'made-by-her',
+  'made-by-her': 'made-by-him',
+}
 
 // Deferred: only needed once a giver actually opens the auth form (Save/Send for an
 // anonymous giver), not on every /create visit.
@@ -22,12 +33,13 @@ const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) =
 
 export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
+  comingSoonTemplates?: ComingSoonTemplate[]
   isLoggedIn: boolean
 }
 
 type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
 
-export function CouponSetBuilder({ templates, isLoggedIn }: CouponSetBuilderProps) {
+export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLoggedIn }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
   const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
   const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
@@ -115,7 +127,12 @@ export function CouponSetBuilder({ templates, isLoggedIn }: CouponSetBuilderProp
   return (
     <div className="min-h-screen">
       {builder.state.screen === 'select' && (
-        <TemplateSelectScreen templates={templates} onSelect={handleSelectTemplate} onPreviewSample={handlePreviewSample} />
+        <TemplateSelectScreen
+          templates={templates}
+          comingSoonTemplates={comingSoonTemplates}
+          onSelect={handleSelectTemplate}
+          onPreviewSample={handlePreviewSample}
+        />
       )}
 
       {builder.state.screen === 'details' && (
@@ -192,13 +209,17 @@ export function CouponSetBuilder({ templates, isLoggedIn }: CouponSetBuilderProp
 
 function TemplateSelectScreen({
   templates,
+  comingSoonTemplates,
   onSelect,
   onPreviewSample,
 }: {
   templates: TemplateWithCoupons[]
+  comingSoonTemplates: ComingSoonTemplate[]
   onSelect: (template: TemplateWithCoupons) => void
   onPreviewSample: (template: TemplateWithCoupons) => void
 }) {
+  const [comingSoonModal, setComingSoonModal] = useState<ComingSoonTemplate | null>(null)
+
   return (
     <div>
       <div className="flex items-center gap-2.5 px-4.5 pt-11.5 pb-1.5">
@@ -252,6 +273,81 @@ function TemplateSelectScreen({
             </div>
           )
         })}
+      </div>
+
+      {comingSoonTemplates.length > 0 && (
+        <div className="mt-4 bg-[#0a1f44] py-5">
+          <div className="px-5.5">
+            <h2 className="text-[22px] font-bold text-[#eaeaf2]" style={{ fontFamily: 'var(--font-playfair)' }}>
+              {ctaCopy.comingSoonHeading}
+            </h2>
+            <div className="mt-0.75 text-[12.5px] text-white/70">{ctaCopy.comingSoonSubheading}</div>
+          </div>
+          <div className="mt-4 flex flex-col gap-3.25 px-5.5">
+            {comingSoonTemplates.map((template) => {
+              const pairedSlug = PAIRED_SLUGS[template.slug]
+              const pairedTemplate = pairedSlug ? comingSoonTemplates.find((t) => t.slug === pairedSlug) : undefined
+              return (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => setComingSoonModal(template)}
+                  className="overflow-hidden rounded-[18px] border border-white/10 bg-white text-left shadow-[0_14px_30px_-22px_rgba(0,0,0,0.5)]"
+                >
+                  <div className="relative aspect-[1748/1240] w-full">
+                    <Image src={template.cover_image_path} alt={template.name} fill sizes="100vw" className="object-cover" />
+                  </div>
+                  <div className="p-3.75">
+                    <div className="text-[16.5px] leading-tight font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
+                      {template.name}
+                    </div>
+                    {pairedTemplate && (
+                      <div className="mt-1 text-[10.5px] font-semibold tracking-[0.02em] text-[#C2185B] uppercase opacity-80">
+                        Pairs with {pairedTemplate.name}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {comingSoonModal && <ComingSoonModal template={comingSoonModal} onClose={() => setComingSoonModal(null)} />}
+    </div>
+  )
+}
+
+function ComingSoonModal({ template, onClose }: { template: ComingSoonTemplate; onClose: () => void }) {
+  const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="coming-soon-heading"
+        className="w-full rounded-t-[26px] bg-[#FFF8F0] px-6 pt-7 pb-8"
+      >
+        <div className="flex items-start justify-between">
+          <h2 id="coming-soon-heading" className="text-2xl font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+            {template.name}
+          </h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-xl text-[#1A1A2E]">
+            ✕
+          </button>
+        </div>
+        <ul className="mt-4 flex flex-col gap-2.5 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-85">
+          {template.blurb_points.map((point) => (
+            <li key={point} className="flex gap-2">
+              <span aria-hidden="true">·</span>
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+        <EarlyAccessSignupForm templateSlug={template.slug} />
       </div>
     </div>
   )

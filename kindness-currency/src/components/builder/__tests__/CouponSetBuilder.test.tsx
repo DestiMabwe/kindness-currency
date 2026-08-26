@@ -15,6 +15,10 @@ vi.mock('@/app/create/actions', () => ({
   saveCouponSetAction: (input: unknown) => saveCouponSetAction(input),
 }))
 
+vi.mock('@/app/early-access/actions', () => ({
+  signUpForEarlyAccessAction: vi.fn(),
+}))
+
 const template = (overrides: Partial<TemplateWithCoupons> = {}): TemplateWithCoupons => ({
   id: 'aaaaaaaa-0000-0000-0000-000000000001',
   slug: 'mothers_day',
@@ -52,6 +56,16 @@ function manyCoupons(count: number) {
 }
 
 const templateWithFourCoupons = template({ template_coupons: manyCoupons(4) })
+
+const comingSoon = () => ({
+  id: 'cs-1',
+  slug: 'dads',
+  name: "Dad's Promise Tokens",
+  blurb_points: ['Guy time and shared hobbies', 'Dad jokes and sports talk', 'For the dad who shows love by doing'],
+  cover_image_path: '/images/coming-soon/dads.png',
+  is_active: true,
+  sort_order: 1,
+})
 
 describe('CouponSetBuilder', () => {
   beforeEach(() => {
@@ -182,6 +196,40 @@ describe('CouponSetBuilder', () => {
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
 
       expect(screen.queryByRole('button', { name: ctaCopy.previewViewAllCoupons })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('coming soon section', () => {
+    it('renders a "Coming Soon" heading and card below the live templates', () => {
+      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} isLoggedIn={false} />)
+
+      expect(screen.getByText('Coming Soon')).toBeInTheDocument()
+      expect(screen.getByText("Dad's Promise Tokens")).toBeInTheDocument()
+    })
+
+    it('does not render the section when there are no coming-soon templates', () => {
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
+
+      expect(screen.queryByText('Coming Soon')).not.toBeInTheDocument()
+    })
+
+    it('opens a modal with the blurb and early-access form when a coming-soon card is clicked', async () => {
+      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} isLoggedIn={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: /Dad's Promise Tokens/ }))
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText('Guy time and shared hobbies')).toBeInTheDocument()
+      expect(screen.getByLabelText('Email address')).toBeInTheDocument()
+    })
+
+    it('closes the modal on the close button', async () => {
+      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} isLoggedIn={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: /Dad's Promise Tokens/ }))
+      await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
   })
 

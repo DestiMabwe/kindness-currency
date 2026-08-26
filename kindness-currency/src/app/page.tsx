@@ -72,10 +72,10 @@ export default async function HomePage() {
             {ctaCopy.heroCta}
           </Link>
           <Link
-            href="/templates"
+            href="/about"
             className="flex-1 rounded-2xl bg-[#1A1A2E] p-3.75 text-center font-sans text-[15.5px] font-bold text-white shadow-[0_16px_30px_-14px_rgba(26,26,46,0.5)]"
           >
-            {ctaCopy.browseTemplates}
+            {ctaCopy.navAboutUs}
           </Link>
         </div>
       </div>
