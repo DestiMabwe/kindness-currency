@@ -90,6 +90,84 @@ describe('CouponSetRepository', () => {
 
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
     })
+
+    it('persists sender_message through to the insert when provided', async () => {
+      const { supabase, setChain } = makeSupabase({
+        setResult: { data: { id: 'set-1' }, error: null },
+        couponsResult: { data: null, error: null },
+      })
+      const repo = createCouponSetRepository(supabase as never)
+
+      await repo.saveCouponSet({ ...validInput(), sender_message: 'Thinking of you every day.' }, 'user-1')
+
+      expect(setChain.insert.mock.calls[0][0].sender_message).toBe('Thinking of you every day.')
+    })
+
+    it('does not require a sender_message', async () => {
+      const { supabase } = makeSupabase({
+        setResult: { data: { id: 'set-1' }, error: null },
+        couponsResult: { data: null, error: null },
+      })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.saveCouponSet(validInput(), 'user-1')
+
+      expect(result.success).toBe(true)
+    })
+  })
+
+  describe('getCouponSetsForUser', () => {
+    function makeSentSupabase(resolvedValue: { data: unknown; error: unknown }) {
+      const order = vi.fn().mockResolvedValue(resolvedValue)
+      const eq = vi.fn().mockReturnValue({ order })
+      const select = vi.fn().mockReturnValue({ eq })
+      const from = vi.fn().mockReturnValue({ select })
+      return { supabase: { from }, eq }
+    }
+
+    it('includes opened_at so the sender status badge can be derived', async () => {
+      const { supabase } = makeSentSupabase({
+        data: [
+          {
+            id: 'set-1',
+            recipient_name: 'Mom',
+            status: 'sent',
+            created_at: '2026-08-20T00:00:00Z',
+            opened_at: '2026-08-21T00:00:00Z',
+            templates: { name: "Mom's Promise Tokens" },
+            coupons: [{ id: 'c1', status: 'sent' }],
+          },
+        ],
+        error: null,
+      })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.getCouponSetsForUser('user-1')
+
+      expect(result[0].openedAt).toBe('2026-08-21T00:00:00Z')
+    })
+
+    it('returns a null openedAt for a set that has never been opened', async () => {
+      const { supabase } = makeSentSupabase({
+        data: [
+          {
+            id: 'set-1',
+            recipient_name: 'Mom',
+            status: 'sent',
+            created_at: '2026-08-20T00:00:00Z',
+            opened_at: null,
+            templates: { name: "Mom's Promise Tokens" },
+            coupons: [{ id: 'c1', status: 'sent' }],
+          },
+        ],
+        error: null,
+      })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.getCouponSetsForUser('user-1')
+
+      expect(result[0].openedAt).toBeNull()
+    })
   })
 
   describe('linkRecipient', () => {

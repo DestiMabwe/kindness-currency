@@ -21,6 +21,7 @@ export type GiveCouponSet = {
   template_slug: TemplateSlug
   expiry_date: string | null
   recipient_user_id: string | null
+  sender_message: string | null
   coupons: GiveCoupon[]
 }
 
@@ -30,6 +31,7 @@ type CouponSetRow = {
   recipient_name: string
   expiry_date: string | null
   recipient_user_id: string | null
+  sender_message: string | null
   templates: { slug: string } | { slug: string }[] | null
   coupons: GiveCoupon[]
 }
@@ -55,7 +57,7 @@ export function createGiveRepository(supabase: SupabaseClient) {
       const { data, error } = await supabase
         .from('coupon_sets')
         .select(
-          'id, sender_name, recipient_name, expiry_date, recipient_user_id, templates(slug), coupons(id, sort_order, service_title, micro_copy, fine_print, font_choice, background_color, background_effect, status)'
+          'id, sender_name, recipient_name, expiry_date, recipient_user_id, sender_message, templates(slug), coupons(id, sort_order, service_title, micro_copy, fine_print, font_choice, background_color, background_effect, status)'
         )
         .eq('id', id)
         .single<CouponSetRow>()
@@ -71,9 +73,20 @@ export function createGiveRepository(supabase: SupabaseClient) {
         recipient_name: data.recipient_name,
         expiry_date: data.expiry_date,
         recipient_user_id: data.recipient_user_id,
+        sender_message: data.sender_message,
         template_slug: template.slug as TemplateSlug,
         coupons: [...data.coupons].sort((a, b) => a.sort_order - b.sort_order),
       }
+    },
+
+    /**
+     * Records the moment the recipient first loaded this link — closes the
+     * loop for the sender even without a redemption. Conditioned on
+     * opened_at still being null so repeat visits never overwrite the
+     * original timestamp; safe to call on every page load.
+     */
+    async markOpened(id: string): Promise<void> {
+      await supabase.from('coupon_sets').update({ opened_at: new Date().toISOString() }).eq('id', id).is('opened_at', null)
     },
   }
 }

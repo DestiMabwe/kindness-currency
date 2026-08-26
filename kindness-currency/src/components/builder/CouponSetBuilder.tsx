@@ -14,7 +14,7 @@ import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/consta
 import { ctaCopy } from '@/constants/ctaCopy'
 import { createClient } from '@/lib/supabase/client'
 import { saveCouponSetAction } from '@/app/create/actions'
-import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
+import { SERVICE_TITLE_MAX_LENGTH, SENDER_MESSAGE_MAX_LENGTH } from '@/schemas/couponSchema'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import type { TemplateCoupon, TemplateWithCoupons } from '@/lib/templateRepository'
 import type { ComingSoonTemplate } from '@/lib/comingSoonTemplateRepository'
@@ -151,10 +151,12 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
           senderName={builder.state.senderName}
           recipientName={builder.state.recipientName}
           expiryDate={builder.state.expiryDate}
+          senderMessage={builder.state.senderMessage}
           onBack={builder.backToSelect}
           onSenderChange={builder.setSenderName}
           onRecipientChange={builder.setRecipientName}
           onExpiryChange={builder.setExpiryDate}
+          onSenderMessageChange={builder.setSenderMessage}
           onContinue={builder.startEditing}
         />
       )}
@@ -388,20 +390,24 @@ function DetailsFormScreen({
   senderName,
   recipientName,
   expiryDate,
+  senderMessage,
   onBack,
   onSenderChange,
   onRecipientChange,
   onExpiryChange,
+  onSenderMessageChange,
   onContinue,
 }: {
   templateName: string
   senderName: string
   recipientName: string
   expiryDate: string
+  senderMessage: string
   onBack: () => void
   onSenderChange: (value: string) => void
   onRecipientChange: (value: string) => void
   onExpiryChange: (value: string) => void
+  onSenderMessageChange: (value: string) => void
   onContinue: () => void
 }) {
   const [attempted, setAttempted] = useState(false)
@@ -445,6 +451,19 @@ function DetailsFormScreen({
             placeholder="e.g. Mom"
             className="mt-1.5 w-full rounded-xl border-[1.5px] p-3.5 text-[15px] text-[#1A1A2E] outline-none"
             style={{ borderColor: attempted && !recipientName.trim() ? '#C2185B' : 'rgba(26,26,46,0.14)' }}
+          />
+        </label>
+        <label className="block">
+          <span className="text-[11px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-60">
+            Write a message to go with this <span className="font-medium normal-case opacity-60">· optional, but it makes this feel like you</span>
+          </span>
+          <textarea
+            value={senderMessage}
+            onChange={(e) => onSenderMessageChange(e.target.value)}
+            placeholder="Something to say before they open it…"
+            maxLength={SENDER_MESSAGE_MAX_LENGTH}
+            rows={3}
+            className="mt-1.5 w-full resize-none rounded-xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
           />
         </label>
         <label className="block">

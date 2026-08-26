@@ -12,6 +12,7 @@ export type CouponSetSummary = {
   created_at: string
   templateName: string | null
   coupons: { id: string; status: string }[]
+  openedAt: string | null
 }
 
 export type ReceivedCouponSetSummary = {
@@ -74,7 +75,7 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
     async getCouponSetsForUser(userId: string): Promise<CouponSetSummary[]> {
       const { data, error } = await supabase
         .from('coupon_sets')
-        .select('id, recipient_name, status, created_at, templates(name), coupons(id, status)')
+        .select('id, recipient_name, status, created_at, opened_at, templates(name), coupons(id, status)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
@@ -89,6 +90,7 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
           created_at: row.created_at,
           templateName: template?.name ?? null,
           coupons: row.coupons,
+          openedAt: row.opened_at,
         }
       })
     },

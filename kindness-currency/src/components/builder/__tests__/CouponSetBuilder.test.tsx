@@ -323,6 +323,32 @@ describe('CouponSetBuilder', () => {
 
       expect(screen.getByText('Save My Coupons')).toBeInTheDocument()
     })
+
+    it('includes a sender message field, and it flows through to the save payload', async () => {
+      saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.type(screen.getByPlaceholderText('Something to say before they open it…'), 'Thinking of you every day.')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+
+      expect(saveCouponSetAction).toHaveBeenCalledWith(expect.objectContaining({ sender_message: 'Thinking of you every day.' }))
+    })
+
+    it('omits sender_message from the save payload when left blank', async () => {
+      saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+
+      const payload = saveCouponSetAction.mock.calls[0][0]
+      expect(payload).not.toHaveProperty('sender_message')
+    })
   })
 
   async function goToEditor(isLoggedIn = false) {

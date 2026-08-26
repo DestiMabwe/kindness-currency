@@ -25,6 +25,7 @@ export type BuilderState = {
   senderName: string
   recipientName: string
   expiryDate: string
+  senderMessage: string
   coupons: BuilderCoupon[]
   savedResult: SavedResult | null
 }
@@ -38,6 +39,7 @@ const initialState: BuilderState = {
   senderName: '',
   recipientName: '',
   expiryDate: '',
+  senderMessage: '',
   coupons: [],
   savedResult: null,
 }
@@ -60,7 +62,9 @@ function loadDraft(): BuilderState | null {
   try {
     const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as BuilderState
+    // Merge onto initialState so a draft saved before a field existed (e.g.
+    // senderMessage) still rehydrates with a valid default instead of undefined.
+    return { ...initialState, ...JSON.parse(raw) } as BuilderState
   } catch {
     return null
   }
@@ -109,6 +113,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   const setSenderName = useCallback((senderName: string) => setState((s) => ({ ...s, senderName })), [])
   const setRecipientName = useCallback((recipientName: string) => setState((s) => ({ ...s, recipientName })), [])
   const setExpiryDate = useCallback((expiryDate: string) => setState((s) => ({ ...s, expiryDate })), [])
+  const setSenderMessage = useCallback((senderMessage: string) => setState((s) => ({ ...s, senderMessage })), [])
 
   const startEditing = useCallback(() => {
     if (!state.recipientName.trim()) return false
@@ -131,6 +136,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
       sender_name: state.senderName,
       recipient_name: state.recipientName,
       ...(state.expiryDate ? { expiry_date: state.expiryDate } : {}),
+      ...(state.senderMessage?.trim() ? { sender_message: state.senderMessage.trim() } : {}),
       coupons: state.coupons.map((c) => ({
         service_title: c.serviceTitle,
         micro_copy: c.microCopy,
@@ -164,6 +170,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     setSenderName,
     setRecipientName,
     setExpiryDate,
+    setSenderMessage,
     startEditing,
     patchCoupon,
     patchAllCoupons,

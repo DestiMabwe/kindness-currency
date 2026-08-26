@@ -8,12 +8,16 @@ export const CouponStatusSchema = z.enum(['sent', 'viewed', 'redeemed'])
 export const FontChoiceSchema = z.enum(['playfair', 'dm-sans'])
 export const BackgroundEffectSchema = z.enum(['none', 'confetti', 'sparkle', 'soft-glow'])
 
+// Keeps the message screen a brief, standalone moment rather than a wall of text.
+export const SENDER_MESSAGE_MAX_LENGTH = 500
+
 // Coupon set mutation schema — template_id replaces template_type enum
 export const CouponSetMutationSchema = z.object({
   template_id: z.string().uuid(),
   sender_name: z.string().min(1),
   recipient_name: z.string().min(1),
   expiry_date: z.string().date().optional(),
+  sender_message: z.string().max(SENDER_MESSAGE_MAX_LENGTH).optional(),
 })
 
 // Longest seeded service_title is 31 chars ("One Birthday Meal, Your Choice"); this caps

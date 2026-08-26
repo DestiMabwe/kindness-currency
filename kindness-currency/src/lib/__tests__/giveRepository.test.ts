@@ -17,6 +17,7 @@ const row = (overrides = {}) => ({
   recipient_name: 'Sam',
   expiry_date: '2026-12-25',
   recipient_user_id: null,
+  sender_message: null,
   templates: { slug: 'valentines' },
   coupons: [
     {
@@ -100,6 +101,45 @@ describe('GiveRepository', () => {
       const result = await repo.getCouponSetForRecipient('missing')
 
       expect(result).toBeNull()
+    })
+
+    it('returns the sender_message when one was written', async () => {
+      const { supabase } = makeChain({ data: row({ sender_message: 'Thinking of you every day.' }), error: null })
+      const repo = createGiveRepository(supabase as never)
+
+      const result = await repo.getCouponSetForRecipient('set-1')
+
+      expect(result?.sender_message).toBe('Thinking of you every day.')
+    })
+
+    it('returns a null sender_message when none was written', async () => {
+      const { supabase } = makeChain({ data: row(), error: null })
+      const repo = createGiveRepository(supabase as never)
+
+      const result = await repo.getCouponSetForRecipient('set-1')
+
+      expect(result?.sender_message).toBeNull()
+    })
+  })
+
+  describe('markOpened', () => {
+    function makeMarkOpenedSupabase() {
+      const is = vi.fn().mockResolvedValue({ data: null, error: null })
+      const eq = vi.fn().mockReturnValue({ is })
+      const update = vi.fn().mockReturnValue({ eq })
+      const from = vi.fn().mockReturnValue({ update })
+      return { supabase: { from }, update, eq, is }
+    }
+
+    it('sets opened_at to now for the given set', async () => {
+      const { supabase, update, eq, is } = makeMarkOpenedSupabase()
+      const repo = createGiveRepository(supabase as never)
+
+      await repo.markOpened('set-1')
+
+      expect(update).toHaveBeenCalledWith(expect.objectContaining({ opened_at: expect.any(String) }))
+      expect(eq).toHaveBeenCalledWith('id', 'set-1')
+      expect(is).toHaveBeenCalledWith('opened_at', null)
     })
   })
 

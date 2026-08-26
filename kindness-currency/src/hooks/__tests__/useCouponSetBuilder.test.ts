@@ -59,6 +59,28 @@ describe('useCouponSetBuilder', () => {
       expect(result.current.state.recipientName).toBe('Mom')
       expect(result.current.state.screen).toBe('details')
     })
+
+    it('fills in a default senderMessage when rehydrating a draft saved before that field existed', () => {
+      window.localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          screen: 'edit',
+          selectedTemplateId: mothersDay.id,
+          selectedTemplateSlug: 'mothers_day',
+          senderName: 'Alex',
+          recipientName: 'Mom',
+          expiryDate: '',
+          coupons: [],
+          savedResult: null,
+          // senderMessage intentionally omitted, simulating a pre-existing draft
+        })
+      )
+
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      expect(result.current.state.senderMessage).toBe('')
+      expect(() => result.current.toSavePayload()).not.toThrow()
+    })
   })
 
   describe('template selection', () => {
@@ -156,6 +178,29 @@ describe('useCouponSetBuilder', () => {
       act(() => result.current.loadTemplate('mothers_day'))
 
       expect(result.current.toSavePayload()).not.toHaveProperty('expiry_date')
+    })
+
+    it('includes the trimmed sender_message when one was written', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderMessage('  Thinking of you every day.  '))
+
+      expect(result.current.toSavePayload()).toMatchObject({ sender_message: 'Thinking of you every day.' })
+    })
+
+    it('omits sender_message when left blank, rather than sending an empty string', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.toSavePayload()).not.toHaveProperty('sender_message')
+    })
+
+    it('omits sender_message when it is only whitespace', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderMessage('   '))
+
+      expect(result.current.toSavePayload()).not.toHaveProperty('sender_message')
     })
   })
 

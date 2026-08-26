@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProfileTabs } from '../ProfileTabs'
 import type { CouponSetSummary, ReceivedCouponSetSummary } from '@/lib/couponSetRepository'
@@ -15,6 +15,7 @@ const sentSets: CouponSetSummary[] = [
       { id: 'c1', status: 'redeemed' },
       { id: 'c2', status: 'sent' },
     ],
+    openedAt: '2026-08-21T00:00:00Z',
   },
 ]
 
@@ -69,5 +70,63 @@ describe('ProfileTabs', () => {
     render(<ProfileTabs sentSets={[]} receivedSets={receivedSets} />)
 
     expect(screen.getByText("You haven't sent any coupon sets yet.")).toBeInTheDocument()
+  })
+
+  describe('sent status badge', () => {
+    const baseSet = (overrides: Partial<CouponSetSummary>): CouponSetSummary => ({
+      id: 'set-1',
+      recipient_name: 'Mom',
+      status: 'sent',
+      created_at: '2026-08-20T00:00:00Z',
+      templateName: null,
+      coupons: [{ id: 'c1', status: 'sent' }],
+      openedAt: null,
+      ...overrides,
+    })
+
+    it('shows "Sent" when opened_at is null and nothing is redeemed', () => {
+      render(<ProfileTabs sentSets={[baseSet({ openedAt: null })]} receivedSets={[]} />)
+
+      expect(within(screen.getByRole('tabpanel')).getByText('Sent')).toBeInTheDocument()
+    })
+
+    it('shows "Seen" once opened_at is set but nothing is redeemed yet', () => {
+      render(<ProfileTabs sentSets={[baseSet({ openedAt: '2026-08-21T00:00:00Z' })]} receivedSets={[]} />)
+
+      const panel = within(screen.getByRole('tabpanel'))
+      expect(panel.getByText('Seen')).toBeInTheDocument()
+      expect(panel.queryByText('Sent')).not.toBeInTheDocument()
+    })
+
+    it('shows "Redeemed" as soon as the first coupon in the set is redeemed', () => {
+      render(
+        <ProfileTabs
+          sentSets={[
+            baseSet({
+              openedAt: '2026-08-21T00:00:00Z',
+              coupons: [
+                { id: 'c1', status: 'redeemed' },
+                { id: 'c2', status: 'sent' },
+                { id: 'c3', status: 'sent' },
+              ],
+            }),
+          ]}
+          receivedSets={[]}
+        />
+      )
+
+      expect(screen.getByText('Redeemed')).toBeInTheDocument()
+    })
+
+    it('shows "Redeemed" even if opened_at was somehow never recorded', () => {
+      render(
+        <ProfileTabs
+          sentSets={[baseSet({ openedAt: null, coupons: [{ id: 'c1', status: 'redeemed' }] })]}
+          receivedSets={[]}
+        />
+      )
+
+      expect(screen.getByText('Redeemed')).toBeInTheDocument()
+    })
   })
 })
