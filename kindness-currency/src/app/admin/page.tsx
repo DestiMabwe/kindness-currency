@@ -15,9 +15,11 @@ export default async function AdminPage() {
   if (!isAdminEmail(user?.email)) redirect('/')
 
   const supabase = createServiceClient()
-  const [popularTemplates, interestCounts] = await Promise.all([
-    createAdminRepository(supabase).getPopularTemplates(),
+  const adminRepo = createAdminRepository(supabase)
+  const [popularTemplates, interestCounts, comingSoonInterest] = await Promise.all([
+    adminRepo.getPopularTemplates(),
     createFeatureInterestRepository(supabase).getInterestCounts(),
+    adminRepo.getComingSoonTemplateInterest(),
   ])
 
   return (
@@ -47,6 +49,18 @@ export default async function AdminPage() {
               <div key={row.feature} className="flex-1 rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
                 <div className="text-[11px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Early-Access Signups</div>
                 <div className="mt-1 text-[22px] font-extrabold text-[#1A1A2E]">{row.count}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Coming Soon Interest</h2>
+          <div className="mt-3 flex flex-col gap-3">
+            {comingSoonInterest.map((template) => (
+              <div key={template.templateSlug} className="flex items-center justify-between rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
+                <div className="text-[14.5px] font-bold text-[#1A1A2E]">{template.name}</div>
+                <div className="text-[14.5px] font-semibold text-[#C2185B]">{template.count}</div>
               </div>
             ))}
           </div>
