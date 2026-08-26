@@ -130,4 +130,67 @@ describe('CouponSetRepository', () => {
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
     })
   })
+
+  describe('getCouponSetsForRecipient', () => {
+    function makeReceivedSupabase(resolvedValue: { data: unknown; error: unknown }) {
+      const order = vi.fn().mockResolvedValue(resolvedValue)
+      const eq = vi.fn().mockReturnValue({ order })
+      const select = vi.fn().mockReturnValue({ eq })
+      const from = vi.fn().mockReturnValue({ select })
+      return { supabase: { from }, from, eq }
+    }
+
+    it('queries by recipient_user_id, not user_id', async () => {
+      const { supabase, from, eq } = makeReceivedSupabase({ data: [], error: null })
+      const repo = createCouponSetRepository(supabase as never)
+
+      await repo.getCouponSetsForRecipient('user-1')
+
+      expect(from).toHaveBeenCalledWith('coupon_sets')
+      expect(eq).toHaveBeenCalledWith('recipient_user_id', 'user-1')
+    })
+
+    it('returns each set with the sender name, template name, and coupon statuses', async () => {
+      const { supabase } = makeReceivedSupabase({
+        data: [
+          {
+            id: 'set-1',
+            sender_name: 'Jordan',
+            status: 'sent',
+            created_at: '2026-08-20T00:00:00Z',
+            templates: { name: "Valentine's Love Passes" },
+            coupons: [
+              { id: 'c1', status: 'redeemed' },
+              { id: 'c2', status: 'sent' },
+            ],
+          },
+        ],
+        error: null,
+      })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.getCouponSetsForRecipient('user-1')
+
+      expect(result).toEqual([
+        {
+          id: 'set-1',
+          sender_name: 'Jordan',
+          status: 'sent',
+          created_at: '2026-08-20T00:00:00Z',
+          templateName: "Valentine's Love Passes",
+          coupons: [
+            { id: 'c1', status: 'redeemed' },
+            { id: 'c2', status: 'sent' },
+          ],
+        },
+      ])
+    })
+
+    it('returns an empty list when nothing has been received yet', async () => {
+      const { supabase } = makeReceivedSupabase({ data: [], error: null })
+      const repo = createCouponSetRepository(supabase as never)
+
+      expect(await repo.getCouponSetsForRecipient('user-1')).toEqual([])
+    })
+  })
 })

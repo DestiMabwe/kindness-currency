@@ -41,10 +41,24 @@ describe('AuthGate', () => {
     expect(signInWithOtp).toHaveBeenCalledWith({
       email: 'alex@example.com',
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fcreate`,
         data: { full_name: 'Alex Rivera' },
       },
     })
+  })
+
+  it('encodes a custom redirectTo into the callback URL', async () => {
+    signInWithOtp.mockResolvedValue({ error: null })
+    render(<AuthGate onClose={vi.fn()} redirectTo="/give/set-1" />)
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+
+    expect(signInWithOtp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({ emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fgive%2Fset-1` }),
+      })
+    )
   })
 
   it('shows the "check your inbox" step after a successful send', async () => {
@@ -77,7 +91,7 @@ describe('AuthGate', () => {
 
       expect(signInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo: `${window.location.origin}/auth/callback?next=%2Fcreate` },
       })
     })
 

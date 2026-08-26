@@ -51,4 +51,9 @@ export const ctaCopy = {
   featureInterestSubmitButton: 'Notify Me',
   featureInterestInvalidEmail: 'Please enter a valid email address',
   featureInterestThankYou: "You're on the list ♥",
+  saveToAccountBanner: 'Save this to your account',
+  addToAccountBanner: 'Add this to your account',
+  profileTabSent: 'Sent',
+  profileTabReceived: 'Received',
+  profileReceivedEmptyState: "You haven't received any coupon sets yet.",
 } as const

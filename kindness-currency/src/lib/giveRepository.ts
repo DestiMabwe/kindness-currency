@@ -20,6 +20,7 @@ export type GiveCouponSet = {
   recipient_name: string
   template_slug: TemplateSlug
   expiry_date: string | null
+  recipient_user_id: string | null
   coupons: GiveCoupon[]
 }
 
@@ -28,6 +29,7 @@ type CouponSetRow = {
   sender_name: string
   recipient_name: string
   expiry_date: string | null
+  recipient_user_id: string | null
   templates: { slug: string } | { slug: string }[] | null
   coupons: GiveCoupon[]
 }
@@ -53,7 +55,7 @@ export function createGiveRepository(supabase: SupabaseClient) {
       const { data, error } = await supabase
         .from('coupon_sets')
         .select(
-          'id, sender_name, recipient_name, expiry_date, templates(slug), coupons(id, sort_order, service_title, micro_copy, fine_print, font_choice, background_color, background_effect, status)'
+          'id, sender_name, recipient_name, expiry_date, recipient_user_id, templates(slug), coupons(id, sort_order, service_title, micro_copy, fine_print, font_choice, background_color, background_effect, status)'
         )
         .eq('id', id)
         .single<CouponSetRow>()
@@ -68,6 +70,7 @@ export function createGiveRepository(supabase: SupabaseClient) {
         sender_name: data.sender_name,
         recipient_name: data.recipient_name,
         expiry_date: data.expiry_date,
+        recipient_user_id: data.recipient_user_id,
         template_slug: template.slug as TemplateSlug,
         coupons: [...data.coupons].sort((a, b) => a.sort_order - b.sort_order),
       }

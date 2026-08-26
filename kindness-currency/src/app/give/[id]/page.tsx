@@ -1,9 +1,11 @@
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/supabase/server'
 import { createGiveRepository, sortCouponsForDisplay } from '@/lib/giveRepository'
 import { templateVisuals } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { RecipientCouponList } from '@/components/coupon/RecipientCouponList'
+import { SaveToAccountBanner } from '@/components/give/SaveToAccountBanner'
 import { SiteHeader } from '@/components/shared/SiteHeader'
 
 export default async function GivePage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +14,11 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
   const giveData = await repo.getCouponSetForRecipient(id)
 
   if (!giveData) notFound()
+
+  const authClient = await createClient()
+  const {
+    data: { user },
+  } = await authClient.auth.getUser()
 
   const visuals = templateVisuals[giveData.template_slug]
   const coupons = sortCouponsForDisplay(giveData.coupons)
@@ -34,6 +41,8 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
           {`${coupons.length} promises, each redeemable whenever you're ready. Tap one to call it in.`}
         </div>
       </div>
+
+      <SaveToAccountBanner setId={giveData.id} isLoggedIn={!!user} alreadyLinked={giveData.recipient_user_id === user?.id} />
 
       <RecipientCouponList
         initialCoupons={coupons}

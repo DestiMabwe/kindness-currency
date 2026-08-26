@@ -204,6 +204,9 @@ Rounded corners are universal — there is no sharp corner anywhere in the syste
 - **Drawer:** Cream background, ~78% viewport width (max 300px), semi-transparent Deep-Ink backdrop with blur behind it. Nav links are Deep Ink DM Sans semibold; the auth-related action (Log In / Log Out) is set apart in Kindness Red.
 - **Mobile:** this drawer pattern is the only navigation pattern — there is no separate desktop nav treatment.
 
+### Tabs (documented exception)
+Profile's Sent/Received view is the one place in the app with tabs — everywhere else is single-column with no in-page tab switching. Two pill buttons ("Sent" / "Received"), same shape/color language as the filter pills used elsewhere (inactive: `#F0ECE4` fill, Deep Ink text; active: Kindness Red fill, white text), with proper `tablist`/`tab`/`tabpanel` ARIA roles since it's genuinely switching between two distinct content panels, not filtering one list. Introduced deliberately for this one case rather than becoming a general pattern — don't reach for tabs elsewhere without a similarly good reason.
+
 ### Confirmation Modal (signature component)
 The redemption confirmation ("Redeem this right now?") is a bottom-sheet, not a centered dialog: it's pinned to the bottom edge, full width, with the two-tone-echoing 26px-top/36px-bottom rounded corners described in Shapes, over a blurred dark backdrop. Heading is italic Playfair Title-scale; body copy is muted DM Sans; the PIN input and its primary/ghost button pair sit below. This bottom-sheet pattern is the template for any future "are you sure" or data-entry moment tied to a coupon.
 

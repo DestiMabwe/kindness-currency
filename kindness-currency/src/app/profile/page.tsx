@@ -2,6 +2,7 @@ import { SiteHeader } from '@/components/shared/SiteHeader'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createCouponSetRepository } from '@/lib/couponSetRepository'
+import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { ctaCopy } from '@/constants/ctaCopy'
 
 export default async function ProfilePage() {
@@ -29,7 +30,11 @@ export default async function ProfilePage() {
     )
   }
 
-  const sets = await createCouponSetRepository(createServiceClient()).getCouponSetsForUser(user.id)
+  const repo = createCouponSetRepository(createServiceClient())
+  const [sentSets, receivedSets] = await Promise.all([
+    repo.getCouponSetsForUser(user.id),
+    repo.getCouponSetsForRecipient(user.id),
+  ])
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FFF8F0]">
@@ -41,31 +46,9 @@ export default async function ProfilePage() {
         >
           {ctaCopy.profileHeading}
         </h1>
-        {sets.length === 0 ? (
-          <div className="mt-6 text-[14px] text-[#2C2C2C] opacity-70">{ctaCopy.profileEmptyState}</div>
-        ) : (
-          <div className="mt-5 flex flex-col gap-3.5">
-            {sets.map((set) => {
-              const redeemedCount = set.coupons.filter((c) => c.status === 'redeemed').length
-              return (
-                <div key={set.id} className="rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[15.5px] font-bold text-[#1A1A2E]">{set.recipient_name}</div>
-                    <span className="text-[11px] font-semibold tracking-[0.05em] text-[#2C2C2C] uppercase opacity-60">
-                      {set.status}
-                    </span>
-                  </div>
-                  {set.templateName && (
-                    <div className="mt-1 text-[12.5px] text-[#2C2C2C] opacity-70">{set.templateName}</div>
-                  )}
-                  <div className="mt-2.5 text-[12.5px] font-semibold text-[#C2185B]">
-                    {redeemedCount} of {set.coupons.length} redeemed
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <div className="mt-5">
+          <ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />
+        </div>
       </div>
     </div>
   )

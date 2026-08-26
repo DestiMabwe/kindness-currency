@@ -7,15 +7,19 @@ import { useDialogA11y } from '@/hooks/useDialogA11y'
 
 export type AuthGateProps = {
   onClose: () => void
+  /** Where to land after auth completes and the callback route exchanges the code. Defaults to /create. */
+  redirectTo?: string
 }
 
-export function AuthGate({ onClose }: AuthGateProps) {
+export function AuthGate({ onClose, redirectTo = '/create' }: AuthGateProps) {
   const [step, setStep] = useState<'form' | 'otp'>('form')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
+
+  const callbackUrl = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`
 
   const handleSubmit = async () => {
     if (!email.trim()) {
@@ -28,7 +32,7 @@ export function AuthGate({ onClose }: AuthGateProps) {
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl(),
         data: { full_name: name },
       },
     })
@@ -45,7 +49,7 @@ export function AuthGate({ onClose }: AuthGateProps) {
     const supabase = createClient()
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: callbackUrl() },
     })
     if (oauthError) {
       setError('Something went wrong signing in with Google. Please try again.')

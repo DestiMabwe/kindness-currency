@@ -16,6 +16,7 @@ const row = (overrides = {}) => ({
   sender_name: 'Jordan',
   recipient_name: 'Sam',
   expiry_date: '2026-12-25',
+  recipient_user_id: null,
   templates: { slug: 'valentines' },
   coupons: [
     {
@@ -81,6 +82,15 @@ describe('GiveRepository', () => {
       const result = await repo.getCouponSetForRecipient('set-1')
 
       expect(result?.expiry_date).toBe('2026-12-25')
+    })
+
+    it('returns the recipient_user_id so the page can tell if this viewer already linked it', async () => {
+      const { supabase } = makeChain({ data: row({ recipient_user_id: 'user-1' }), error: null })
+      const repo = createGiveRepository(supabase as never)
+
+      const result = await repo.getCouponSetForRecipient('set-1')
+
+      expect(result?.recipient_user_id).toBe('user-1')
     })
 
     it('returns null for an unknown id', async () => {

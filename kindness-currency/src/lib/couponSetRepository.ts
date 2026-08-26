@@ -14,6 +14,15 @@ export type CouponSetSummary = {
   coupons: { id: string; status: string }[]
 }
 
+export type ReceivedCouponSetSummary = {
+  id: string
+  sender_name: string
+  status: string
+  created_at: string
+  templateName: string | null
+  coupons: { id: string; status: string }[]
+}
+
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
 
 export function createCouponSetRepository(supabase: SupabaseClient) {
@@ -76,6 +85,32 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
         return {
           id: row.id,
           recipient_name: row.recipient_name,
+          status: row.status,
+          created_at: row.created_at,
+          templateName: template?.name ?? null,
+          coupons: row.coupons,
+        }
+      })
+    },
+
+    /**
+     * Coupon sets a given user has received (linked to their account via
+     * linkRecipient), newest first — the Received counterpart of getCouponSetsForUser.
+     */
+    async getCouponSetsForRecipient(userId: string): Promise<ReceivedCouponSetSummary[]> {
+      const { data, error } = await supabase
+        .from('coupon_sets')
+        .select('id, sender_name, status, created_at, templates(name), coupons(id, status)')
+        .eq('recipient_user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      return (data ?? []).map((row) => {
+        const template = Array.isArray(row.templates) ? row.templates[0] : row.templates
+        return {
+          id: row.id,
+          sender_name: row.sender_name,
           status: row.status,
           created_at: row.created_at,
           templateName: template?.name ?? null,
