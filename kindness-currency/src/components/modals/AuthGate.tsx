@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { devInstantLoginAction } from '@/app/auth/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 
@@ -9,10 +10,13 @@ export type AuthGateProps = {
   onClose: () => void
   /** Where to land after auth completes and the callback route exchanges the code. Defaults to /create. */
   redirectTo?: string
+  /** Which framing to open with — the person can still switch. Defaults to 'signup'. */
+  initialMode?: 'signup' | 'login'
 }
 
-export function AuthGate({ onClose, redirectTo = '/create' }: AuthGateProps) {
+export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signup' }: AuthGateProps) {
   const [step, setStep] = useState<'form' | 'otp'>('form')
+  const [mode, setMode] = useState<'signup' | 'login'>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
@@ -28,13 +32,29 @@ export function AuthGate({ onClose, redirectTo = '/create' }: AuthGateProps) {
     }
     setSubmitting(true)
     setError('')
+
+    if (mode === 'login') {
+      const result = await devInstantLoginAction(email)
+      if (!result.success) {
+        setSubmitting(false)
+        setError(result.error)
+        return
+      }
+      const supabase = createClient()
+      const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: result.tokenHash, type: 'magiclink' })
+      setSubmitting(false)
+      if (verifyError) {
+        setError("We couldn't find an account for that email. Want to sign up instead?")
+        return
+      }
+      window.location.assign(redirectTo)
+      return
+    }
+
     const supabase = createClient()
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: callbackUrl(),
-        data: { full_name: name },
-      },
+      options: { emailRedirectTo: callbackUrl(), data: { full_name: name } },
     })
     setSubmitting(false)
     if (otpError) {
@@ -67,10 +87,40 @@ export function AuthGate({ onClose, redirectTo = '/create' }: AuthGateProps) {
       >
         {step === 'form' ? (
           <div>
-            <h2 id="auth-gate-heading" className="text-[23px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
-              {ctaCopy.authModalHeading}
+            <div role="tablist" aria-label="Sign up or log in" className="flex gap-1.5">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'signup'}
+                onClick={() => {
+                  setMode('signup')
+                  setError('')
+                }}
+                className="rounded-full px-4 py-2 text-[13px] font-semibold"
+                style={{ backgroundColor: mode === 'signup' ? '#C2185B' : '#F0ECE4', color: mode === 'signup' ? '#fff' : '#2C2C2C' }}
+              >
+                {ctaCopy.authModalTabSignup}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'login'}
+                onClick={() => {
+                  setMode('login')
+                  setError('')
+                }}
+                className="rounded-full px-4 py-2 text-[13px] font-semibold"
+                style={{ backgroundColor: mode === 'login' ? '#C2185B' : '#F0ECE4', color: mode === 'login' ? '#fff' : '#2C2C2C' }}
+              >
+                {ctaCopy.authModalTabLogin}
+              </button>
+            </div>
+            <h2 id="auth-gate-heading" className="mt-4 text-[23px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+              {mode === 'signup' ? ctaCopy.authModalHeading : ctaCopy.authModalLoginHeading}
             </h2>
-            <div className="mt-2 text-[12.5px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.authModalSubtext}</div>
+            <div className="mt-2 text-[12.5px] leading-relaxed text-[#2C2C2C] opacity-72">
+              {mode === 'signup' ? ctaCopy.authModalSubtext : ctaCopy.authModalLoginSubtext}
+            </div>
             <button
               type="button"
               onClick={handleGoogleSignIn}
@@ -84,13 +134,15 @@ export function AuthGate({ onClose, redirectTo = '/create' }: AuthGateProps) {
               <span className="h-px flex-1 bg-[#1A1A2E]/14" />
             </div>
             <div className="mt-3.5 flex flex-col gap-2.5">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Full name"
-                aria-label="Full name"
-                className="w-full rounded-xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
-              />
+              {mode === 'signup' && (
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Full name"
+                  aria-label="Full name"
+                  className="w-full rounded-xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
+                />
+              )}
               <input
                 value={email}
                 onChange={(e) => {
@@ -114,7 +166,7 @@ export function AuthGate({ onClose, redirectTo = '/create' }: AuthGateProps) {
               disabled={submitting}
               className="mt-4 w-full rounded-2xl bg-[#C2185B] p-3.5 font-sans text-[15px] font-bold text-white disabled:opacity-60"
             >
-              Email me a magic link
+              {mode === 'signup' ? ctaCopy.authModalSignupSubmit : ctaCopy.authModalLoginSubmit}
             </button>
             <button type="button" onClick={onClose} className="mt-2 w-full p-1.5 text-[13.5px] font-semibold text-[#2C2C2C] opacity-70">
               Not yet

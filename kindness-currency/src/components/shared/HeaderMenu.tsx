@@ -14,11 +14,12 @@ const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) =
 
 export type HeaderMenuProps = {
   isLoggedIn: boolean
+  isAdmin?: boolean
 }
 
 const linkClasses = 'rounded-xl px-3 py-3 font-sans text-[15px] font-semibold text-[#1A1A2E]'
 
-export function HeaderMenu({ isLoggedIn }: HeaderMenuProps) {
+export function HeaderMenu({ isLoggedIn, isAdmin = false }: HeaderMenuProps) {
   const [open, setOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const router = useRouter()
@@ -68,6 +69,9 @@ export function HeaderMenu({ isLoggedIn }: HeaderMenuProps) {
               ×
             </button>
             <nav className="mt-6 flex flex-col gap-1">
+              <Link href="/create" onClick={() => setOpen(false)} className={linkClasses}>
+                {ctaCopy.navCreate}
+              </Link>
               <Link href="/about" onClick={() => setOpen(false)} className={linkClasses}>
                 {ctaCopy.navAboutUs}
               </Link>
@@ -77,6 +81,11 @@ export function HeaderMenu({ isLoggedIn }: HeaderMenuProps) {
               <Link href="/feedback" onClick={() => setOpen(false)} className={linkClasses}>
                 {ctaCopy.navFeedback}
               </Link>
+              {isAdmin && (
+                <Link href="/admin" onClick={() => setOpen(false)} className={linkClasses}>
+                  {ctaCopy.navAdmin}
+                </Link>
+              )}
               {isLoggedIn ? (
                 <button type="button" onClick={handleSignOut} className={`mt-2 text-left ${linkClasses} text-[#C2185B]`}>
                   {ctaCopy.navLogOut}
@@ -97,6 +106,7 @@ export function HeaderMenu({ isLoggedIn }: HeaderMenuProps) {
 
       {authOpen && (
         <AuthGate
+          initialMode="login"
           onClose={() => {
             setAuthOpen(false)
             setOpen(false)
