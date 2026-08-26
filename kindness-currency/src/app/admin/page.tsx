@@ -4,7 +4,12 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { isAdminEmail } from '@/lib/adminAuth'
 import { createAdminRepository } from '@/lib/adminRepository'
 import { createFeatureInterestRepository } from '@/lib/featureInterestRepository'
+import { createFeedbackRepository } from '@/lib/feedbackRepository'
 import { SiteHeader } from '@/components/shared/SiteHeader'
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 export default async function AdminPage() {
   const authClient = await createClient()
@@ -16,11 +21,16 @@ export default async function AdminPage() {
 
   const supabase = createServiceClient()
   const adminRepo = createAdminRepository(supabase)
-  const [popularTemplates, interestCounts, comingSoonInterest] = await Promise.all([
-    adminRepo.getPopularTemplates(),
-    createFeatureInterestRepository(supabase).getInterestCounts(),
-    adminRepo.getComingSoonTemplateInterest(),
-  ])
+  const featureInterestRepo = createFeatureInterestRepository(supabase)
+  const [popularTemplates, interestCounts, comingSoonInterest, feedbackEntries, waitlistSignups, earlyAccessSignups] =
+    await Promise.all([
+      adminRepo.getPopularTemplates(),
+      featureInterestRepo.getInterestCounts(),
+      adminRepo.getComingSoonTemplateInterest(),
+      createFeedbackRepository(supabase).getAllFeedback(),
+      featureInterestRepo.getAllSignups(),
+      adminRepo.getEarlyAccessSignupList(),
+    ])
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FFF8F0]">
@@ -64,6 +74,68 @@ export default async function AdminPage() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Feedback Submissions</h2>
+          {feedbackEntries.length === 0 ? (
+            <div className="mt-3 text-[13px] text-[#2C2C2C] opacity-60">No feedback yet.</div>
+          ) : (
+            <div className="mt-3 flex flex-col gap-3">
+              {feedbackEntries.map((entry) => (
+                <div key={entry.id} className="rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10.5px] font-semibold tracking-[0.05em] text-[#C2185B] uppercase">{entry.type}</span>
+                    <span className="text-[11px] text-[#2C2C2C] opacity-50">{formatDate(entry.createdAt)}</span>
+                  </div>
+                  <div className="mt-1.5 text-[13.5px] leading-relaxed text-[#2C2C2C]">{entry.message}</div>
+                  <div className="mt-2 text-[12.5px] font-semibold text-[#1A1A2E]">
+                    {entry.email ? <a href={`mailto:${entry.email}`}>{entry.email}</a> : <span className="opacity-50">No email on file</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Custom Coupon Book — Signups</h2>
+          {waitlistSignups.length === 0 ? (
+            <div className="mt-3 text-[13px] text-[#2C2C2C] opacity-60">No signups yet.</div>
+          ) : (
+            <div className="mt-3 flex flex-col gap-3">
+              {waitlistSignups.map((signup) => (
+                <div key={`${signup.email}-${signup.createdAt}`} className="flex items-center justify-between rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
+                  <a href={`mailto:${signup.email}`} className="text-[13.5px] font-semibold text-[#1A1A2E]">
+                    {signup.email}
+                  </a>
+                  <span className="text-[11px] text-[#2C2C2C] opacity-50">{formatDate(signup.createdAt)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Coming Soon — Signups</h2>
+          {earlyAccessSignups.length === 0 ? (
+            <div className="mt-3 text-[13px] text-[#2C2C2C] opacity-60">No signups yet.</div>
+          ) : (
+            <div className="mt-3 flex flex-col gap-3">
+              {earlyAccessSignups.map((signup) => (
+                <div key={`${signup.email}-${signup.templateName}-${signup.createdAt}`} className="rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13.5px] font-bold text-[#1A1A2E]">{signup.name}</span>
+                    <span className="text-[11px] text-[#2C2C2C] opacity-50">{formatDate(signup.createdAt)}</span>
+                  </div>
+                  <div className="mt-1 text-[12px] text-[#2C2C2C] opacity-70">{signup.templateName}</div>
+                  <a href={`mailto:${signup.email}`} className="mt-1.5 block text-[12.5px] font-semibold text-[#1A1A2E]">
+                    {signup.email}
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

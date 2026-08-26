@@ -13,6 +13,12 @@ function makeSelectSupabase(resolvedValue: { data: unknown; error: unknown }) {
   return { supabase, chain }
 }
 
+function makeOrderSupabase(resolvedValue: { data: unknown; error: unknown }) {
+  const chain = { select: vi.fn().mockReturnValue({ order: vi.fn().mockResolvedValue(resolvedValue) }) }
+  const supabase = { from: vi.fn().mockReturnValue(chain) }
+  return { supabase, chain }
+}
+
 describe('FeatureInterestRepository', () => {
   describe('recordInterest', () => {
     it('inserts a row tagged with the given feature, email, and user id', async () => {
@@ -76,6 +82,33 @@ describe('FeatureInterestRepository', () => {
       const counts = await repo.getInterestCounts()
 
       expect(counts).toEqual([{ feature: 'custom_coupons', count: 0 }])
+    })
+  })
+
+  describe('getAllSignups', () => {
+    it('returns every signup with email and created_at', async () => {
+      const { supabase } = makeOrderSupabase({
+        data: [
+          { email: 'jamie@example.com', created_at: '2026-08-20T00:00:00Z' },
+          { email: 'alex@example.com', created_at: '2026-08-19T00:00:00Z' },
+        ],
+        error: null,
+      })
+      const repo = createFeatureInterestRepository(supabase as never)
+
+      const signups = await repo.getAllSignups()
+
+      expect(signups).toEqual([
+        { email: 'jamie@example.com', createdAt: '2026-08-20T00:00:00Z' },
+        { email: 'alex@example.com', createdAt: '2026-08-19T00:00:00Z' },
+      ])
+    })
+
+    it('returns an empty list when there are no signups', async () => {
+      const { supabase } = makeOrderSupabase({ data: [], error: null })
+      const repo = createFeatureInterestRepository(supabase as never)
+
+      expect(await repo.getAllSignups()).toEqual([])
     })
   })
 })

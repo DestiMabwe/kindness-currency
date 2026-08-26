@@ -32,6 +32,22 @@ function makeComingSoonSupabase({
   return { from, eq }
 }
 
+function makeSignupListSupabase({
+  signups,
+  comingSoonTemplates,
+}: {
+  signups: { email: string; name: string; template_slug: string; created_at: string }[]
+  comingSoonTemplates: { slug: string; name: string }[]
+}) {
+  const order = vi.fn().mockResolvedValue({ data: signups, error: null })
+  const from = vi.fn((table: string) => {
+    if (table === 'early_access_signups') return { select: vi.fn().mockReturnValue({ order }) }
+    if (table === 'coming_soon_templates') return { select: vi.fn().mockResolvedValue({ data: comingSoonTemplates, error: null }) }
+    throw new Error(`unexpected table: ${table}`)
+  })
+  return { from }
+}
+
 describe('AdminRepository', () => {
   describe('getPopularTemplates', () => {
     it('counts coupon_sets per template, most-popular first', async () => {
@@ -138,6 +154,34 @@ describe('AdminRepository', () => {
         { templateSlug: 'made-by-him', name: "Made By Him: Lover's Promises", count: 3 },
         { templateSlug: 'made-by-her', name: "Made By Her: Lover's Promises", count: 1 },
       ])
+    })
+  })
+
+  describe('getEarlyAccessSignupList', () => {
+    it('returns each signup with the template display name resolved from its slug', async () => {
+      const supabase = makeSignupListSupabase({
+        signups: [{ email: 'jamie@example.com', name: 'Jamie', template_slug: 'dads', created_at: '2026-08-20T00:00:00Z' }],
+        comingSoonTemplates: [{ slug: 'dads', name: "Dad's Promise Tokens" }],
+      })
+      const repo = createAdminRepository(supabase as never)
+
+      const result = await repo.getEarlyAccessSignupList()
+
+      expect(result).toEqual([
+        { email: 'jamie@example.com', name: 'Jamie', templateName: "Dad's Promise Tokens", createdAt: '2026-08-20T00:00:00Z' },
+      ])
+    })
+
+    it('falls back to the raw slug if the template is not found', async () => {
+      const supabase = makeSignupListSupabase({
+        signups: [{ email: 'jamie@example.com', name: 'Jamie', template_slug: 'retired-idea', created_at: '2026-08-20T00:00:00Z' }],
+        comingSoonTemplates: [],
+      })
+      const repo = createAdminRepository(supabase as never)
+
+      const result = await repo.getEarlyAccessSignupList()
+
+      expect(result[0].templateName).toBe('retired-idea')
     })
   })
 })

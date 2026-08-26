@@ -3,6 +3,7 @@ import { FeatureInterestInputSchema, type FeatureInterestSlug } from '@/schemas/
 
 export type RecordFeatureInterestResult = { success: true } | { success: false; error: string }
 export type FeatureInterestCount = { feature: FeatureInterestSlug; count: number }
+export type FeatureInterestSignup = { email: string; createdAt: string }
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
 const KNOWN_FEATURES: FeatureInterestSlug[] = ['custom_coupons']
@@ -34,6 +35,17 @@ export function createFeatureInterestRepository(supabase: SupabaseClient) {
       }
 
       return KNOWN_FEATURES.map((feature) => ({ feature, count: counts.get(feature) ?? 0 }))
+    },
+
+    /** Every Custom Coupon Book waitlist signup, newest first, for admin follow-up. */
+    async getAllSignups(): Promise<FeatureInterestSignup[]> {
+      const { data, error } = await supabase
+        .from('feature_interest')
+        .select('email, created_at')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+
+      return (data ?? []).map((row) => ({ email: row.email, createdAt: row.created_at }))
     },
   }
 }

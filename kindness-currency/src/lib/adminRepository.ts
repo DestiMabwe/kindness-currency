@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type PopularTemplate = { templateId: string; name: string; count: number }
 export type ComingSoonTemplateInterest = { templateSlug: string; name: string; count: number }
+export type EarlyAccessSignupEntry = { email: string; name: string; templateName: string; createdAt: string }
 
 export function createAdminRepository(supabase: SupabaseClient) {
   return {
@@ -48,6 +49,26 @@ export function createAdminRepository(supabase: SupabaseClient) {
       return (templates ?? [])
         .map((template) => ({ templateSlug: template.slug, name: template.name, count: counts.get(template.slug) ?? 0 }))
         .sort((a, b) => b.count - a.count)
+    },
+
+    /** Every coming-soon early-access signup, newest first, with the template's display name, for admin follow-up. */
+    async getEarlyAccessSignupList(): Promise<EarlyAccessSignupEntry[]> {
+      const [{ data: signups, error: signupsError }, { data: templates, error: templatesError }] = await Promise.all([
+        supabase.from('early_access_signups').select('email, name, template_slug, created_at').order('created_at', { ascending: false }),
+        supabase.from('coming_soon_templates').select('slug, name'),
+      ])
+
+      if (signupsError) throw signupsError
+      if (templatesError) throw templatesError
+
+      const nameBySlug = new Map((templates ?? []).map((template) => [template.slug, template.name]))
+
+      return (signups ?? []).map((row) => ({
+        email: row.email,
+        name: row.name,
+        templateName: nameBySlug.get(row.template_slug) ?? row.template_slug,
+        createdAt: row.created_at,
+      }))
     },
   }
 }
