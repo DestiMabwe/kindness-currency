@@ -29,11 +29,14 @@ const GENERIC_ERROR = 'Something went wrong. Please try again.'
 export function createCouponSetRepository(supabase: SupabaseClient) {
   return {
     /**
-     * Creates a coupon set + its 8 coupons for an authenticated sender.
-     * Generates the 4-digit PIN and returns it once, in plaintext, so the
-     * caller can show it on GiftReadyScreen — only the bcrypt hash is stored.
+     * Creates a coupon set + its 8 coupons. userId is null for an anonymous
+     * sender — the set still saves and shares the same as a logged-in one,
+     * just without a user_id attached (mirrors the recipient side, which
+     * already supports an anonymous /give/[id] visitor linking their account
+     * later). Generates the 4-digit PIN and returns it once, in plaintext, so
+     * the caller can show it on GiftReadyScreen — only the bcrypt hash is stored.
      */
-    async saveCouponSet(input: unknown, userId: string): Promise<SaveCouponSetResult> {
+    async saveCouponSet(input: unknown, userId: string | null): Promise<SaveCouponSetResult> {
       const parsed = SaveCouponSetInputSchema.safeParse(input)
       if (!parsed.success) return { success: false, error: GENERIC_ERROR }
       const { coupons, expiry_date, ...setFields } = parsed.data
@@ -128,6 +131,19 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
      */
     async linkRecipient(setId: string, userId: string): Promise<{ success: true } | { success: false; error: string }> {
       const { error } = await supabase.from('coupon_sets').update({ recipient_user_id: userId }).eq('id', setId)
+
+      if (error) return { success: false, error: GENERIC_ERROR }
+      return { success: true }
+    },
+
+    /**
+     * Claims an anonymously-created coupon set for the account of the person
+     * who just signed up/logged in from the "Save this to your account"
+     * prompt on GiftReadyScreen. Conditioned on user_id still being null so a
+     * set already claimed by someone else can never be overwritten.
+     */
+    async linkSender(setId: string, userId: string): Promise<{ success: true } | { success: false; error: string }> {
+      const { error } = await supabase.from('coupon_sets').update({ user_id: userId }).eq('id', setId).is('user_id', null)
 
       if (error) return { success: false, error: GENERIC_ERROR }
       return { success: true }

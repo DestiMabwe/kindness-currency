@@ -5,9 +5,10 @@ import { createGiveRepository, sortCouponsForDisplay } from '@/lib/giveRepositor
 import { templateVisuals } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { RecipientCouponList } from '@/components/coupon/RecipientCouponList'
-import { SaveToAccountBanner } from '@/components/give/SaveToAccountBanner'
+import { SaveToAccountBanner } from '@/components/shared/SaveToAccountBanner'
 import { GiftUnwrapGate } from '@/components/give/GiftUnwrapGate'
 import { SiteHeader } from '@/components/shared/SiteHeader'
+import { linkRecipientAction } from '@/app/give/[id]/actions'
 
 export default async function GivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -16,6 +17,7 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
 
   if (!giveData) notFound()
 
+  const hasVisitedBefore = !!giveData.opened_at
   await repo.markOpened(id)
 
   const authClient = await createClient()
@@ -27,7 +29,14 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
   const coupons = sortCouponsForDisplay(giveData.coupons)
 
   return (
-    <GiftUnwrapGate senderName={giveData.sender_name} senderMessage={giveData.sender_message} accent={visuals.accent}>
+    <GiftUnwrapGate
+      setId={giveData.id}
+      senderName={giveData.sender_name}
+      senderMessage={giveData.sender_message}
+      accent={visuals.accent}
+      hasVisitedBefore={hasVisitedBefore}
+      reminderFrequency={giveData.reminder_frequency}
+    >
       <div className="flex min-h-screen flex-col pb-10">
         <SiteHeader />
         <div
@@ -46,7 +55,14 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        <SaveToAccountBanner setId={giveData.id} isLoggedIn={!!user} alreadyLinked={giveData.recipient_user_id === user?.id} />
+        <SaveToAccountBanner
+          setId={giveData.id}
+          isLoggedIn={!!user}
+          alreadyLinked={giveData.recipient_user_id === user?.id}
+          linkAction={linkRecipientAction}
+          redirectTo={`/give/${giveData.id}`}
+          storageScope="recipient"
+        />
 
         <RecipientCouponList
           initialCoupons={coupons}

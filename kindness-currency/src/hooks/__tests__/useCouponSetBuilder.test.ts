@@ -205,15 +205,24 @@ describe('useCouponSetBuilder', () => {
   })
 
   describe('completeSave', () => {
-    it('moves to the giftReady screen, stores the result, and clears the localStorage draft', () => {
+    it('moves to the giftReady screen and stores the result', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
       act(() => result.current.loadTemplate('mothers_day'))
 
-      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821' }))
+      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false }))
 
       expect(result.current.state.screen).toBe('giftReady')
-      expect(result.current.state.savedResult).toEqual({ setId: 'set-1', pin: '4821' })
-      expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
+      expect(result.current.state.savedResult).toEqual({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false })
+    })
+
+    it('keeps the giftReady screen persisted, so a reload (e.g. an auth redirect) restores it', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false }))
+
+      const persisted = JSON.parse(window.localStorage.getItem(DRAFT_KEY) ?? 'null')
+      expect(persisted).toMatchObject({ screen: 'giftReady', savedResult: { setId: 'set-1', pin: '4821' } })
     })
   })
 
@@ -221,15 +230,14 @@ describe('useCouponSetBuilder', () => {
     it('resets back to the select screen and clears the saved result', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
       act(() => result.current.loadTemplate('mothers_day'))
-      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821' }))
+      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false }))
 
       act(() => result.current.startNewSet())
 
       expect(result.current.state.screen).toBe('select')
       expect(result.current.state.savedResult).toBeNull()
       expect(result.current.state.coupons).toHaveLength(0)
-      // The persistence effect re-writes the (now-empty) draft on the next render, which is
-      // harmless — hasSaveableDraft is false for a fresh 'select' screen, so nothing auto-resumes.
+      // The persistence effect re-writes the (now-empty) draft on the next render, which is harmless.
       expect(JSON.parse(window.localStorage.getItem(DRAFT_KEY) ?? 'null')).toMatchObject({ screen: 'select', coupons: [] })
     })
   })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -9,11 +9,11 @@ import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
 import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
+import { SaveToAccountBanner } from '@/components/shared/SaveToAccountBanner'
 import { EarlyAccessSignupForm } from '@/components/templates/EarlyAccessSignupForm'
 import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { createClient } from '@/lib/supabase/client'
-import { saveCouponSetAction } from '@/app/create/actions'
+import { saveCouponSetAction, linkSenderAction } from '@/app/create/actions'
 import { SERVICE_TITLE_MAX_LENGTH, SENDER_MESSAGE_MAX_LENGTH } from '@/schemas/couponSchema'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import type { TemplateCoupon, TemplateWithCoupons } from '@/lib/templateRepository'
@@ -28,10 +28,6 @@ const PAIRED_SLUGS: Record<string, string> = {
   'made-by-her': 'made-by-him',
 }
 
-// Deferred: only needed once a giver actually opens the auth form (Save/Send for an
-// anonymous giver), not on every /create visit.
-const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
-
 // Deferred: only needed if a giver opens one of the fake-door "want this?" buttons.
 const FeatureInterestModal = dynamic(
   () => import('@/components/modals/FeatureInterestModal').then((m) => m.FeatureInterestModal),
@@ -41,29 +37,23 @@ const FeatureInterestModal = dynamic(
 export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
   comingSoonTemplates?: ComingSoonTemplate[]
-  isLoggedIn: boolean
+  isLoggedIn?: boolean
   userEmail?: string | null
 }
 
 type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
 
-export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLoggedIn, userEmail = null }: CouponSetBuilderProps) {
+export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLoggedIn = false, userEmail = null }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
   const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
   const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [authOpen, setAuthOpen] = useState(false)
   const [featureInterestModal, setFeatureInterestModal] = useState<FeatureInterestSlug | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const attemptedResume = useRef(false)
 
   const handleSaveOrSend = () => {
-    if (isLoggedIn) {
-      void performSave()
-      return
-    }
-    setAuthOpen(true)
+    void performSave()
   }
 
   const performSave = async () => {
@@ -77,22 +67,8 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
       setSaveError(result.error)
       return
     }
-    builder.completeSave({ setId: result.id, pin: result.pin })
+    builder.completeSave({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
   }
-
-  // After a magic-link click, the browser lands back here already authenticated.
-  // If there's still an unsaved draft in the builder, finish the save automatically
-  // instead of making the user click "Save My Coupons" again.
-  useEffect(() => {
-    if (attemptedResume.current || !builder.hasSaveableDraft) return
-    attemptedResume.current = true
-    createClient()
-      .auth.getSession()
-      .then(({ data: { session } }) => {
-        if (session) void performSave()
-      })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-check once per mount, not on every builder state change
-  }, [builder.hasSaveableDraft])
 
   const handleSelectTemplate = (template: TemplateWithCoupons) => {
     if (template.is_age_restricted) {
@@ -125,11 +101,21 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
 
   if (builder.state.screen === 'giftReady' && builder.state.savedResult) {
     return (
-      <GiftReadyScreen
-        shareLink={`${window.location.origin}/give/${builder.state.savedResult.setId}`}
-        pin={builder.state.savedResult.pin}
-        onStartOver={builder.startNewSet}
-      />
+      <>
+        <GiftReadyScreen
+          shareLink={`${window.location.origin}/give/${builder.state.savedResult.setId}`}
+          pin={builder.state.savedResult.pin}
+          onStartOver={builder.startNewSet}
+        />
+        <SaveToAccountBanner
+          setId={builder.state.savedResult.setId}
+          isLoggedIn={isLoggedIn}
+          alreadyLinked={builder.state.savedResult.wasLinkedAtSave}
+          linkAction={linkSenderAction}
+          redirectTo="/create"
+          storageScope="sender"
+        />
+      </>
     )
   }
 
@@ -213,8 +199,6 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
       {pendingAgeGate && (
         <AgeGate templateName={pendingAgeGate.template.name} onConfirm={confirmAgeGate} onDismiss={() => setPendingAgeGate(null)} />
       )}
-
-      {authOpen && <AuthGate onClose={() => setAuthOpen(false)} />}
 
       {featureInterestModal && (
         <FeatureInterestModal feature={featureInterestModal} userEmail={userEmail} onClose={() => setFeatureInterestModal(null)} />

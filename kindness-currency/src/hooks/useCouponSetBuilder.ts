@@ -16,7 +16,14 @@ export type BuilderCoupon = {
   backgroundEffect: BackgroundEffect
 }
 
-export type SavedResult = { setId: string; pin: string }
+/**
+ * wasLinkedAtSave records whether the sender was already logged in at the
+ * moment of saving (so the set's user_id was set at creation) — distinct from
+ * whatever the viewer's login state happens to be on a later render/reload,
+ * which is what actually decides whether the "save to your account" banner
+ * still needs to offer claiming it.
+ */
+export type SavedResult = { setId: string; pin: string; wasLinkedAtSave: boolean }
 
 export type BuilderState = {
   screen: BuilderScreen
@@ -85,8 +92,11 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     if (draft) setState(draft)
   }, [])
 
+  // Persists through the giftReady screen too (not just draft-in-progress screens) so
+  // a reload — including the full-page redirect an auth provider forces mid "save to
+  // your account" — lands the sender back on the same ready screen instead of losing it.
   useEffect(() => {
-    if (!hydrated.current || typeof window === 'undefined' || state.screen === 'giftReady') return
+    if (!hydrated.current || typeof window === 'undefined') return
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
@@ -150,7 +160,6 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   }, [state])
 
   const completeSave = useCallback((result: SavedResult) => {
-    if (typeof window !== 'undefined') window.localStorage.removeItem(DRAFT_STORAGE_KEY)
     setState((s) => ({ ...s, screen: 'giftReady', savedResult: result }))
   }, [])
 
@@ -158,8 +167,6 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     if (typeof window !== 'undefined') window.localStorage.removeItem(DRAFT_STORAGE_KEY)
     setState(initialState)
   }, [])
-
-  const hasSaveableDraft = state.screen === 'edit' && state.coupons.length === 8
 
   return {
     state,
@@ -177,6 +184,5 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     toSavePayload,
     completeSave,
     startNewSet,
-    hasSaveableDraft,
   }
 }

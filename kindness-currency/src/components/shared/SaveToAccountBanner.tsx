@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { linkRecipientAction } from '@/app/give/[id]/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
 
 const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
@@ -11,12 +10,18 @@ export type SaveToAccountBannerProps = {
   setId: string
   isLoggedIn: boolean
   alreadyLinked: boolean
+  /** Claims setId for the current account — linkRecipientAction or linkSenderAction. */
+  linkAction: (setId: string) => Promise<{ success: boolean }>
+  /** Where the auth redirect should land the viewer back, to resume the pending link. */
+  redirectTo: string
+  /** Distinguishes this banner's localStorage keys from another usage on the same setId (e.g. recipient vs sender). */
+  storageScope: string
 }
 
-const dismissedKey = (setId: string) => `kindness-currency:save-banner-dismissed:${setId}`
-const pendingLinkKey = (setId: string) => `kindness-currency:pending-link:${setId}`
+const dismissedKey = (scope: string, setId: string) => `kindness-currency:save-banner-dismissed:${scope}:${setId}`
+const pendingLinkKey = (scope: string, setId: string) => `kindness-currency:pending-link:${scope}:${setId}`
 
-export function SaveToAccountBanner({ setId, isLoggedIn, alreadyLinked }: SaveToAccountBannerProps) {
+export function SaveToAccountBanner({ setId, isLoggedIn, alreadyLinked, linkAction, redirectTo, storageScope }: SaveToAccountBannerProps) {
   const [ready, setReady] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [linked, setLinked] = useState(alreadyLinked)
@@ -25,21 +30,21 @@ export function SaveToAccountBanner({ setId, isLoggedIn, alreadyLinked }: SaveTo
 
   const performLink = async () => {
     setLinking(true)
-    const result = await linkRecipientAction(setId)
+    const result = await linkAction(setId)
     setLinking(false)
     if (result.success) setLinked(true)
   }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount sync from localStorage, not a render-time update
-    setDismissed(window.localStorage.getItem(dismissedKey(setId)) === 'true')
+    setDismissed(window.localStorage.getItem(dismissedKey(storageScope, setId)) === 'true')
     setReady(true)
-  }, [setId])
+  }, [setId, storageScope])
 
   useEffect(() => {
     if (!isLoggedIn || alreadyLinked) return
-    if (window.localStorage.getItem(pendingLinkKey(setId)) !== 'true') return
-    window.localStorage.removeItem(pendingLinkKey(setId))
+    if (window.localStorage.getItem(pendingLinkKey(storageScope, setId)) !== 'true') return
+    window.localStorage.removeItem(pendingLinkKey(storageScope, setId))
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time completion of a link the user already started before the auth redirect, not a render-time sync
     void performLink()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to finish a link the user already started before the auth redirect
@@ -50,12 +55,12 @@ export function SaveToAccountBanner({ setId, isLoggedIn, alreadyLinked }: SaveTo
       void performLink()
       return
     }
-    window.localStorage.setItem(pendingLinkKey(setId), 'true')
+    window.localStorage.setItem(pendingLinkKey(storageScope, setId), 'true')
     setAuthOpen(true)
   }
 
   const dismiss = () => {
-    window.localStorage.setItem(dismissedKey(setId), 'true')
+    window.localStorage.setItem(dismissedKey(storageScope, setId), 'true')
     setDismissed(true)
   }
 
@@ -75,7 +80,7 @@ export function SaveToAccountBanner({ setId, isLoggedIn, alreadyLinked }: SaveTo
         ✕
       </button>
 
-      {authOpen && <AuthGate redirectTo={`/give/${setId}`} onClose={() => setAuthOpen(false)} />}
+      {authOpen && <AuthGate redirectTo={redirectTo} onClose={() => setAuthOpen(false)} />}
     </div>
   )
 }

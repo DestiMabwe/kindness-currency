@@ -10,7 +10,15 @@ export async function saveCouponSetAction(input: unknown): Promise<SaveCouponSet
     data: { user },
   } = await authClient.auth.getUser()
 
-  if (!user) return { success: false, error: 'Please verify your email first.' }
+  return createCouponSetRepository(createServiceClient()).saveCouponSet(input, user?.id ?? null)
+}
 
-  return createCouponSetRepository(createServiceClient()).saveCouponSet(input, user.id)
+export async function linkSenderAction(setId: string) {
+  const authClient = await createClient()
+  const {
+    data: { user },
+  } = await authClient.auth.getUser()
+  if (!user) return { success: false as const, error: 'Not logged in' }
+
+  return createCouponSetRepository(createServiceClient()).linkSender(setId, user.id)
 }

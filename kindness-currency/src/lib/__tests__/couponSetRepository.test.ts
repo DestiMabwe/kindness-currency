@@ -58,6 +58,20 @@ describe('CouponSetRepository', () => {
       expect(insertedSet.user_id).toBe('user-1')
     })
 
+    it('saves with a null user_id for an anonymous sender', async () => {
+      const { supabase, setChain } = makeSupabase({
+        setResult: { data: { id: 'set-1' }, error: null },
+        couponsResult: { data: null, error: null },
+      })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.saveCouponSet(validInput(), null)
+
+      expect(result.success).toBe(true)
+      const insertedSet = setChain.insert.mock.calls[0][0]
+      expect(insertedSet.user_id).toBeNull()
+    })
+
     it('inserts all 8 coupons tied to the new set id', async () => {
       const { supabase, couponsChain } = makeSupabase({
         setResult: { data: { id: 'set-1' }, error: null },
@@ -204,6 +218,37 @@ describe('CouponSetRepository', () => {
       const repo = createCouponSetRepository(supabase as never)
 
       const result = await repo.linkRecipient('set-1', 'recipient-user-1')
+
+      expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+    })
+  })
+
+  describe('linkSender', () => {
+    function makeLinkSenderSupabase(updateResult: { error: unknown }) {
+      const is = vi.fn().mockResolvedValue(updateResult)
+      const eq = vi.fn().mockReturnValue({ is })
+      const update = vi.fn().mockReturnValue({ eq })
+      const from = vi.fn().mockReturnValue({ update })
+      return { supabase: { from }, update, eq, is }
+    }
+
+    it("sets the coupon set's user_id to the given user, only where it was still null", async () => {
+      const { supabase, update, eq, is } = makeLinkSenderSupabase({ error: null })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.linkSender('set-1', 'sender-user-1')
+
+      expect(result).toEqual({ success: true })
+      expect(update).toHaveBeenCalledWith({ user_id: 'sender-user-1' })
+      expect(eq).toHaveBeenCalledWith('id', 'set-1')
+      expect(is).toHaveBeenCalledWith('user_id', null)
+    })
+
+    it('returns an error result if the update fails', async () => {
+      const { supabase } = makeLinkSenderSupabase({ error: { message: 'db error' } })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.linkSender('set-1', 'sender-user-1')
 
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
     })
