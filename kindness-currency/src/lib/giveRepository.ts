@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { CouponStatus, FontChoice, BackgroundEffect } from '@/schemas/couponSchema'
+import type { CouponStatus, FontChoice, BackgroundEffect, ReminderFrequency } from '@/schemas/couponSchema'
 import type { TemplateSlug } from '@/constants/designTokens'
 
 export type GiveCoupon = {
@@ -22,6 +22,8 @@ export type GiveCouponSet = {
   expiry_date: string | null
   recipient_user_id: string | null
   sender_message: string | null
+  opened_at: string | null
+  reminder_frequency: ReminderFrequency | null
   coupons: GiveCoupon[]
 }
 
@@ -32,6 +34,8 @@ type CouponSetRow = {
   expiry_date: string | null
   recipient_user_id: string | null
   sender_message: string | null
+  opened_at: string | null
+  reminder_frequency: ReminderFrequency | null
   templates: { slug: string } | { slug: string }[] | null
   coupons: GiveCoupon[]
 }
@@ -57,7 +61,7 @@ export function createGiveRepository(supabase: SupabaseClient) {
       const { data, error } = await supabase
         .from('coupon_sets')
         .select(
-          'id, sender_name, recipient_name, expiry_date, recipient_user_id, sender_message, templates(slug), coupons(id, sort_order, service_title, micro_copy, fine_print, font_choice, background_color, background_effect, status)'
+          'id, sender_name, recipient_name, expiry_date, recipient_user_id, sender_message, opened_at, reminder_frequency, templates(slug), coupons(id, sort_order, service_title, micro_copy, fine_print, font_choice, background_color, background_effect, status)'
         )
         .eq('id', id)
         .single<CouponSetRow>()
@@ -74,6 +78,8 @@ export function createGiveRepository(supabase: SupabaseClient) {
         expiry_date: data.expiry_date,
         recipient_user_id: data.recipient_user_id,
         sender_message: data.sender_message,
+        opened_at: data.opened_at,
+        reminder_frequency: data.reminder_frequency,
         template_slug: template.slug as TemplateSlug,
         coupons: [...data.coupons].sort((a, b) => a.sort_order - b.sort_order),
       }
@@ -87,6 +93,16 @@ export function createGiveRepository(supabase: SupabaseClient) {
      */
     async markOpened(id: string): Promise<void> {
       await supabase.from('coupon_sets').update({ opened_at: new Date().toISOString() }).eq('id', id).is('opened_at', null)
+    },
+
+    /**
+     * Stores the recipient's chosen reminder cadence, or clears it (null) if
+     * they turn reminders off. Capture only — nothing reads this to actually
+     * send a reminder yet; that needs real scheduling/email infra first.
+     */
+    async setReminderFrequency(id: string, frequency: ReminderFrequency | null): Promise<{ success: true } | { success: false }> {
+      const { error } = await supabase.from('coupon_sets').update({ reminder_frequency: frequency }).eq('id', id)
+      return error ? { success: false } : { success: true }
     },
   }
 }

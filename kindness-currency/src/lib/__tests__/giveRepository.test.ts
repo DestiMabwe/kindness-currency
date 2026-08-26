@@ -18,6 +18,8 @@ const row = (overrides = {}) => ({
   expiry_date: '2026-12-25',
   recipient_user_id: null,
   sender_message: null,
+  opened_at: null,
+  reminder_frequency: null,
   templates: { slug: 'valentines' },
   coupons: [
     {
@@ -119,6 +121,53 @@ describe('GiveRepository', () => {
       const result = await repo.getCouponSetForRecipient('set-1')
 
       expect(result?.sender_message).toBeNull()
+    })
+
+    it('returns the reminder_frequency when one was chosen', async () => {
+      const { supabase } = makeChain({ data: row({ reminder_frequency: 'monthly' }), error: null })
+      const repo = createGiveRepository(supabase as never)
+
+      const result = await repo.getCouponSetForRecipient('set-1')
+
+      expect(result?.reminder_frequency).toBe('monthly')
+    })
+  })
+
+  describe('setReminderFrequency', () => {
+    function makeSetReminderSupabase(resolvedValue: { data: unknown; error: unknown }) {
+      const eq = vi.fn().mockResolvedValue(resolvedValue)
+      const update = vi.fn().mockReturnValue({ eq })
+      const from = vi.fn().mockReturnValue({ update })
+      return { supabase: { from }, update, eq }
+    }
+
+    it('stores the chosen frequency for the set', async () => {
+      const { supabase, update, eq } = makeSetReminderSupabase({ data: null, error: null })
+      const repo = createGiveRepository(supabase as never)
+
+      const result = await repo.setReminderFrequency('set-1', 'quarterly')
+
+      expect(update).toHaveBeenCalledWith({ reminder_frequency: 'quarterly' })
+      expect(eq).toHaveBeenCalledWith('id', 'set-1')
+      expect(result).toEqual({ success: true })
+    })
+
+    it('clears the frequency when passed null', async () => {
+      const { supabase, update } = makeSetReminderSupabase({ data: null, error: null })
+      const repo = createGiveRepository(supabase as never)
+
+      await repo.setReminderFrequency('set-1', null)
+
+      expect(update).toHaveBeenCalledWith({ reminder_frequency: null })
+    })
+
+    it('returns failure when the update errors', async () => {
+      const { supabase } = makeSetReminderSupabase({ data: null, error: { message: 'boom' } })
+      const repo = createGiveRepository(supabase as never)
+
+      const result = await repo.setReminderFrequency('set-1', 'monthly')
+
+      expect(result).toEqual({ success: false })
     })
   })
 

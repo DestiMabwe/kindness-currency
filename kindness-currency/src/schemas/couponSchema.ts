@@ -34,6 +34,9 @@ export const CouponMutationSchema = z.object({
   background_effect: BackgroundEffectSchema,
 })
 
+// Recipient's chosen reminder cadence — capture only, no scheduled sending yet
+export const ReminderFrequencySchema = z.enum(['biweekly', 'monthly', 'quarterly'])
+
 // Redemption input — RedemptionEngine parses every payload through this before touching the database
 export const RedeemInputSchema = z.object({
   couponId: z.string().uuid(),
@@ -53,4 +56,5 @@ export type BackgroundEffect = z.infer<typeof BackgroundEffectSchema>
 export type CouponSetMutation = z.infer<typeof CouponSetMutationSchema>
 export type CouponMutation = z.infer<typeof CouponMutationSchema>
 export type RedeemInput = z.infer<typeof RedeemInputSchema>
+export type ReminderFrequency = z.infer<typeof ReminderFrequencySchema>
 export type SaveCouponSetInput = z.infer<typeof SaveCouponSetInputSchema>
