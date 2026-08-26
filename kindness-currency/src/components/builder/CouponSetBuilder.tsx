@@ -18,6 +18,7 @@ import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import type { TemplateCoupon, TemplateWithCoupons } from '@/lib/templateRepository'
 import type { ComingSoonTemplate } from '@/lib/comingSoonTemplateRepository'
+import type { FeatureInterestSlug } from '@/schemas/featureInterestSchema'
 
 // Made By Him / Made By Her are two halves of one paired idea — a couple makes
 // one each and swaps. Look up each other's display name by slug so the on-card
@@ -31,20 +32,28 @@ const PAIRED_SLUGS: Record<string, string> = {
 // anonymous giver), not on every /create visit.
 const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
 
+// Deferred: only needed if a giver opens one of the fake-door "want this?" buttons.
+const FeatureInterestModal = dynamic(
+  () => import('@/components/modals/FeatureInterestModal').then((m) => m.FeatureInterestModal),
+  { ssr: false }
+)
+
 export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
   comingSoonTemplates?: ComingSoonTemplate[]
   isLoggedIn: boolean
+  userEmail?: string | null
 }
 
 type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
 
-export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLoggedIn }: CouponSetBuilderProps) {
+export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLoggedIn, userEmail = null }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
   const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
   const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
+  const [featureInterestModal, setFeatureInterestModal] = useState<FeatureInterestSlug | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const attemptedResume = useRef(false)
@@ -132,6 +141,7 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
           comingSoonTemplates={comingSoonTemplates}
           onSelect={handleSelectTemplate}
           onPreviewSample={handlePreviewSample}
+          onFeatureInterest={setFeatureInterestModal}
         />
       )}
 
@@ -203,6 +213,10 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
       )}
 
       {authOpen && <AuthGate onClose={() => setAuthOpen(false)} />}
+
+      {featureInterestModal && (
+        <FeatureInterestModal feature={featureInterestModal} userEmail={userEmail} onClose={() => setFeatureInterestModal(null)} />
+      )}
     </div>
   )
 }
@@ -212,11 +226,13 @@ function TemplateSelectScreen({
   comingSoonTemplates,
   onSelect,
   onPreviewSample,
+  onFeatureInterest,
 }: {
   templates: TemplateWithCoupons[]
   comingSoonTemplates: ComingSoonTemplate[]
   onSelect: (template: TemplateWithCoupons) => void
   onPreviewSample: (template: TemplateWithCoupons) => void
+  onFeatureInterest: (feature: FeatureInterestSlug) => void
 }) {
   const [comingSoonModal, setComingSoonModal] = useState<ComingSoonTemplate | null>(null)
 
@@ -313,6 +329,20 @@ function TemplateSelectScreen({
           </div>
         </div>
       )}
+
+      <div className="px-5.5 pt-6 pb-8">
+        <h2 className="text-[15px] font-bold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+          {ctaCopy.customCouponBookHeading}
+        </h2>
+        <div className="mt-1.5 text-[12.5px] text-[#2C2C2C] opacity-72">{ctaCopy.customCouponBookSubheading}</div>
+        <button
+          type="button"
+          onClick={() => onFeatureInterest('custom_coupons')}
+          className="mt-3 w-full rounded-2xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-center font-sans text-[14px] font-bold text-[#1A1A2E]"
+        >
+          {ctaCopy.customCouponBookButton}
+        </button>
+      </div>
 
       {comingSoonModal && <ComingSoonModal template={comingSoonModal} onClose={() => setComingSoonModal(null)} />}
     </div>

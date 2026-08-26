@@ -19,6 +19,11 @@ vi.mock('@/app/early-access/actions', () => ({
   signUpForEarlyAccessAction: vi.fn(),
 }))
 
+const recordFeatureInterestAction = vi.fn()
+vi.mock('@/app/feature-interest/actions', () => ({
+  recordFeatureInterestAction: (input: unknown) => recordFeatureInterestAction(input),
+}))
+
 const template = (overrides: Partial<TemplateWithCoupons> = {}): TemplateWithCoupons => ({
   id: 'aaaaaaaa-0000-0000-0000-000000000001',
   slug: 'mothers_day',
@@ -72,6 +77,7 @@ describe('CouponSetBuilder', () => {
     window.localStorage.clear()
     getSession.mockReset().mockResolvedValue({ data: { session: null } })
     saveCouponSetAction.mockReset()
+    recordFeatureInterestAction.mockReset()
   })
 
   describe('home logo link', () => {
@@ -230,6 +236,39 @@ describe('CouponSetBuilder', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Close' }))
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('feature-interest button', () => {
+    it('shows the Custom Coupon Books early-access button on the template-select screen', () => {
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
+
+      expect(screen.getByRole('button', { name: ctaCopy.customCouponBookButton })).toBeInTheDocument()
+      expect(screen.queryByText('Create Multiple Coupon Sets')).not.toBeInTheDocument()
+    })
+
+    it('opens the interest modal tagged custom_coupons on click', async () => {
+      recordFeatureInterestAction.mockResolvedValue({ success: true })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.customCouponBookButton }))
+      await userEvent.type(await screen.findByLabelText('Email address'), 'jamie@example.com')
+      await userEvent.click(screen.getByRole('button', { name: 'Notify Me' }))
+
+      expect(recordFeatureInterestAction).toHaveBeenCalledWith({ feature: 'custom_coupons', email: 'jamie@example.com' })
+    })
+
+    it('uses the one-click path with the account email for a logged-in giver', async () => {
+      recordFeatureInterestAction.mockResolvedValue({ success: true })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn userEmail="alex@example.com" />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.customCouponBookButton }))
+      const notifyButton = await screen.findByRole('button', { name: /Notify Me/ })
+      expect(screen.queryByLabelText('Email address')).not.toBeInTheDocument()
+
+      await userEvent.click(notifyButton)
+
+      expect(recordFeatureInterestAction).toHaveBeenCalledWith({ feature: 'custom_coupons', email: 'alex@example.com' })
     })
   })
 
@@ -435,7 +474,7 @@ describe('CouponSetBuilder', () => {
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
 
-      expect(screen.getByText(ctaCopy.authModalHeading)).toBeInTheDocument()
+      expect(await screen.findByText(ctaCopy.authModalHeading)).toBeInTheDocument()
     })
 
     it('opens AuthGate when "Send with Love" is clicked', async () => {
@@ -443,7 +482,7 @@ describe('CouponSetBuilder', () => {
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
 
-      expect(screen.getByText(ctaCopy.authModalHeading)).toBeInTheDocument()
+      expect(await screen.findByText(ctaCopy.authModalHeading)).toBeInTheDocument()
     })
 
     it('skips AuthGate and saves directly when "Save My Coupons" is clicked by an already-logged-in giver', async () => {

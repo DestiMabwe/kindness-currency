@@ -19,5 +19,12 @@ export default async function CreatePage() {
     data: { user },
   } = await authClient.auth.getUser()
 
-  return <CouponSetBuilder templates={templates} comingSoonTemplates={comingSoonTemplates} isLoggedIn={!!user} />
+  return (
+    <CouponSetBuilder
+      templates={templates}
+      comingSoonTemplates={comingSoonTemplates}
+      isLoggedIn={!!user}
+      userEmail={user?.email ?? null}
+    />
+  )
 }

@@ -43,4 +43,12 @@ export const ctaCopy = {
   earlyAccessInvalidEmail: 'Please enter a valid email address',
   earlyAccessSuccess: 'You’re on the list! We’ll email you when it’s ready.',
   earlyAccessDuplicate: 'You’re already on the list for this one ♥',
+  customCouponBookHeading: 'Get Early Access',
+  customCouponBookSubheading: 'Build a coupon book entirely your way — every title, every promise, your words. Launching soon.',
+  customCouponBookButton: 'Custom Coupon Books',
+  featureInterestHeading: 'Custom Coupon Books',
+  featureInterestSubtext: 'A fully custom coupon book, written from scratch — your words, your occasion, your rules. Be first to know when it launches.',
+  featureInterestSubmitButton: 'Notify Me',
+  featureInterestInvalidEmail: 'Please enter a valid email address',
+  featureInterestThankYou: "You're on the list ♥",
 } as const
