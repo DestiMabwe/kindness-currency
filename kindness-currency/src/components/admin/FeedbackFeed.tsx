@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/schemas/feedbackSchema'
+import { buildFollowUpMailto, buildThankYouMailto } from '@/lib/feedbackEmailTemplates'
 import type { FeedbackEntry } from '@/lib/feedbackRepository'
 
 export type FeedbackFeedProps = {
@@ -80,9 +81,31 @@ export function FeedbackFeed({ entries }: FeedbackFeedProps) {
                 <span className="text-[11px] text-[#2C2C2C] opacity-50">{formatDate(entry.createdAt)}</span>
               </div>
               <div className="mt-1.5 text-[13.5px] leading-relaxed text-[#2C2C2C]">{entry.message}</div>
-              <div className="mt-2 text-[12.5px] font-semibold text-[#1A1A2E]">
-                {entry.email ? <a href={`mailto:${entry.email}`}>{entry.email}</a> : <span className="opacity-50">No email on file</span>}
-              </div>
+              {entry.email ? (
+                <>
+                  <a href={`mailto:${entry.email}`} className="mt-2 block text-[12.5px] font-semibold text-[#1A1A2E]">
+                    {entry.email}
+                  </a>
+                  <div className="mt-2 flex gap-1.5">
+                    <a
+                      href={buildThankYouMailto(entry.email, { type: entry.type as FeedbackType, message: entry.message })}
+                      className="rounded-full px-3.5 py-1.5 text-[11.5px] font-semibold"
+                      style={{ backgroundColor: '#F0ECE4', color: '#2C2C2C' }}
+                    >
+                      Thank
+                    </a>
+                    <a
+                      href={buildFollowUpMailto(entry.email, { type: entry.type as FeedbackType, message: entry.message })}
+                      className="rounded-full px-3.5 py-1.5 text-[11.5px] font-semibold"
+                      style={{ backgroundColor: '#F0ECE4', color: '#2C2C2C' }}
+                    >
+                      Follow Up
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-2 text-[12.5px] font-semibold text-[#1A1A2E] opacity-50">No email on file</div>
+              )}
             </div>
           ))}
         </div>

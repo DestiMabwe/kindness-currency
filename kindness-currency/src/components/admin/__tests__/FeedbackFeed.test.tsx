@@ -52,6 +52,24 @@ describe('FeedbackFeed', () => {
     expect(screen.getByText('No email on file')).toBeInTheDocument()
   })
 
+  it('shows Thank and Follow Up mailto links for an entry with an email', () => {
+    render(<FeedbackFeed entries={[entries[0]]} />)
+
+    const thankLink = screen.getByRole('link', { name: 'Thank' })
+    const followUpLink = screen.getByRole('link', { name: 'Follow Up' })
+
+    expect(thankLink).toHaveAttribute('href', expect.stringContaining('mailto:jamie@example.com?'))
+    expect(followUpLink).toHaveAttribute('href', expect.stringContaining('mailto:jamie@example.com?'))
+    expect(decodeURIComponent(thankLink.getAttribute('href') ?? '')).toContain('It crashed')
+  })
+
+  it('does not show Thank/Follow Up links for an entry with no email', () => {
+    render(<FeedbackFeed entries={[entries[1]]} />)
+
+    expect(screen.queryByRole('link', { name: 'Thank' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Follow Up' })).not.toBeInTheDocument()
+  })
+
   it('shows the general empty state when there is no feedback at all', () => {
     render(<FeedbackFeed entries={[]} />)
 
