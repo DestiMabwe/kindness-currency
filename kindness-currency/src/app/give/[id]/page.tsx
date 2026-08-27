@@ -1,4 +1,3 @@
-import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
@@ -10,22 +9,10 @@ import { SaveToAccountBanner } from '@/components/shared/SaveToAccountBanner'
 import { GiftUnwrapGate } from '@/components/give/GiftUnwrapGate'
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { linkRecipientAction } from '@/app/give/[id]/actions'
-import { alt as ogImageAlt, size as ogImageSize } from './opengraph-image'
 
-// Next.js's auto-detected opengraph-image file convention doesn't reliably resolve
-// against the root layout's per-request metadataBase (confirmed: it falls back to a
-// hardcoded localhost URL regardless of the actual request host) — declaring the image
-// explicitly here instead routes it through the same metadataBase resolution that
-// already works correctly for every other metadata field.
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params
-  return {
-    openGraph: {
-      images: [{ url: `/give/${id}/opengraph-image`, alt: ogImageAlt, ...ogImageSize }],
-    },
-  }
-}
-
+// No per-set metadata here — every shared link uses the same sitewide branded card
+// (public/opengraph-image.jpg) and the root layout's title/description, so sharing a
+// coupon link always reinforces Kindness Currency itself rather than varying per gift.
 export default async function GivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const repo = createGiveRepository(createServiceClient())

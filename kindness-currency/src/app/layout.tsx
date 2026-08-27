@@ -31,6 +31,17 @@ export async function generateMetadata(): Promise<Metadata> {
     title: 'Kindness Currency',
     description: 'Give the gift of acts of service.',
     metadataBase: host ? new URL(`${protocol}://${host}`) : undefined,
+    // The image lives in public/ (not src/app/) so Next's opengraph-image file-convention
+    // auto-detection never picks it up — that auto-detected URL ignores metadataBase and
+    // (for the root segment specifically) takes priority over an explicit declaration here.
+    // Declaring it explicitly instead routes it through the metadataBase resolution that
+    // already works for every other field.
+    //
+    // Square (not 1200x630) and a real designed asset, not a next/og-rendered one — satori's
+    // font rendering looked washed out and illegible once WhatsApp/iMessage recompressed it.
+    openGraph: {
+      images: [{ url: '/opengraph-image.jpg', width: 1200, height: 1200, alt: 'Kindness Currency' }],
+    },
   }
 }
 
