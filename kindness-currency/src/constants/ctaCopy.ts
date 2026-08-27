@@ -81,4 +81,20 @@ export const ctaCopy = {
   editMessageEditLabel: 'Edit your message',
   editMessageSubtext: "Something to say before they open it — optional, but it makes this feel like you.",
   editMessageSave: 'Save Message',
+  resetPinButtonLabel: 'View PIN',
+  resetPinConfirmHeading: 'Generate a new PIN?',
+  resetPinConfirmBody: (recipientName: string) =>
+    `There's no way to see the original PIN again — only a fresh one. The old PIN stops working right away, so you'll need to re-share the new one with ${recipientName}.`,
+  resetPinConfirmSubmit: 'Generate New PIN',
+  resetPinRevealedHeading: 'Here’s the new PIN',
+  resetPinRevealedBody: 'Share it with the recipient separately from the link, just like the first time.',
+  resetPinDone: 'Done',
+  resetPinError: 'Something went wrong. Please try again.',
+  resumedDraftBannerText: 'Continuing your last coupon set.',
+  resumedDraftStartFreshButton: 'Not this one? Start fresh →',
+  currentSetBadge: 'In progress',
+  templateSwitchWarningHeading: 'Switch templates?',
+  templateSwitchWarningBody: (currentTemplateName: string) =>
+    `Your customized coupons for ${currentTemplateName} won't be saved if you switch.`,
+  templateSwitchWarningResumeButton: (currentTemplateName: string) => `Go back to my ${currentTemplateName} coupons →`,
 } as const

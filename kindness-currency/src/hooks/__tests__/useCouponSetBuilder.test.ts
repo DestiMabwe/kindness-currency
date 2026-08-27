@@ -83,6 +83,34 @@ describe('useCouponSetBuilder', () => {
     })
   })
 
+  describe('resumedDraft', () => {
+    it('is false for a fresh session with no stored draft', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      expect(result.current.resumedDraft).toBe(false)
+    })
+
+    it('is true once a mid-progress draft is rehydrated from localStorage', () => {
+      window.localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          screen: 'edit',
+          selectedTemplateId: mothersDay.id,
+          selectedTemplateSlug: 'mothers_day',
+          senderName: 'Alex',
+          recipientName: 'Mom',
+          expiryDate: '',
+          coupons: [],
+          savedResult: null,
+        })
+      )
+
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      expect(result.current.resumedDraft).toBe(true)
+    })
+  })
+
   describe('template selection', () => {
     it('seeds coupons from the template defaults and advances to the details screen', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
@@ -91,6 +119,59 @@ describe('useCouponSetBuilder', () => {
 
       expect(result.current.state.screen).toBe('details')
       expect(result.current.state.coupons.map((c) => c.serviceTitle)).toEqual(['One Home-Cooked Meal', 'One Errand Run'])
+    })
+
+    it('preserves in-progress customization when the same template is re-selected after backing up to browse', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.patchCoupon('c1', { serviceTitle: 'A Custom Title' }))
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.state.coupons.map((c) => c.serviceTitle)).toEqual(['A Custom Title', 'One Errand Run'])
+    })
+
+    it('resets to template defaults when a genuinely different template is selected', () => {
+      const valentines: TemplateWithCoupons = {
+        ...mothersDay,
+        id: 'bbbbbbbb-0000-0000-0000-000000000002',
+        slug: 'valentines',
+        name: "Valentine's Love Passes",
+        template_coupons: [
+          { id: 'v1', template_id: 'bbbbbbbb-0000-0000-0000-000000000002', sort_order: 1, service_title: 'Breakfast in Bed', micro_copy: null, fine_print: null },
+        ],
+      }
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay, valentines]))
+
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.patchCoupon('c1', { serviceTitle: 'A Custom Title' }))
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('valentines'))
+
+      expect(result.current.state.coupons.map((c) => c.serviceTitle)).toEqual(['Breakfast in Bed'])
+    })
+
+    it('re-selecting the same template goes straight to the edit screen once the form was already filled in', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderName('Alex'))
+      act(() => result.current.setRecipientName('Mom'))
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.state.screen).toBe('edit')
+    })
+
+    it('re-selecting the same template still lands on the details form if the names were never filled in', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.state.screen).toBe('details')
     })
   })
 

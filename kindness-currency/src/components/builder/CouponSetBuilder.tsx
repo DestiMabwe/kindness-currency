@@ -34,6 +34,10 @@ const FeatureInterestModal = dynamic(
   { ssr: false }
 )
 
+// Deferred, matching SaveToAccountBanner's own import of the same modal — only needed
+// once a logged-out sender actually tries to save/send.
+const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
+
 export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
   comingSoonTemplates?: ComingSoonTemplate[]
@@ -49,16 +53,49 @@ type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'previ
 // provider forces mid "save to your account" click — see the effects below.
 const PENDING_SENDER_READY_KEY = 'kindness-currency:pending-sender-ready'
 
+// Set right before opening AuthGate from Save/Send, so the auth redirect's reload knows
+// to finish the save automatically once the sender is actually logged in — the draft
+// itself survives that redirect via useCouponSetBuilder's own localStorage persistence,
+// so only the "they meant to save" intent needs to be remembered separately.
+const PENDING_SAVE_INTENT_KEY = 'kindness-currency:pending-save-intent'
+
 export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLoggedIn = false, userEmail = null }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
   const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
+  const [pendingTemplateSwitch, setPendingTemplateSwitch] = useState<TemplateWithCoupons | null>(null)
   const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [editMessageOpen, setEditMessageOpen] = useState(false)
   const [featureInterestModal, setFeatureInterestModal] = useState<FeatureInterestSlug | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [authOpen, setAuthOpen] = useState(false)
+  const [resumedDraftDismissed, setResumedDraftDismissed] = useState(false)
   const attemptedResume = useRef(false)
+  const attemptedSaveResume = useRef(false)
+
+  const performSave = async () => {
+    const payload = builder.toSavePayload()
+    if (!payload) return
+    setSaving(true)
+    setSaveError('')
+    const result = await saveCouponSetAction(payload)
+    setSaving(false)
+    if (!result.success) {
+      setSaveError(result.error)
+      return
+    }
+    builder.completeSave({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
+  }
+
+  const handleSaveOrSend = () => {
+    if (!isLoggedIn) {
+      if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, 'true')
+      setAuthOpen(true)
+      return
+    }
+    void performSave()
+  }
 
   // Right after an anonymous save, remember {setId, pin} so that if the sender clicks
   // "Save this to your account" and gets redirected away for auth, the reload below can
@@ -90,22 +127,36 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to resume a pending sender link, not on every state change
   }, [isLoggedIn])
 
-  const handleSaveOrSend = () => {
+  // Completes a save the sender started before AuthGate interrupted them: once the auth
+  // redirect lands back here and isLoggedIn is true, and the intent flag from
+  // handleSaveOrSend is still set, finish the save automatically instead of making them
+  // click "Save My Coupons" a second time. The draft itself is already correct at this
+  // point via useCouponSetBuilder's own hydration.
+  useEffect(() => {
+    if (attemptedSaveResume.current || !isLoggedIn) return
+    if (typeof window === 'undefined') return
+    if (window.localStorage.getItem(PENDING_SAVE_INTENT_KEY) !== 'true') return
+    // Save/Send is only reachable from the edit screen, so a pending intent's draft must
+    // still be hydrating (from 'select') until the screen actually reaches 'edit' — firing
+    // any earlier would call performSave() with the stale pre-hydration builder.state.
+    if (builder.state.screen !== 'edit') return
+    attemptedSaveResume.current = true
+    window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time completion of a save the sender already initiated before the auth redirect, not a render-time side effect
     void performSave()
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- performSave is stable per render and would cause an infinite loop if included
+  }, [isLoggedIn, builder.state.screen])
 
-  const performSave = async () => {
-    const payload = builder.toSavePayload()
-    if (!payload) return
-    setSaving(true)
-    setSaveError('')
-    const result = await saveCouponSetAction(payload)
-    setSaving(false)
-    if (!result.success) {
-      setSaveError(result.error)
+  // Switching to a template other than the one already in progress regenerates that
+  // template's coupons from defaults (see useCouponSetBuilder's loadTemplate), discarding
+  // any customization on the in-progress one — so that case is routed through a warning
+  // instead of loading straight away.
+  const proceedToTemplate = (template: TemplateWithCoupons) => {
+    if (builder.state.selectedTemplateId && builder.state.selectedTemplateId !== template.id) {
+      setPendingTemplateSwitch(template)
       return
     }
-    builder.completeSave({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
+    builder.loadTemplate(template.slug as TemplateSlug)
   }
 
   const handleSelectTemplate = (template: TemplateWithCoupons) => {
@@ -113,7 +164,7 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
       setPendingAgeGate({ template, action: 'select' })
       return
     }
-    builder.loadTemplate(template.slug as TemplateSlug)
+    proceedToTemplate(template)
   }
 
   const handlePreviewSample = (template: TemplateWithCoupons) => {
@@ -127,11 +178,28 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
   const confirmAgeGate = () => {
     if (!pendingAgeGate) return
     if (pendingAgeGate.action === 'select') {
-      builder.loadTemplate(pendingAgeGate.template.slug as TemplateSlug)
+      proceedToTemplate(pendingAgeGate.template)
     } else {
       setSampleTemplate(pendingAgeGate.template)
     }
     setPendingAgeGate(null)
+  }
+
+  // "Go back to my [current] coupons": cancels the switch and resumes the in-progress
+  // template exactly like re-tapping its own card would (see loadTemplate's same-template
+  // branch) — straight to the edit screen once the form was already filled in.
+  const resumeCurrentTemplate = () => {
+    if (!builder.state.selectedTemplateSlug) return
+    builder.loadTemplate(builder.state.selectedTemplateSlug as TemplateSlug)
+    setPendingTemplateSwitch(null)
+  }
+
+  // Dismissing the warning (✕) is a one-time acknowledgment for this attempt only — it
+  // proceeds with the newly tapped template, discarding the in-progress one's customization.
+  const confirmTemplateSwitch = () => {
+    if (!pendingTemplateSwitch) return
+    builder.loadTemplate(pendingTemplateSwitch.slug as TemplateSlug)
+    setPendingTemplateSwitch(null)
   }
 
   const selectedTemplate = builder.templateBySlug(builder.state.selectedTemplateSlug as TemplateSlug)
@@ -165,10 +233,34 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
         <TemplateSelectScreen
           templates={templates}
           comingSoonTemplates={comingSoonTemplates}
+          currentTemplateId={builder.state.selectedTemplateId}
           onSelect={handleSelectTemplate}
           onPreviewSample={handlePreviewSample}
           onFeatureInterest={setFeatureInterestModal}
         />
+      )}
+
+      {builder.resumedDraft && !resumedDraftDismissed && (builder.state.screen === 'details' || builder.state.screen === 'edit') && (
+        <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#1A1A2E]/8 bg-white px-4 py-3.5">
+          <div className="flex flex-col gap-1 text-left">
+            <span className="text-[12.5px] font-semibold text-[#1A1A2E]">{ctaCopy.resumedDraftBannerText}</span>
+            <button
+              type="button"
+              onClick={() => builder.startNewSet()}
+              className="w-fit text-[12.5px] font-semibold text-[#C2185B]"
+            >
+              {ctaCopy.resumedDraftStartFreshButton}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setResumedDraftDismissed(true)}
+            aria-label="Dismiss"
+            className="shrink-0 p-1 text-[15px] text-[#2C2C2C] opacity-50"
+          >
+            ✕
+          </button>
+        </div>
       )}
 
       {builder.state.screen === 'details' && (
@@ -231,6 +323,8 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
         />
       )}
 
+      {authOpen && <AuthGate redirectTo="/create" onClose={() => setAuthOpen(false)} />}
+
       {sampleTemplate && (
         <PreviewOverlay
           coupons={couponsFromTemplate(sampleTemplate)}
@@ -251,6 +345,14 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
         <AgeGate templateName={pendingAgeGate.template.name} onConfirm={confirmAgeGate} onDismiss={() => setPendingAgeGate(null)} />
       )}
 
+      {pendingTemplateSwitch && selectedTemplate && (
+        <TemplateSwitchWarningModal
+          currentTemplateName={selectedTemplate.name}
+          onResumeCurrent={resumeCurrentTemplate}
+          onDismiss={confirmTemplateSwitch}
+        />
+      )}
+
       {featureInterestModal && (
         <FeatureInterestModal feature={featureInterestModal} userEmail={userEmail} onClose={() => setFeatureInterestModal(null)} />
       )}
@@ -261,12 +363,14 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
 function TemplateSelectScreen({
   templates,
   comingSoonTemplates,
+  currentTemplateId,
   onSelect,
   onPreviewSample,
   onFeatureInterest,
 }: {
   templates: TemplateWithCoupons[]
   comingSoonTemplates: ComingSoonTemplate[]
+  currentTemplateId: string | null
   onSelect: (template: TemplateWithCoupons) => void
   onPreviewSample: (template: TemplateWithCoupons) => void
   onFeatureInterest: (feature: FeatureInterestSlug) => void
@@ -290,10 +394,12 @@ function TemplateSelectScreen({
       <div className="flex flex-col gap-5 px-5.5 pt-4 pb-7.5">
         {templates.map((template) => {
           const visuals = templateVisuals[template.slug as TemplateSlug]
+          const isCurrent = template.id === currentTemplateId
           return (
             <div
               key={template.id}
-              className="overflow-hidden rounded-2xl border border-[#1A1A2E]/8 bg-white shadow-[0_14px_30px_-24px_rgba(26,26,46,0.5)]"
+              className="overflow-hidden rounded-2xl bg-white shadow-[0_14px_30px_-24px_rgba(26,26,46,0.5)]"
+              style={{ border: isCurrent ? `1.5px solid ${visuals.accent}` : '1px solid rgba(26,26,46,0.08)' }}
             >
               <button type="button" onClick={() => onSelect(template)} className="block w-full text-left">
                 <div className="relative aspect-[1748/1240] w-full">
@@ -304,6 +410,14 @@ function TemplateSelectScreen({
                     <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
                       {template.name}
                     </div>
+                    {isCurrent && (
+                      <span
+                        className="rounded-full px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.08em] text-white"
+                        style={{ backgroundColor: visuals.accent }}
+                      >
+                        {ctaCopy.currentSetBadge}
+                      </span>
+                    )}
                     {template.is_age_restricted && (
                       <span className="rounded-full border border-[#C2185B] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.08em] text-[#C2185B]">
                         18+
@@ -415,6 +529,53 @@ function ComingSoonModal({ template, onClose }: { template: ComingSoonTemplate; 
           ))}
         </ul>
         <EarlyAccessSignupForm templateSlug={template.slug} />
+      </div>
+    </div>
+  )
+}
+
+function TemplateSwitchWarningModal({
+  currentTemplateName,
+  onResumeCurrent,
+  onDismiss,
+}: {
+  currentTemplateName: string
+  onResumeCurrent: () => void
+  onDismiss: () => void
+}) {
+  const dialogRef = useDialogA11y<HTMLDivElement>(true, onDismiss)
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="template-switch-warning-heading"
+        className="w-full rounded-t-[26px] bg-[#FFF8F0] px-6 pt-7 pb-8"
+      >
+        <div className="flex items-start justify-between">
+          <h2
+            id="template-switch-warning-heading"
+            className="text-2xl font-extrabold text-[#1A1A2E] italic"
+            style={{ fontFamily: 'var(--font-playfair)' }}
+          >
+            {ctaCopy.templateSwitchWarningHeading}
+          </h2>
+          <button type="button" onClick={onDismiss} aria-label="Dismiss" className="p-1 text-xl text-[#1A1A2E]">
+            ✕
+          </button>
+        </div>
+        <div className="mt-3 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-85">
+          {ctaCopy.templateSwitchWarningBody(currentTemplateName)}
+        </div>
+        <button
+          type="button"
+          onClick={onResumeCurrent}
+          className="mt-5 w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white"
+        >
+          {ctaCopy.templateSwitchWarningResumeButton(currentTemplateName)}
+        </button>
       </div>
     </div>
   )

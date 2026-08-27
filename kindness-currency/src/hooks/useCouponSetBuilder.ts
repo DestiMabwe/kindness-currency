@@ -79,6 +79,7 @@ function loadDraft(): BuilderState | null {
 
 export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   const [state, setState] = useState<BuilderState>(initialState)
+  const [resumedDraft, setResumedDraft] = useState(false)
   const hydrated = useRef(false)
 
   // Rehydrate from localStorage once, after mount. Reading in render (e.g. a lazy
@@ -90,6 +91,9 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     const draft = loadDraft()
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-hydration sync from localStorage, not a render-time update
     if (draft) setState(draft)
+    // A draft still on the select screen (nothing chosen yet) isn't "mid-progress" —
+    // only flag drafts a "start fresh" affordance would actually need to discard.
+    if (draft && draft.screen !== 'select') setResumedDraft(true)
   }, [])
 
   useEffect(() => {
@@ -103,13 +107,23 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     (slug: TemplateSlug) => {
       const template = templateBySlug(slug)
       if (!template) return
-      setState((s) => ({
-        ...s,
-        selectedTemplateId: template.id,
-        selectedTemplateSlug: slug,
-        coupons: couponsFromTemplate(template),
-        screen: 'details',
-      }))
+      setState((s) => {
+        // Re-selecting the template already in progress (e.g. backing up to browse
+        // then tapping it again) must resume the existing customization rather than
+        // wiping it back to template defaults — only a genuinely different template
+        // should regenerate fresh coupons.
+        const isSameTemplate = s.selectedTemplateId === template.id
+        // "In progress" for skip-the-form purposes matches startEditing's own bar:
+        // the form was already completed, so there's real customizing to resume.
+        const namesFilled = Boolean(s.senderName.trim() && s.recipientName.trim())
+        return {
+          ...s,
+          selectedTemplateId: template.id,
+          selectedTemplateSlug: slug,
+          coupons: isSameTemplate ? s.coupons : couponsFromTemplate(template),
+          screen: isSameTemplate && namesFilled ? 'edit' : 'details',
+        }
+      })
     },
     [templateBySlug]
   )
@@ -168,6 +182,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
 
   return {
     state,
+    resumedDraft,
     templateBySlug,
     loadTemplate,
     backToSelect,
