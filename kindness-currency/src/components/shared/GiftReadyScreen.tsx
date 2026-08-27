@@ -8,15 +8,18 @@ import { ctaCopy } from '@/constants/ctaCopy'
 export type GiftReadyScreenProps = {
   shareLink: string
   pin: string
+  senderName: string
+  recipientName: string
   onStartOver: () => void
 }
 
-export function GiftReadyScreen({ shareLink, pin, onStartOver }: GiftReadyScreenProps) {
+export function GiftReadyScreen({ shareLink, pin, senderName, recipientName, onStartOver }: GiftReadyScreenProps) {
   const [copied, setCopied] = useState(false)
+  const shareMessage = ctaCopy.giftReadyShareMessage(recipientName, senderName, shareLink)
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareLink)
+      await navigator.clipboard.writeText(shareMessage)
       setCopied(true)
     } catch {
       // Clipboard access can be denied — the link is still selectable/visible on screen.
@@ -24,13 +27,13 @@ export function GiftReadyScreen({ shareLink, pin, onStartOver }: GiftReadyScreen
   }
 
   const shareWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(shareLink)}`, '_blank', 'noopener,noreferrer')
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareMessage)}`, '_blank', 'noopener,noreferrer')
   }
 
   const webShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ url: shareLink })
+        await navigator.share({ text: shareMessage })
       } catch {
         // User cancelled the share sheet — nothing to do.
       }

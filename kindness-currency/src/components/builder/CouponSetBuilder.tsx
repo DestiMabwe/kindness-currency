@@ -143,6 +143,8 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
         <GiftReadyScreen
           shareLink={`${window.location.origin}/give/${builder.state.savedResult.setId}`}
           pin={builder.state.savedResult.pin}
+          senderName={builder.state.senderName}
+          recipientName={builder.state.recipientName}
           onStartOver={builder.startNewSet}
         />
         <SaveToAccountBanner

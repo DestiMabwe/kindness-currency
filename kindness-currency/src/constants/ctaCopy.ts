@@ -24,6 +24,8 @@ export const ctaCopy = {
   pinWrongError: (senderName: string) =>
     `That PIN doesn't match. Check your message from ${senderName}.`,
   giftReadyPinInstruction: 'Share the link via WhatsApp. Send the PIN separately — or whisper it in person.',
+  giftReadyShareMessage: (recipientName: string, senderName: string, shareLink: string) =>
+    `${recipientName}, ${senderName} made you something special on Kindness Currency\n\nOpen it here:\n${shareLink}\n\nI'll send your PIN separately, so keep an eye out!`,
   giftReadyStartOver: 'Spot another template? Start a new coupon set →',
   templatesSubheading: 'Customize the perfect coupons. Start free.',
   comingSoonHeading: 'Coming Soon',
