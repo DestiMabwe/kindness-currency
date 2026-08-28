@@ -587,6 +587,8 @@ function TemplateSelectScreen({
 
 function ComingSoonModal({ template, onClose }: { template: ComingSoonTemplate; onClose: () => void }) {
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
+  const tier = bundleTierBySlug[template.slug]
+  const isPairedSlug = template.slug in PAIRED_SLUGS
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">
@@ -597,14 +599,18 @@ function ComingSoonModal({ template, onClose }: { template: ComingSoonTemplate; 
         aria-labelledby="coming-soon-heading"
         className="w-full rounded-t-[26px] bg-[#FFF8F0] px-6 pt-7 pb-8"
       >
-        <div className="flex items-start justify-between">
-          <h2 id="coming-soon-heading" className="text-2xl font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
-            {template.name}
-          </h2>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="coming-soon-heading" className="text-2xl font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+              {template.name}
+            </h2>
+            {tier && <div className="mt-1 text-[15px] font-bold text-[#C2185B]">${tierPrice[tier].toFixed(2)}</div>}
+          </div>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-xl text-[#1A1A2E]">
             ✕
           </button>
         </div>
+        {isPairedSlug && <div className="mt-1 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.pricingPairNote}</div>}
         <ul className="mt-4 flex flex-col gap-2.5 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-85">
           {template.blurb_points.map((point) => (
             <li key={point} className="flex gap-2">
