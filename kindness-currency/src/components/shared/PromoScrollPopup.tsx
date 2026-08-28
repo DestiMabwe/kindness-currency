@@ -4,15 +4,19 @@
 // DESIGN.md's Confirmation Modal / AgeGate / ComingSoonModal) rather than a centered dialog, for
 // visual consistency with every other modal in the product.
 //
-// Triggers on a fixed delay, with a low scroll distance as a second, earlier trigger — whichever
-// happens first. A delay fires deterministically regardless of whether/how a visitor scrolls
-// (touch swipes inside the gesture carousel, a short viewport, or a visitor who reads before
-// scrolling all behave differently on scroll events but identically on a timer), and the scroll
-// fallback still shows it sooner for anyone who scrolls quickly. Dismiss is sessionStorage-scoped,
-// not permanent: this is a revenue-driving promo, so it should resurface every new visit rather
-// than vanishing forever the first time anyone closes it on a given device.
+// Three ways in, all funneling through the same `show`/hasShown guard so only one ever actually
+// opens it: a fixed delay (fires deterministically regardless of whether/how a visitor scrolls —
+// touch swipes inside the gesture carousel, a short viewport, or reading before scrolling all
+// behave differently on scroll events but identically on a timer), a low scroll distance as an
+// earlier fallback for anyone who scrolls quickly, and an imperative `show()` exposed via ref that
+// the parent calls the moment someone taps "Gestures, made for them" — the highest-intent moment
+// for this promo, since that view is bundle templates only (the deal explicitly excludes one-time
+// gestures). Exposed via ref rather than a prop bump + effect so the parent's click handler can
+// call it directly, an event-driven trigger rather than a setState-in-effect cascade.
+// Dismiss is sessionStorage-scoped, not permanent: this is a revenue-driving promo, so it should
+// resurface every new visit rather than vanishing forever the first time anyone closes it.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
@@ -21,20 +25,23 @@ const DISMISS_KEY = 'kindness-currency:promo-popup-dismissed'
 const TRIGGER_DELAY_MS = 3500
 const SCROLL_THRESHOLD_PX = 200
 
-export function PromoScrollPopup() {
-  const [open, setOpen] = useState(false)
+export type PromoScrollPopupHandle = { show: () => void }
 
-  useEffect(() => {
+export const PromoScrollPopup = forwardRef<PromoScrollPopupHandle>(function PromoScrollPopup(_props, ref) {
+  const [open, setOpen] = useState(false)
+  const hasShown = useRef(false)
+
+  const show = useCallback(() => {
+    if (hasShown.current) return
     if (typeof window === 'undefined') return
     if (window.sessionStorage.getItem(DISMISS_KEY) === 'true') return
+    hasShown.current = true
+    setOpen(true)
+  }, [])
 
-    let shown = false
-    const show = () => {
-      if (shown) return
-      shown = true
-      setOpen(true)
-    }
+  useImperativeHandle(ref, () => ({ show }), [show])
 
+  useEffect(() => {
     const timer = window.setTimeout(show, TRIGGER_DELAY_MS)
     const handleScroll = () => {
       if (window.scrollY > SCROLL_THRESHOLD_PX) show()
@@ -45,7 +52,7 @@ export function PromoScrollPopup() {
       window.clearTimeout(timer)
       window.removeEventListener('scroll', handleScroll)
     }
-  }, [])
+  }, [show])
 
   const dismiss = () => {
     setOpen(false)
@@ -95,4 +102,4 @@ export function PromoScrollPopup() {
       </div>
     </div>
   )
-}
+})

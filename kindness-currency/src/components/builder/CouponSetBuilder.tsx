@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic'
 import { useCouponSetBuilder, couponsFromTemplate, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
 import { SingleUseGestureSection, FilterPills, type FilterValue } from '@/components/builder/SingleUseGestureSection'
 import { BundleTierPills } from '@/components/builder/BundleTierPills'
-import { PromoScrollPopup } from '@/components/shared/PromoScrollPopup'
+import { PromoScrollPopup, type PromoScrollPopupHandle } from '@/components/shared/PromoScrollPopup'
 import { CartIcon } from '@/components/shared/CartIcon'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
 import { bundleTierBySlug, tierPrice, type BundleTier } from '@/lib/bundleTiers'
@@ -395,6 +395,14 @@ function TemplateSelectScreen({
   const bundleTemplates = bundleTier ? templates.filter((t) => bundleTierBySlug[t.slug] === bundleTier) : templates
   const cartSlugs = useCartSlugs()
   const purchasedSlugs = usePurchasedSlugs()
+  const promoPopupRef = useRef<PromoScrollPopupHandle>(null)
+
+  const handleFilterChange = (value: FilterValue) => {
+    setFilter(value)
+    // "Gestures, made for them" is bundle templates only — the highest-intent moment for the
+    // 3-for-2 promo, since the deal explicitly excludes one-time gestures.
+    if (value === 'range') promoPopupRef.current?.show()
+  }
 
   if (chosenGesture) {
     return <GestureFlow gesture={chosenGesture} onExit={() => setChosenGesture(null)} />
@@ -402,7 +410,7 @@ function TemplateSelectScreen({
 
   return (
     <div>
-      <PromoScrollPopup />
+      <PromoScrollPopup ref={promoPopupRef} />
       <div className="flex items-center justify-between gap-2.5 px-4.5 pt-11.5 pb-1.5">
         <div className="flex items-center gap-2.5">
           <Link href="/" aria-label="Kindness Currency home">
@@ -419,7 +427,7 @@ function TemplateSelectScreen({
       </div>
 
       <div className="pt-4">
-        <FilterPills value={filter} onChange={setFilter} />
+        <FilterPills value={filter} onChange={handleFilterChange} />
         <SingleUseGestureSection gestures={singleUseGestures} layout={singleUseLayout} onChoose={setChosenGesture} />
       </div>
 
