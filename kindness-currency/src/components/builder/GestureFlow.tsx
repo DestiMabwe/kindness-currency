@@ -51,16 +51,11 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
   const [saving, setSaving] = useState(false)
   const saveError = ''
 
-  // Free gestures: title + micro-copy are both editable. Paid gestures: only micro-copy —
-  // background colour/effect stay editable either way, since "design of the coupon" isn't
+  // Service title, micro-copy, and fine print are fixed for every one-time gesture, free or
+  // paid — the wording is precisely tuned "GOOD FOR ONE X" ticket copy, and letting it drift
+  // would break that. Background colour/effect stay editable, since "design of the coupon" isn't
   // part of this restriction.
-  const titleLocked = gesture.price > 0
-  const isCustomized =
-    draft.serviceTitle !== gesture.serviceTitle ||
-    draft.microCopy !== gesture.microCopy ||
-    draft.finePrint !== gesture.finePrint ||
-    draft.backgroundColor !== '#FFF8F0' ||
-    draft.backgroundEffect !== 'none'
+  const isCustomized = draft.backgroundColor !== '#FFF8F0' || draft.backgroundEffect !== 'none'
 
   const previewCoupon: BuilderCoupon = {
     id: gesture.slug,
@@ -165,38 +160,35 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
             </div>
 
             <div className="mt-3 flex flex-col gap-2.5">
-              <div>
-                <input
-                  value={draft.serviceTitle}
-                  onChange={(e) => setDraft((d) => ({ ...d, serviceTitle: e.target.value }))}
-                  placeholder="Service title"
-                  aria-label="Service title"
-                  aria-describedby={titleLocked ? 'gesture-title-locked-hint' : undefined}
-                  maxLength={SERVICE_TITLE_MAX_LENGTH}
-                  disabled={titleLocked}
-                  className="w-full rounded-[10px] border border-[#1A1A2E]/12 p-2.5 text-[15px] font-bold text-[#1A1A2E] italic outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                  style={{ fontFamily: 'var(--font-playfair)', backgroundColor: titleLocked ? '#F0ECE4' : '#FFF8F0' }}
-                />
-                {titleLocked && (
-                  <div id="gesture-title-locked-hint" className="mt-1 text-[10.5px] font-semibold text-[#2C2C2C] opacity-50">
-                    Locked — service titles are editable on free gestures
-                  </div>
-                )}
-              </div>
+              <input
+                value={draft.serviceTitle}
+                aria-label="Service title"
+                aria-describedby="gesture-text-locked-hint"
+                maxLength={SERVICE_TITLE_MAX_LENGTH}
+                disabled
+                readOnly
+                className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#F0ECE4] p-2.5 text-[15px] font-bold text-[#1A1A2E] italic outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ fontFamily: 'var(--font-playfair)' }}
+              />
               <input
                 value={draft.microCopy}
-                onChange={(e) => setDraft((d) => ({ ...d, microCopy: e.target.value }))}
-                placeholder="A warm supporting line"
                 aria-label="Micro copy"
-                className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#FFF8F0] p-2.5 text-[13px] text-[#2C2C2C] outline-none"
+                aria-describedby="gesture-text-locked-hint"
+                disabled
+                readOnly
+                className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#F0ECE4] p-2.5 text-[13px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
               />
               <input
                 value={draft.finePrint}
-                onChange={(e) => setDraft((d) => ({ ...d, finePrint: e.target.value }))}
-                placeholder="Fine print"
                 aria-label="Fine print"
-                className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#FFF8F0] p-2 text-[11.5px] text-[#2C2C2C] outline-none"
+                aria-describedby="gesture-text-locked-hint"
+                disabled
+                readOnly
+                className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#F0ECE4] p-2 text-[11.5px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
               />
+              <div id="gesture-text-locked-hint" className="text-[10.5px] font-semibold text-[#2C2C2C] opacity-50">
+                Locked — the wording for one-time gestures is fixed. Personalize with a message, colour, and effect instead.
+              </div>
             </div>
 
             <div className="mt-3.5 flex flex-col gap-2.5">
