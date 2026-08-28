@@ -4,17 +4,18 @@
 // DESIGN.md's Confirmation Modal / AgeGate / ComingSoonModal) rather than a centered dialog, for
 // visual consistency with every other modal in the product.
 //
-// Three ways in, all funneling through the same `show`/hasShown guard so only one ever actually
-// opens it: a fixed delay (fires deterministically regardless of whether/how a visitor scrolls —
-// touch swipes inside the gesture carousel, a short viewport, or reading before scrolling all
-// behave differently on scroll events but identically on a timer), a low scroll distance as an
-// earlier fallback for anyone who scrolls quickly, and an imperative `show()` exposed via ref that
-// the parent calls the moment someone taps "Gestures, made for them" — the highest-intent moment
-// for this promo, since that view is bundle templates only (the deal explicitly excludes one-time
-// gestures). Exposed via ref rather than a prop bump + effect so the parent's click handler can
-// call it directly, an event-driven trigger rather than a setState-in-effect cascade.
-// Dismiss is sessionStorage-scoped, not permanent: this is a revenue-driving promo, so it should
-// resurface every new visit rather than vanishing forever the first time anyone closes it.
+// Two tiers of trigger. Auto-triggers — a fixed delay (fires deterministically regardless of
+// whether/how a visitor scrolls: touch swipes inside the gesture carousel, a short viewport, or
+// reading before scrolling all behave differently on scroll events but identically on a timer)
+// and a low scroll distance as an earlier fallback — respect the session dismiss and only ever
+// fire once, so passive browsing doesn't nag a visitor who already closed it. The pill trigger —
+// an imperative `show()` exposed via ref that the parent calls the moment someone taps "Gestures,
+// made for them" — deliberately bypasses that dismiss: that view is bundle templates only, where
+// the 3-for-2 deal is exactly the relevant context, and a tap tied 1:1 to that specific filter
+// isn't an ambient interruption the way an auto-popup is, so it always surfaces there even if an
+// earlier auto-trigger was already dismissed this session. Exposed via ref rather than a prop
+// bump + effect so the click handler can call it directly, an event-driven trigger rather than a
+// setState-in-effect cascade.
 
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import Link from 'next/link'
@@ -29,22 +30,28 @@ export type PromoScrollPopupHandle = { show: () => void }
 
 export const PromoScrollPopup = forwardRef<PromoScrollPopupHandle>(function PromoScrollPopup(_props, ref) {
   const [open, setOpen] = useState(false)
-  const hasShown = useRef(false)
+  const autoShown = useRef(false)
 
-  const show = useCallback(() => {
-    if (hasShown.current) return
+  const autoShow = useCallback(() => {
+    if (autoShown.current) return
     if (typeof window === 'undefined') return
     if (window.sessionStorage.getItem(DISMISS_KEY) === 'true') return
-    hasShown.current = true
+    autoShown.current = true
+    setOpen(true)
+  }, [])
+
+  // Always opens, dismiss or no — see the file comment above for why the pill trigger is exempt.
+  const show = useCallback(() => {
+    autoShown.current = true
     setOpen(true)
   }, [])
 
   useImperativeHandle(ref, () => ({ show }), [show])
 
   useEffect(() => {
-    const timer = window.setTimeout(show, TRIGGER_DELAY_MS)
+    const timer = window.setTimeout(autoShow, TRIGGER_DELAY_MS)
     const handleScroll = () => {
-      if (window.scrollY > SCROLL_THRESHOLD_PX) show()
+      if (window.scrollY > SCROLL_THRESHOLD_PX) autoShow()
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
 
@@ -52,7 +59,7 @@ export const PromoScrollPopup = forwardRef<PromoScrollPopupHandle>(function Prom
       window.clearTimeout(timer)
       window.removeEventListener('scroll', handleScroll)
     }
-  }, [show])
+  }, [autoShow])
 
   const dismiss = () => {
     setOpen(false)
