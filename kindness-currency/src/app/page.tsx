@@ -8,6 +8,8 @@ import { SiteHeader } from '@/components/shared/SiteHeader'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { templateVisuals, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
+import { PromoBanner } from '@/components/shared/PromoBanner'
+import { bundleTierBySlug, tierPrice } from '@/lib/bundleTiers'
 
 export default async function HomePage() {
   const supabase = createServiceClient()
@@ -22,6 +24,7 @@ export default async function HomePage() {
   return (
     <div className="flex min-h-screen flex-col">
       {banner && <CampaignBanner message={banner.message} />}
+      <PromoBanner />
 
       <SiteHeader />
 
@@ -105,8 +108,15 @@ export default async function HomePage() {
                   )}
                 </div>
                 <div className="p-3.75">
-                  <div className="text-[16.5px] leading-tight font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
-                    {template.name}
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="text-[16.5px] leading-tight font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
+                      {template.name}
+                    </div>
+                    {bundleTierBySlug[template.slug] && (
+                      <span className="shrink-0 text-[12.5px] font-bold text-[#C2185B]">
+                        ${tierPrice[bundleTierBySlug[template.slug]].toFixed(2)}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1.25 text-[11.5px] leading-snug text-[#2C2C2C] opacity-70">{template.theme}</div>
                   <div className="mt-3 text-[11.5px] font-semibold" style={{ color: visuals.accent }}>

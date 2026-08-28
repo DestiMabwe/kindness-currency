@@ -5,6 +5,14 @@ import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useCouponSetBuilder, couponsFromTemplate, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
+import { SingleUseGestureSection, FilterPills, type FilterValue } from '@/components/builder/SingleUseGestureSection'
+import { BundleTierPills } from '@/components/builder/BundleTierPills'
+import { PromoScrollPopup } from '@/components/shared/PromoScrollPopup'
+import { CartIcon } from '@/components/shared/CartIcon'
+import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
+import { bundleTierBySlug, tierPrice, type BundleTier } from '@/lib/bundleTiers'
+import { useCartSlugs, usePurchasedSlugs, addToCart, removeFromCart, markPersonalized } from '@/lib/cart'
+import { GestureFlow } from '@/components/builder/GestureFlow'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
@@ -86,6 +94,9 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
       return
     }
     builder.completeSave({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
+    // Clears the "purchased, not yet personalized" flag once this template's coupons are
+    // actually saved/sent — otherwise it would show as pending forever on /create and Profile.
+    if (builder.state.selectedTemplateSlug) markPersonalized(builder.state.selectedTemplateSlug)
   }
 
   const handleSaveOrSend = () => {
@@ -376,25 +387,64 @@ function TemplateSelectScreen({
   onFeatureInterest: (feature: FeatureInterestSlug) => void
 }) {
   const [comingSoonModal, setComingSoonModal] = useState<ComingSoonTemplate | null>(null)
+  const [filter, setFilter] = useState<FilterValue>('all')
+  const [chosenGesture, setChosenGesture] = useState<SingleUseGesture | null>(null)
+  const [bundleTier, setBundleTier] = useState<BundleTier | null>(null)
+  const singleUseLayout = filter === 'range' ? 'hidden' : filter === 'focused' ? 'stack' : 'carousel'
+  const showBundleList = filter !== 'focused'
+  const bundleTemplates = bundleTier ? templates.filter((t) => bundleTierBySlug[t.slug] === bundleTier) : templates
+  const cartSlugs = useCartSlugs()
+  const purchasedSlugs = usePurchasedSlugs()
+
+  if (chosenGesture) {
+    return <GestureFlow gesture={chosenGesture} onExit={() => setChosenGesture(null)} />
+  }
 
   return (
     <div>
-      <div className="flex items-center gap-2.5 px-4.5 pt-11.5 pb-1.5">
-        <Link href="/" aria-label="Kindness Currency home">
-          <Image src="/logo.png" alt="" width={359} height={257} className="h-6 w-auto" />
-        </Link>
-        <div className="font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Step 1 of 3</div>
+      <PromoScrollPopup resetKey={filter} />
+      <div className="flex items-center justify-between gap-2.5 px-4.5 pt-11.5 pb-1.5">
+        <div className="flex items-center gap-2.5">
+          <Link href="/" aria-label="Kindness Currency home">
+            <Image src="/logo.png" alt="" width={359} height={257} className="h-6 w-auto" />
+          </Link>
+          <div className="font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Step 1 of 3</div>
+        </div>
+        <CartIcon />
       </div>
       <div className="px-5.5 pt-1.5">
         <h1 className="text-[28px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
           Pick a template
         </h1>
-        <div className="mt-1.5 text-[13px] text-[#2C2C2C] opacity-72">Each ships with eight thoughtful coupons, ready to personalise.</div>
       </div>
+
+      <div className="pt-4">
+        <FilterPills value={filter} onChange={setFilter} />
+        <SingleUseGestureSection gestures={singleUseGestures} layout={singleUseLayout} onChoose={setChosenGesture} />
+      </div>
+
+      {showBundleList && (
+        <div className="pt-5.5">
+          <div className="px-5.5">
+            <h2 className="text-[19px] font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
+              {ctaCopy.bundleSectionHeading}
+            </h2>
+            <div className="mt-1 text-[12.5px] text-[#2C2C2C] opacity-72">{ctaCopy.bundleSectionSubheading}</div>
+          </div>
+          <div className="mt-3">
+            <BundleTierPills value={bundleTier} onChange={setBundleTier} />
+          </div>
+        </div>
+      )}
+
+      {showBundleList && (
       <div className="flex flex-col gap-5 px-5.5 pt-4 pb-7.5">
-        {templates.map((template) => {
+        {bundleTemplates.map((template) => {
           const visuals = templateVisuals[template.slug as TemplateSlug]
           const isCurrent = template.id === currentTemplateId
+          const isPurchased = purchasedSlugs.includes(template.slug)
+          const isInCart = cartSlugs.includes(template.slug)
+          const showAddToCart = !!bundleTierBySlug[template.slug] && !isPurchased
           return (
             <div
               key={template.id}
@@ -429,20 +479,47 @@ function TemplateSelectScreen({
                   )}
                 </div>
               </button>
-              <button
-                type="button"
-                onClick={() => onPreviewSample(template)}
-                className="mx-4 mt-2.5 mb-3.5 text-xs font-semibold underline underline-offset-2"
-                style={{ color: visuals.accent }}
-              >
-                {ctaCopy.previewSampleCoupons}
-              </button>
+              <div className={`mx-4 mt-2.5 flex items-center justify-between gap-2 ${showAddToCart ? '' : 'mb-3.5'}`}>
+                <button
+                  type="button"
+                  onClick={() => onPreviewSample(template)}
+                  className="text-xs font-semibold underline underline-offset-2"
+                  style={{ color: visuals.accent }}
+                >
+                  {ctaCopy.previewSampleCoupons}
+                </button>
+                {bundleTierBySlug[template.slug] && (
+                  <span
+                    className="shrink-0 text-[13px] font-bold"
+                    style={{ color: isPurchased ? '#2E7D6B' : '#C2185B' }}
+                  >
+                    {isPurchased ? ctaCopy.purchasedLabel : `$${tierPrice[bundleTierBySlug[template.slug]].toFixed(2)}`}
+                  </span>
+                )}
+              </div>
+              {showAddToCart && (
+                <div className="mx-4 mt-2 mb-3.5">
+                  <button
+                    type="button"
+                    onClick={() => (isInCart ? removeFromCart(template.slug) : addToCart(template.slug))}
+                    className="w-full rounded-xl border-[1.5px] p-2 text-center font-sans text-[12.5px] font-bold"
+                    style={
+                      isInCart
+                        ? { borderColor: '#1A1A2E', color: '#1A1A2E', backgroundColor: '#F0ECE4' }
+                        : { borderColor: visuals.accent, color: visuals.accent, backgroundColor: 'transparent' }
+                    }
+                  >
+                    {isInCart ? ctaCopy.inCartLabel : ctaCopy.addToCartCta}
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
       </div>
+      )}
 
-      {comingSoonTemplates.length > 0 && (
+      {showBundleList && comingSoonTemplates.length > 0 && (
         <div className="mt-4 bg-[#0a1f44] py-5">
           <div className="px-5.5">
             <h2 className="text-[22px] font-bold text-[#eaeaf2]" style={{ fontFamily: 'var(--font-playfair)' }}>
@@ -581,7 +658,7 @@ function TemplateSwitchWarningModal({
   )
 }
 
-function DetailsFormScreen({
+export function DetailsFormScreen({
   templateName,
   senderName,
   recipientName,
@@ -711,7 +788,7 @@ function isCouponCustomized(coupon: BuilderCoupon, original: TemplateCoupon | un
   )
 }
 
-function ColorSwatchPicker({
+export function ColorSwatchPicker({
   value,
   accent,
   onChange,
@@ -758,7 +835,7 @@ function ColorSwatchPicker({
   )
 }
 
-function EffectPillPicker({
+export function EffectPillPicker({
   value,
   accent,
   onChange,
@@ -924,7 +1001,7 @@ function EditScreen({
   )
 }
 
-function EditMessageModal({
+export function EditMessageModal({
   senderMessage,
   onSave,
   onClose,

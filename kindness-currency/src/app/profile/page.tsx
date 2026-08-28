@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createCouponSetRepository } from '@/lib/couponSetRepository'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
+import { ProfileCartSection } from '@/components/shared/ProfileCartSection'
 import { ctaCopy } from '@/constants/ctaCopy'
 
 export default async function ProfilePage() {
@@ -47,6 +48,7 @@ export default async function ProfilePage() {
           {ctaCopy.profileHeading}
         </h1>
         <div className="mt-5">
+          <ProfileCartSection />
           <ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />
         </div>
       </div>
