@@ -1,47 +1,55 @@
 'use client'
 
-// Scroll-triggered 3-for-2 popup, lives on /create. Reuses the app's established bottom-sheet
-// modal pattern (see DESIGN.md's Confirmation Modal / AgeGate / ComingSoonModal) rather than a
-// centered dialog, for visual consistency with every other modal in the product.
+// 3-for-2 popup on /create. Reuses the app's established bottom-sheet modal pattern (see
+// DESIGN.md's Confirmation Modal / AgeGate / ComingSoonModal) rather than a centered dialog, for
+// visual consistency with every other modal in the product.
+//
+// Triggers on a fixed delay, with a low scroll distance as a second, earlier trigger — whichever
+// happens first. A delay fires deterministically regardless of whether/how a visitor scrolls
+// (touch swipes inside the gesture carousel, a short viewport, or a visitor who reads before
+// scrolling all behave differently on scroll events but identically on a timer), and the scroll
+// fallback still shows it sooner for anyone who scrolls quickly. Dismiss is sessionStorage-scoped,
+// not permanent: this is a revenue-driving promo, so it should resurface every new visit rather
+// than vanishing forever the first time anyone closes it on a given device.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 
 const DISMISS_KEY = 'kindness-currency:promo-popup-dismissed'
-// A fixed pixel amount, not a fraction of total page height: /create's total scrollable height
-// changes every time the filter pills swap in a different section (the combined "All coupons"
-// view is much taller than either filtered view alone), so a percentage threshold either never
-// fires on a tall view or fires immediately just from switching to a shorter one. A small fixed
-// distance behaves the same regardless of which view is showing.
-const SCROLL_THRESHOLD_PX = 400
+const TRIGGER_DELAY_MS = 3500
+const SCROLL_THRESHOLD_PX = 200
 
-export function PromoScrollPopup({ resetKey }: { resetKey?: string }) {
+export function PromoScrollPopup() {
   const [open, setOpen] = useState(false)
-  // Tracks which resetKey (filter view) the popup has already shown for, so switching pills gives
-  // each view its own honest chance to trigger instead of "shown once, ever, for the whole page".
-  const shownForKey = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (window.localStorage.getItem(DISMISS_KEY) === 'true') return
-    if (shownForKey.current === resetKey) return
+    if (window.sessionStorage.getItem(DISMISS_KEY) === 'true') return
 
+    let shown = false
+    const show = () => {
+      if (shown) return
+      shown = true
+      setOpen(true)
+    }
+
+    const timer = window.setTimeout(show, TRIGGER_DELAY_MS)
     const handleScroll = () => {
-      if (shownForKey.current === resetKey) return
-      if (window.scrollY > SCROLL_THRESHOLD_PX) {
-        shownForKey.current = resetKey
-        setOpen(true)
-      }
+      if (window.scrollY > SCROLL_THRESHOLD_PX) show()
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [resetKey])
+
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
 
   const dismiss = () => {
     setOpen(false)
-    window.localStorage.setItem(DISMISS_KEY, 'true')
+    window.sessionStorage.setItem(DISMISS_KEY, 'true')
   }
 
   const dialogRef = useDialogA11y<HTMLDivElement>(open, dismiss)

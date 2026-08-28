@@ -5,6 +5,10 @@
 // component has no dismiss state today and is wired to campaignBannerRepository for live
 // campaign content — bolting static dismiss logic onto it would touch real behavior other
 // campaigns depend on.
+//
+// Dismiss is sessionStorage-scoped, not permanent: this is a revenue-driving promo, so it should
+// resurface every new visit rather than vanishing forever the first time anyone closes it (which
+// is what localStorage would do, and did — a single dismiss on a device silenced it there for good).
 
 import { useEffect, useState } from 'react'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -16,8 +20,8 @@ export function PromoBanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount sync from localStorage, not a render-time update
-    setDismissed(window.localStorage.getItem(DISMISS_KEY) === 'true')
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount sync from sessionStorage, not a render-time update
+    setDismissed(window.sessionStorage.getItem(DISMISS_KEY) === 'true')
   }, [])
 
   if (dismissed) return null
@@ -29,7 +33,7 @@ export function PromoBanner() {
         type="button"
         aria-label={ctaCopy.promoBannerDismiss}
         onClick={() => {
-          window.localStorage.setItem(DISMISS_KEY, 'true')
+          window.sessionStorage.setItem(DISMISS_KEY, 'true')
           setDismissed(true)
         }}
         className="shrink-0 p-1 text-sm opacity-80"

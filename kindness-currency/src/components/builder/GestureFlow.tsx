@@ -187,7 +187,7 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
                 className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#F0ECE4] p-2 text-[11.5px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
               />
               <div id="gesture-text-locked-hint" className="text-[10.5px] font-semibold text-[#2C2C2C] opacity-50">
-                Locked. This coupon's text can't be edited — personalize with a message, colour, and effect instead.
+                Locked. This coupon&apos;s text can&apos;t be edited — personalize with a message, colour, and effect instead.
               </div>
             </div>
 
