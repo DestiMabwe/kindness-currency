@@ -61,6 +61,23 @@ body {
   animation-delay: var(--kc-rise-delay, 0s);
 }
 
+/* One-shot emphasis for a short phrase inside a sentence, e.g. the "3 or more" in the /pricing
+   bundle-discount note — settles into place rather than looping, so it draws the eye once without
+   nagging like a repeating animation would. */
+@keyframes kc-pop {
+  0% { transform: scale(0.82); opacity: 0; }
+  65% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kc-pop {
+    display: inline-block;
+    animation: kc-pop 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--kc-pop-delay, 0.15s);
+  }
+}
+
 /* Infinite horizontal scroll for the hero's coupon showcase strip. */
 @keyframes kc-marquee {
   from { transform: translateX(0); }

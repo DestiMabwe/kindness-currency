@@ -45,7 +45,9 @@ export default async function PricingPage() {
         <div className="mt-1.5 text-[13.5px] text-[#2C2C2C] opacity-72">{ctaCopy.pricingPageSubheading}</div>
 
         <div className="mt-4 rounded-2xl bg-[#C2185B]/8 px-4 py-3.5 text-[12.5px] leading-relaxed text-[#1A1A2E]">
-          {ctaCopy.pricingBundleNote}
+          {ctaCopy.pricingBundleNotePrefix}
+          <span className="kc-pop font-extrabold text-[#C2185B]">{ctaCopy.pricingBundleNoteHighlight}</span>
+          {ctaCopy.pricingBundleNoteSuffix}
         </div>
 
         <div className="mt-7 flex flex-col gap-7">
