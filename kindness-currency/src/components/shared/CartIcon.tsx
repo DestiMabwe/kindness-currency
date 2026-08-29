@@ -3,15 +3,20 @@
 // Shared cart icon + count badge, used both in /create's own header (which doesn't render
 // SiteHeader at all) and inside SiteHeader itself, so the cart stays visible wherever a sender
 // might be, not just on /create. Self-contained: reads the cart via useCartSlugs() rather than
-// requiring every caller to pass the count down, and renders nothing once the cart is empty.
+// requiring every caller to pass the count down.
+//
+// SiteHeader (home/profile/pricing) sits next to the hamburger menu, so it renders nothing once
+// the cart is empty to avoid clutter next to that menu. /create's own header has no menu at all —
+// the cart icon occupies that top-right slot by itself — so it passes `alwaysVisible` to always
+// render there, badge or not, rather than leaving that corner blank.
 
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useCartSlugs } from '@/lib/cart'
 
-export function CartIcon() {
+export function CartIcon({ alwaysVisible = false }: { alwaysVisible?: boolean }) {
   const cartSlugs = useCartSlugs()
-  if (cartSlugs.length === 0) return null
+  if (!alwaysVisible && cartSlugs.length === 0) return null
 
   return (
     <Link
@@ -23,9 +28,11 @@ export function CartIcon() {
         <path d="M6 8h12l-1 12H7L6 8z" />
         <path d="M9 8V6a3 3 0 0 1 6 0v2" />
       </svg>
-      <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C2185B] px-1 text-[9.5px] font-bold text-white">
-        {cartSlugs.length}
-      </span>
+      {cartSlugs.length > 0 && (
+        <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C2185B] px-1 text-[9.5px] font-bold text-white">
+          {cartSlugs.length}
+        </span>
+      )}
     </Link>
   )
 }

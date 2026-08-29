@@ -418,7 +418,7 @@ function TemplateSelectScreen({
           </Link>
           <div className="font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Step 1 of 3</div>
         </div>
-        <CartIcon />
+        <CartIcon alwaysVisible />
       </div>
       <div className="px-5.5 pt-1.5">
         <h1 className="text-[28px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
