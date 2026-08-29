@@ -34,7 +34,7 @@ export const CouponMutationSchema = z.object({
   background_effect: BackgroundEffectSchema,
 })
 
-// Recipient's chosen reminder cadence — capture only, no scheduled sending yet
+// Recipient's chosen reminder cadence — sent by the /api/cron/send-reminders job via reminderEngine/reminderRepository
 export const ReminderFrequencySchema = z.enum(['biweekly', 'monthly', 'quarterly'])
 
 // Redemption input — RedemptionEngine parses every payload through this before touching the database

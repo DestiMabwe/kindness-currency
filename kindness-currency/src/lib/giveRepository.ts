@@ -97,8 +97,8 @@ export function createGiveRepository(supabase: SupabaseClient) {
 
     /**
      * Stores the recipient's chosen reminder cadence, or clears it (null) if
-     * they turn reminders off. Capture only — nothing reads this to actually
-     * send a reminder yet; that needs real scheduling/email infra first.
+     * they turn reminders off. Read by reminderRepository.findDueReminders
+     * on each /api/cron/send-reminders run.
      */
     async setReminderFrequency(id: string, frequency: ReminderFrequency | null): Promise<{ success: true } | { success: false }> {
       const { error } = await supabase.from('coupon_sets').update({ reminder_frequency: frequency }).eq('id', id)
