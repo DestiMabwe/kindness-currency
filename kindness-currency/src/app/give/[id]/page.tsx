@@ -39,6 +39,10 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
       accent={visuals.accent}
       hasVisitedBefore={hasVisitedBefore}
       reminderFrequency={giveData.reminder_frequency}
+      isLoggedIn={!!user}
+      alreadyLinked={giveData.recipient_user_id === user?.id}
+      linkRecipientAction={linkRecipientAction}
+      redirectTo={`/give/${giveData.id}`}
     >
       <div className="flex min-h-screen flex-col pb-10">
         <SiteHeader />

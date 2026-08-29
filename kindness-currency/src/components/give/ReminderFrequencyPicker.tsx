@@ -1,14 +1,26 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { setReminderFrequencyAction } from '@/app/give/[id]/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import type { ReminderFrequency } from '@/schemas/couponSchema'
 
+const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
+
+/** setId-scoped so GiftFloatingActions can auto-complete this choice once the recipient returns from the auth redirect. */
+export const pendingReminderKey = (setId: string) => `kindness-currency:pending-reminder:${setId}`
+
 export type ReminderFrequencyPickerProps = {
   setId: string
   currentFrequency: ReminderFrequency | null
+  isLoggedIn: boolean
+  alreadyLinked: boolean
+  /** Claims setId for the current account — linkRecipientAction. */
+  linkAction: (setId: string) => Promise<{ success: boolean }>
+  /** Where the auth redirect should land the viewer back, to resume the pending choice. */
+  redirectTo: string
   /** Called with the new value on a choice, or no argument if dismissed without changing anything. */
   onClose: (newFrequency?: ReminderFrequency | null) => void
 }
@@ -20,12 +32,31 @@ const OPTIONS: { value: ReminderFrequency | null; label: string }[] = [
   { value: null, label: ctaCopy.giftReminderOff },
 ]
 
-export function ReminderFrequencyPicker({ setId, currentFrequency, onClose }: ReminderFrequencyPickerProps) {
+export function ReminderFrequencyPicker({
+  setId,
+  currentFrequency,
+  isLoggedIn,
+  alreadyLinked,
+  linkAction,
+  redirectTo,
+  onClose,
+}: ReminderFrequencyPickerProps) {
   const [saving, setSaving] = useState<ReminderFrequency | null | 'idle'>('idle')
+  const [authOpen, setAuthOpen] = useState(false)
   const dialogRef = useDialogA11y<HTMLDivElement>(true, () => onClose())
 
   const choose = async (value: ReminderFrequency | null) => {
+    // Turning reminders off never needs an account — only an active cadence does, since that's the only case we'd ever need to email them.
+    if (value !== null && !isLoggedIn) {
+      window.localStorage.setItem(pendingReminderKey(setId), value)
+      setAuthOpen(true)
+      return
+    }
+
     setSaving(value)
+    if (value !== null && !alreadyLinked) {
+      await linkAction(setId)
+    }
     await setReminderFrequencyAction(setId, value)
     onClose(value)
   }
@@ -68,6 +99,8 @@ export function ReminderFrequencyPicker({ setId, currentFrequency, onClose }: Re
           Not now
         </button>
       </div>
+
+      {authOpen && <AuthGate redirectTo={redirectTo} onClose={() => setAuthOpen(false)} />}
     </div>
   )
 }

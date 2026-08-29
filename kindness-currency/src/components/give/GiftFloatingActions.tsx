@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MessageReplayModal } from './MessageReplayModal'
-import { ReminderFrequencyPicker } from './ReminderFrequencyPicker'
+import { ReminderFrequencyPicker, pendingReminderKey } from './ReminderFrequencyPicker'
+import { setReminderFrequencyAction } from '@/app/give/[id]/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
 import type { ReminderFrequency } from '@/schemas/couponSchema'
 
@@ -11,6 +12,10 @@ export type GiftFloatingActionsProps = {
   senderName: string
   senderMessage: string | null
   initialReminderFrequency: ReminderFrequency | null
+  isLoggedIn: boolean
+  alreadyLinked: boolean
+  linkRecipientAction: (setId: string) => Promise<{ success: boolean }>
+  redirectTo: string
 }
 
 /**
@@ -18,10 +23,33 @@ export type GiftFloatingActionsProps = {
  * there's a message to re-read) above a reminder bell (always available, so
  * a recipient who dismissed the picker can still change their mind later).
  */
-export function GiftFloatingActions({ setId, senderName, senderMessage, initialReminderFrequency }: GiftFloatingActionsProps) {
+export function GiftFloatingActions({
+  setId,
+  senderName,
+  senderMessage,
+  initialReminderFrequency,
+  isLoggedIn,
+  alreadyLinked,
+  linkRecipientAction,
+  redirectTo,
+}: GiftFloatingActionsProps) {
   const [showMessage, setShowMessage] = useState(false)
   const [showReminder, setShowReminder] = useState(false)
   const [reminderFrequency, setReminderFrequency] = useState(initialReminderFrequency)
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    const pending = window.localStorage.getItem(pendingReminderKey(setId))
+    if (!pending) return
+    window.localStorage.removeItem(pendingReminderKey(setId))
+    const frequency = pending as ReminderFrequency
+    void (async () => {
+      if (!alreadyLinked) await linkRecipientAction(setId)
+      await setReminderFrequencyAction(setId, frequency)
+      setReminderFrequency(frequency)
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to finish a reminder choice made before the auth redirect
+  }, [])
 
   return (
     <>
@@ -54,6 +82,10 @@ export function GiftFloatingActions({ setId, senderName, senderMessage, initialR
         <ReminderFrequencyPicker
           setId={setId}
           currentFrequency={reminderFrequency}
+          isLoggedIn={isLoggedIn}
+          alreadyLinked={alreadyLinked}
+          linkAction={linkRecipientAction}
+          redirectTo={redirectTo}
           onClose={(newFrequency) => {
             if (newFrequency !== undefined) setReminderFrequency(newFrequency)
             setShowReminder(false)

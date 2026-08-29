@@ -8,6 +8,10 @@ const baseProps = {
   senderName: 'Alex',
   accent: '#C2185B',
   reminderFrequency: null,
+  isLoggedIn: true,
+  alreadyLinked: true,
+  linkRecipientAction: async () => ({ success: true }),
+  redirectTo: '/give/set-1',
 }
 
 describe('GiftUnwrapGate', () => {

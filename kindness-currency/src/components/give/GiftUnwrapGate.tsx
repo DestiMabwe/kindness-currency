@@ -13,6 +13,10 @@ export type GiftUnwrapGateProps = {
   /** True once this recipient has loaded the link before — the whole intro is first-visit only. */
   hasVisitedBefore: boolean
   reminderFrequency: ReminderFrequency | null
+  isLoggedIn: boolean
+  alreadyLinked: boolean
+  linkRecipientAction: (setId: string) => Promise<{ success: boolean }>
+  redirectTo: string
   children: ReactNode
 }
 
@@ -33,6 +37,10 @@ export function GiftUnwrapGate({
   accent,
   hasVisitedBefore,
   reminderFrequency,
+  isLoggedIn,
+  alreadyLinked,
+  linkRecipientAction,
+  redirectTo,
   children,
 }: GiftUnwrapGateProps) {
   const [step, setStep] = useState<Step>(() => {
@@ -63,6 +71,10 @@ export function GiftUnwrapGate({
         senderName={senderName}
         senderMessage={senderMessage}
         initialReminderFrequency={reminderFrequency}
+        isLoggedIn={isLoggedIn}
+        alreadyLinked={alreadyLinked}
+        linkRecipientAction={linkRecipientAction}
+        redirectTo={redirectTo}
       />
     </div>
   )
