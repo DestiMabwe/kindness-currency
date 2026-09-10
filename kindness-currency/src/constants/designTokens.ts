@@ -24,7 +24,7 @@ export type TemplateSlug = 'mothers_day' | 'valentines' | 'birthday' | 'lovers' 
 
 export const templateVisuals: Record<
   TemplateSlug,
-  { accent: string; tint: string; motif: string; imageSrc: string; coverImageSrc: string }
+  { accent: string; tint: string; motif: string; imageSrc: string; coverImageSrc: string; previewMessage: string }
 > = {
   mothers_day: {
     accent: 'rgb(131, 131, 228)',
@@ -32,6 +32,7 @@ export const templateVisuals: Record<
     motif: '❀',
     imageSrc: '/images/mothers_day.png',
     coverImageSrc: '/images/covers/mothers_day.png',
+    previewMessage: 'For everything you do without ever being asked — a few ways I want to take care of you now.',
   },
   valentines: {
     accent: '#C2185B',
@@ -39,6 +40,7 @@ export const templateVisuals: Record<
     motif: '❦',
     imageSrc: '/images/valentines.png',
     coverImageSrc: '/images/covers/valentines.png',
+    previewMessage: "A few ways I want to make you feel loved this Valentine's Day.",
   },
   birthday: {
     accent: '#FF8F00',
@@ -46,6 +48,7 @@ export const templateVisuals: Record<
     motif: '✺',
     imageSrc: '/images/birthday.png',
     coverImageSrc: '/images/covers/birthday.png',
+    previewMessage: 'As we celebrate another birthday together, here is a gift from me to you.',
   },
   lovers: {
     accent: '#7B3F61',
@@ -53,6 +56,7 @@ export const templateVisuals: Record<
     motif: '☾',
     imageSrc: '/images/lovers.png',
     coverImageSrc: '/images/covers/lovers.png',
+    previewMessage: "Slow down with me. A few promises just for us, whenever you're ready.",
   },
   besties: {
     accent: '#2E7D6B',
@@ -60,5 +64,6 @@ export const templateVisuals: Record<
     motif: '✦',
     imageSrc: '/images/besties.png',
     coverImageSrc: '/images/covers/besties.png',
+    previewMessage: "For my ride-or-die — a few ways I've got your back, any time.",
   },
 }

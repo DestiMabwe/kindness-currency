@@ -4,18 +4,20 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { useCouponSetBuilder, couponsFromTemplate, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
+import { useCouponSetBuilder, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
 import { SingleUseGestureSection, FilterPills, type FilterValue } from '@/components/builder/SingleUseGestureSection'
+import { QuantityStepper } from '@/components/builder/QuantityStepper'
 import { BundleTierPills } from '@/components/builder/BundleTierPills'
 import { PromoScrollPopup, type PromoScrollPopupHandle } from '@/components/shared/PromoScrollPopup'
 import { CartIcon } from '@/components/shared/CartIcon'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
 import { bundleTierBySlug, tierPrice, type BundleTier } from '@/lib/bundleTiers'
-import { useCartSlugs, usePurchasedSlugs, addToCart, removeFromCart, markPersonalized } from '@/lib/cart'
+import { usePendingInstances, addToCart, consumePendingInstance } from '@/lib/cart'
 import { GestureFlow } from '@/components/builder/GestureFlow'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
+import { HowYouCreateOverlay } from '@/components/coupon/HowYouCreateOverlay'
 import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
 import { SaveToAccountBanner, pendingLinkKey } from '@/components/shared/SaveToAccountBanner'
 import { EarlyAccessSignupForm } from '@/components/templates/EarlyAccessSignupForm'
@@ -96,7 +98,7 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
     builder.completeSave({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
     // Clears the "purchased, not yet personalized" flag once this template's coupons are
     // actually saved/sent — otherwise it would show as pending forever on /create and Profile.
-    if (builder.state.selectedTemplateSlug) markPersonalized(builder.state.selectedTemplateSlug)
+    if (builder.state.selectedTemplateSlug) consumePendingInstance(builder.state.selectedTemplateSlug)
   }
 
   const handleSaveOrSend = () => {
@@ -336,21 +338,7 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
 
       {authOpen && <AuthGate redirectTo="/create" onClose={() => setAuthOpen(false)} />}
 
-      {sampleTemplate && (
-        <PreviewOverlay
-          coupons={couponsFromTemplate(sampleTemplate)}
-          accent={templateVisuals[sampleTemplate.slug as TemplateSlug].accent}
-          motif={templateVisuals[sampleTemplate.slug as TemplateSlug].motif}
-          imageSrc={templateVisuals[sampleTemplate.slug as TemplateSlug].imageSrc}
-          expiresAt={null}
-          maxVisible={3}
-          onViewAll={() => {
-            setSampleTemplate(null)
-            handleSelectTemplate(sampleTemplate)
-          }}
-          onClose={() => setSampleTemplate(null)}
-        />
-      )}
+      {sampleTemplate && <HowYouCreateOverlay template={sampleTemplate} onClose={() => setSampleTemplate(null)} />}
 
       {pendingAgeGate && (
         <AgeGate templateName={pendingAgeGate.template.name} onConfirm={confirmAgeGate} onDismiss={() => setPendingAgeGate(null)} />
@@ -366,6 +354,102 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
 
       {featureInterestModal && (
         <FeatureInterestModal feature={featureInterestModal} userEmail={userEmail} onClose={() => setFeatureInterestModal(null)} />
+      )}
+    </div>
+  )
+}
+
+function BundleTemplateCard({
+  template,
+  isCurrent,
+  pendingCount,
+  onSelect,
+  onPreviewSample,
+}: {
+  template: TemplateWithCoupons
+  isCurrent: boolean
+  pendingCount: number
+  onSelect: (template: TemplateWithCoupons) => void
+  onPreviewSample: (template: TemplateWithCoupons) => void
+}) {
+  const [qty, setQty] = useState(1)
+  const visuals = templateVisuals[template.slug as TemplateSlug]
+  const tier = bundleTierBySlug[template.slug]
+  const unitPrice = tier ? tierPrice[tier] : null
+
+  const handleAddToCart = () => {
+    addToCart(template.slug, qty)
+    setQty(1)
+  }
+
+  return (
+    <div
+      className="overflow-hidden rounded-2xl bg-white shadow-[0_14px_30px_-24px_rgba(26,26,46,0.5)]"
+      style={{ border: isCurrent ? `1.5px solid ${visuals.accent}` : '1px solid rgba(26,26,46,0.08)' }}
+    >
+      <button type="button" onClick={() => onSelect(template)} className="block w-full text-left">
+        <div className="relative aspect-[1748/1240] w-full">
+          <Image src={visuals.coverImageSrc} alt={template.name} fill sizes="100vw" className="object-cover" />
+        </div>
+        <div className="px-4 pt-3.5">
+          <div className="flex items-center gap-2">
+            <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
+              {template.name}
+            </div>
+            {isCurrent && (
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.08em] text-white"
+                style={{ backgroundColor: visuals.accent }}
+              >
+                {ctaCopy.currentSetBadge}
+              </span>
+            )}
+            {template.is_age_restricted && (
+              <span className="rounded-full border border-[#C2185B] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.08em] text-[#C2185B]">
+                18+
+              </span>
+            )}
+          </div>
+          {template.emotional_tone && (
+            <div className="mt-1 text-xs leading-snug text-[#2C2C2C] opacity-70">{template.emotional_tone}</div>
+          )}
+        </div>
+      </button>
+      <div className="mx-4 mt-2.5">
+        <button
+          type="button"
+          onClick={() => onPreviewSample(template)}
+          className="text-xs font-semibold underline underline-offset-2"
+          style={{ color: visuals.accent }}
+        >
+          {ctaCopy.previewSampleCoupons}
+        </button>
+      </div>
+      {pendingCount > 0 && (
+        <div className="mx-4 mt-2">
+          <span className="inline-block rounded-full bg-[#2E7D6B]/12 px-2.5 py-1 text-[11px] font-bold text-[#2E7D6B]">
+            {ctaCopy.pendingToPersonalizeBadge(pendingCount)}
+          </span>
+        </div>
+      )}
+      {tier && unitPrice !== null && (
+        <div className="mx-4 mt-2.5 mb-3.5 flex items-center gap-2">
+          <QuantityStepper
+            value={qty}
+            onDecrease={() => setQty((q) => Math.max(1, q - 1))}
+            onIncrease={() => setQty((q) => q + 1)}
+            decreaseLabel={ctaCopy.qtyDecreaseLabel(template.name)}
+            increaseLabel={ctaCopy.qtyIncreaseLabel(template.name)}
+          />
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className="flex-1 rounded-xl p-2.5 text-center font-sans text-[12.5px] font-bold text-white"
+            style={{ backgroundColor: visuals.accent }}
+          >
+            {ctaCopy.designMyGiftCta((unitPrice * qty).toFixed(2))}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -393,8 +477,7 @@ function TemplateSelectScreen({
   const singleUseLayout = filter === 'range' ? 'hidden' : filter === 'focused' ? 'stack' : 'carousel'
   const showBundleList = filter !== 'focused'
   const bundleTemplates = bundleTier ? templates.filter((t) => bundleTierBySlug[t.slug] === bundleTier) : templates
-  const cartSlugs = useCartSlugs()
-  const purchasedSlugs = usePurchasedSlugs()
+  const pendingInstances = usePendingInstances()
   const promoPopupRef = useRef<PromoScrollPopupHandle>(null)
 
   const handleFilterChange = (value: FilterValue) => {
@@ -447,83 +530,16 @@ function TemplateSelectScreen({
 
       {showBundleList && (
       <div className="flex flex-col gap-5 px-5.5 pt-4 pb-7.5">
-        {bundleTemplates.map((template) => {
-          const visuals = templateVisuals[template.slug as TemplateSlug]
-          const isCurrent = template.id === currentTemplateId
-          const isPurchased = purchasedSlugs.includes(template.slug)
-          const isInCart = cartSlugs.includes(template.slug)
-          const showAddToCart = !!bundleTierBySlug[template.slug] && !isPurchased
-          return (
-            <div
-              key={template.id}
-              className="overflow-hidden rounded-2xl bg-white shadow-[0_14px_30px_-24px_rgba(26,26,46,0.5)]"
-              style={{ border: isCurrent ? `1.5px solid ${visuals.accent}` : '1px solid rgba(26,26,46,0.08)' }}
-            >
-              <button type="button" onClick={() => onSelect(template)} className="block w-full text-left">
-                <div className="relative aspect-[1748/1240] w-full">
-                  <Image src={visuals.coverImageSrc} alt={template.name} fill sizes="100vw" className="object-cover" />
-                </div>
-                <div className="px-4 pt-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className="text-lg font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
-                      {template.name}
-                    </div>
-                    {isCurrent && (
-                      <span
-                        className="rounded-full px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.08em] text-white"
-                        style={{ backgroundColor: visuals.accent }}
-                      >
-                        {ctaCopy.currentSetBadge}
-                      </span>
-                    )}
-                    {template.is_age_restricted && (
-                      <span className="rounded-full border border-[#C2185B] px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.08em] text-[#C2185B]">
-                        18+
-                      </span>
-                    )}
-                  </div>
-                  {template.emotional_tone && (
-                    <div className="mt-1 text-xs leading-snug text-[#2C2C2C] opacity-70">{template.emotional_tone}</div>
-                  )}
-                </div>
-              </button>
-              <div className={`mx-4 mt-2.5 flex items-center justify-between gap-2 ${showAddToCart ? '' : 'mb-3.5'}`}>
-                <button
-                  type="button"
-                  onClick={() => onPreviewSample(template)}
-                  className="text-xs font-semibold underline underline-offset-2"
-                  style={{ color: visuals.accent }}
-                >
-                  {ctaCopy.previewSampleCoupons}
-                </button>
-                {bundleTierBySlug[template.slug] && (
-                  <span
-                    className="shrink-0 text-[13px] font-bold"
-                    style={{ color: isPurchased ? '#2E7D6B' : '#C2185B' }}
-                  >
-                    {isPurchased ? ctaCopy.purchasedLabel : `$${tierPrice[bundleTierBySlug[template.slug]].toFixed(2)}`}
-                  </span>
-                )}
-              </div>
-              {showAddToCart && (
-                <div className="mx-4 mt-2 mb-3.5">
-                  <button
-                    type="button"
-                    onClick={() => (isInCart ? removeFromCart(template.slug) : addToCart(template.slug))}
-                    className="w-full rounded-xl border-[1.5px] p-2 text-center font-sans text-[12.5px] font-bold"
-                    style={
-                      isInCart
-                        ? { borderColor: '#1A1A2E', color: '#1A1A2E', backgroundColor: '#F0ECE4' }
-                        : { borderColor: visuals.accent, color: visuals.accent, backgroundColor: 'transparent' }
-                    }
-                  >
-                    {isInCart ? ctaCopy.inCartLabel : ctaCopy.addToCartCta}
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        })}
+        {bundleTemplates.map((template) => (
+          <BundleTemplateCard
+            key={template.id}
+            template={template}
+            isCurrent={template.id === currentTemplateId}
+            pendingCount={pendingInstances.filter((i) => i.slug === template.slug).length}
+            onSelect={onSelect}
+            onPreviewSample={onPreviewSample}
+          />
+        ))}
       </div>
       )}
 

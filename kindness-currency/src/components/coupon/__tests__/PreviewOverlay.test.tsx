@@ -102,26 +102,4 @@ describe('PreviewOverlay', () => {
       expect(onClose).toHaveBeenCalledOnce()
     })
   })
-
-  describe('capped sample preview (existing behavior, unaffected)', () => {
-    it('caps visible coupons and offers a "view all" CTA', () => {
-      const onViewAll = vi.fn()
-      render(
-        <PreviewOverlay
-          coupons={[coupon({ id: 'c1', serviceTitle: 'Coupon 1' }), coupon({ id: 'c2', serviceTitle: 'Coupon 2' })]}
-          accent="#C2185B"
-          motif="♥"
-          imageSrc={null}
-          expiresAt={null}
-          maxVisible={1}
-          onViewAll={onViewAll}
-          onClose={vi.fn()}
-        />
-      )
-
-      expect(screen.getByText('Coupon 1')).toBeInTheDocument()
-      expect(screen.queryByText('Coupon 2')).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Click to View All Coupons' })).toBeInTheDocument()
-    })
-  })
 })

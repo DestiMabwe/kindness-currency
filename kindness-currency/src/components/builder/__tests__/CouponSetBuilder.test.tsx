@@ -116,11 +116,23 @@ describe('CouponSetBuilder', () => {
     })
   })
 
-  describe('sample preview', () => {
-    it('shows only the first 3 default coupons when the template has more than 3', async () => {
+  describe('"How You Create Your Perfect Gift" walkthrough', () => {
+    it('opens on the Personalize step, showing the template\'s own first default coupon', async () => {
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+
+      expect(screen.getByText(ctaCopy.howYouCreateStepPersonalize)).toBeInTheDocument()
+      expect(screen.getByText('One Home-Cooked Meal')).toBeInTheDocument()
+      expect(screen.getByText(ctaCopy.howYouCreatePersonalizeBody)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: ctaCopy.howYouCreateBack })).not.toBeInTheDocument()
+    })
+
+    it('advances to the Preview step, showing only the first 3 default coupons when the template has more than 3', async () => {
       render(<CouponSetBuilder templates={[templateWithFourCoupons]} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext }))
 
       expect(screen.getByText('Coupon 1')).toBeInTheDocument()
       expect(screen.getByText('Coupon 2')).toBeInTheDocument()
@@ -128,83 +140,128 @@ describe('CouponSetBuilder', () => {
       expect(screen.queryByText('Coupon 4')).not.toBeInTheDocument()
     })
 
-    it('shows a "click to view all coupons" CTA once capped', async () => {
-      render(<CouponSetBuilder templates={[templateWithFourCoupons]} />)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
-
-      expect(screen.getByRole('button', { name: ctaCopy.previewViewAllCoupons })).toBeInTheDocument()
-    })
-
-    it('closes the preview and selects the template when the CTA is clicked, for a non-restricted template', async () => {
-      render(<CouponSetBuilder templates={[templateWithFourCoupons]} />)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewViewAllCoupons }))
-
-      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
-      expect(screen.getByText("Who's it for?")).toBeInTheDocument()
-    })
-
-    it('shows the age gate, not the details screen, when the CTA is clicked for a restricted template', async () => {
-      render(<CouponSetBuilder templates={[template({ ...restrictedTemplate, template_coupons: manyCoupons(4) })]} />)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
-      await userEvent.click(screen.getByRole('button', { name: "I'm 18+, Continue →" }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewViewAllCoupons }))
-
-      expect(screen.getByText('A grown-up gift')).toBeInTheDocument()
-      expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
-      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
-    })
-
-    it('shows the template\'s own default coupons when "See a Coupon Sample" is clicked', async () => {
+    it('goes back to Personalize from Preview', async () => {
       render(<CouponSetBuilder templates={[template()]} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateBack }))
 
-      expect(screen.getByText('Preview')).toBeInTheDocument()
-      expect(screen.getByText('One Home-Cooked Meal')).toBeInTheDocument()
+      expect(screen.getByText(ctaCopy.howYouCreatePersonalizeBody)).toBeInTheDocument()
     })
 
-    it('closes via the existing close button', async () => {
+    it('advances from Preview into the Send step, previewing the recipient message and redemption instructions — never the real builder', async () => {
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> preview
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> send (message)
+
+      expect(screen.getByText('A gift from Your Name')).toBeInTheDocument()
+      expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftMessageContinue }))
+
+      expect(screen.getByText(ctaCopy.giftInstructionsHeading)).toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateDone }))
+
+      expect(screen.queryByText(ctaCopy.giftInstructionsHeading)).not.toBeInTheDocument()
+      expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
+    })
+
+    it('shows the age gate, not the walkthrough, until confirmed for a restricted template', async () => {
+      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
+
+      expect(screen.getByText('A grown-up gift')).toBeInTheDocument()
+      expect(screen.queryByText(ctaCopy.howYouCreateStepPersonalize)).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: "I'm 18+, Continue →" }))
+
+      expect(screen.getByText(ctaCopy.howYouCreateStepPersonalize)).toBeInTheDocument()
+      expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
+    })
+
+    it('closes via the close button without selecting the template', async () => {
       render(<CouponSetBuilder templates={[template()]} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
 
-      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
-    })
-
-    it('shows the age gate instead of the preview for a restricted template', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
-
-      expect(screen.getByText('A grown-up gift')).toBeInTheDocument()
-      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
-    })
-
-    it('opens the preview, not the details screen, after confirming the age gate from the sample-preview path', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
-      await userEvent.click(screen.getByRole('button', { name: "I'm 18+, Continue →" }))
-
-      expect(screen.getByText('Preview')).toBeInTheDocument()
+      expect(screen.queryByText(ctaCopy.howYouCreateStepPersonalize)).not.toBeInTheDocument()
       expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
-    })
-
-    it('shows no "click to view all coupons" CTA when the template has 3 or fewer default coupons', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
-
-      expect(screen.queryByRole('button', { name: ctaCopy.previewViewAllCoupons })).not.toBeInTheDocument()
     })
   })
 
-  describe('coming soon section', () => {
+  describe('add to cart quantity stepper', () => {
+  beforeEach(() => {
+    window.localStorage.removeItem('kindness-currency:cart-v2')
+  })
+
+  it('adds the chosen quantity to the cart when Design My Gift is tapped', async () => {
+    render(<CouponSetBuilder templates={[template()]} />)
+
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel("Mom's Promise Tokens") }))
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('5.98') }))
+
+    expect(screen.getByRole('link', { name: ctaCopy.cartLinkLabel(2) })).toBeInTheDocument()
+  })
+
+  it('shows no separate price label — only the price inside the Design My Gift button, scaling with quantity', async () => {
+    render(<CouponSetBuilder templates={[template()]} />)
+
+    expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('2.99') })).toBeInTheDocument()
+    expect(screen.queryByText('$2.99')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel("Mom's Promise Tokens") }))
+
+    expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('5.98') })).toBeInTheDocument()
+  })
+
+  it('shows a pending-to-personalize badge that decrements after completing a save for that template', async () => {
+    saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+    window.localStorage.setItem(
+      'kindness-currency:purchased',
+      JSON.stringify([
+        { id: 'p1', slug: 'mothers_day' },
+        { id: 'p2', slug: 'mothers_day' },
+      ])
+    )
+    render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+
+    expect(screen.getByText('2 to personalize')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+    await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+    await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+    await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+    await screen.findByText('Your gift is ready')
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftReadyStartOver }))
+
+    expect(screen.getByText('1 to personalize')).toBeInTheDocument()
+  })
+})
+
+describe('single-use gesture pricing', () => {
+  it('shows a quantity stepper and priced Add to Cart button on a paid gesture, but not on a free one', () => {
+    render(<CouponSetBuilder templates={[template()]} />)
+
+    expect(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel('Night Out') })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: ctaCopy.addToCartCta('1.99') })).toHaveLength(3) // 3 paid gestures, all $1.99
+    expect(screen.queryByRole('button', { name: ctaCopy.qtyIncreaseLabel('Rescue Mission') })).not.toBeInTheDocument()
+  })
+
+  it('still shows "Choose This" on a paid gesture alongside the new Add to Cart control', () => {
+    render(<CouponSetBuilder templates={[template()]} />)
+
+    expect(screen.getAllByRole('button', { name: ctaCopy.singleUseChooseCta }).length).toBeGreaterThan(0)
+  })
+})
+
+describe('coming soon section', () => {
     it('renders a "Coming Soon" heading and card below the live templates', () => {
       render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} />)
 
@@ -528,7 +585,6 @@ describe('CouponSetBuilder', () => {
 
       expect(screen.getByRole('heading', { level: 2, name: 'Coupon 1' })).toBeInTheDocument()
       expect(screen.getByRole('heading', { level: 2, name: 'Coupon 4' })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: ctaCopy.previewViewAllCoupons })).not.toBeInTheDocument()
     })
   })
 
