@@ -56,12 +56,10 @@ export type GiftInstructionsScreenProps = {
   onContinue: () => void
   /** Only set by a preview context — a real recipient can't skip the instructions. */
   onClose?: () => void
-  /** Overrides the continue button's label — the real /give/[id] flow opens real coupons next, but a sender-facing preview may just be closing out. */
-  continueLabel?: string
 }
 
 /** How-it-works screen, shown once before the coupon reveal. Shared by the real /give/[id] flow and the sender's own preview. */
-export function GiftInstructionsScreen({ senderName, accent, onContinue, onClose, continueLabel }: GiftInstructionsScreenProps) {
+export function GiftInstructionsScreen({ senderName, accent, onContinue, onClose }: GiftInstructionsScreenProps) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#FFF8F0] px-7 text-center">
       {onClose && (
@@ -106,7 +104,7 @@ export function GiftInstructionsScreen({ senderName, accent, onContinue, onClose
         className="mt-8 rounded-full p-3.5 px-7 font-sans text-sm font-bold text-white"
         style={{ backgroundColor: accent }}
       >
-        {continueLabel ?? ctaCopy.giftOpenCoupons}
+        {ctaCopy.giftOpenCoupons}
       </button>
     </div>
   )

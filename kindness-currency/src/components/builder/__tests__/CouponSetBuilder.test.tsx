@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CouponSetBuilder } from '../CouponSetBuilder'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -31,6 +31,7 @@ const template = (overrides: Partial<TemplateWithCoupons> = {}): TemplateWithCou
   emotional_tone: null,
   is_age_restricted: false,
   is_active: true,
+  is_single_use: false,
   sort_order: 1,
   template_coupons: [
     { id: 'c1', template_id: 'aaaaaaaa-0000-0000-0000-000000000001', sort_order: 1, service_title: 'One Home-Cooked Meal', micro_copy: '', fine_print: '' },
@@ -117,12 +118,14 @@ describe('CouponSetBuilder', () => {
   })
 
   describe('"How You Create Your Perfect Gift" walkthrough', () => {
-    it('opens on the Personalize step, showing the template\'s own first default coupon', async () => {
+    it('opens on the Personalize step, showing a static snapshot of the real form and editor with the template\'s own first default coupon', async () => {
       render(<CouponSetBuilder templates={[template()]} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
 
       expect(screen.getByText(ctaCopy.howYouCreateStepPersonalize)).toBeInTheDocument()
+      expect(screen.getByText(ctaCopy.howYouCreateDetailsStepLabel)).toBeInTheDocument()
+      expect(screen.getByText(ctaCopy.howYouCreateEditStepLabel)).toBeInTheDocument()
       expect(screen.getByText('One Home-Cooked Meal')).toBeInTheDocument()
       expect(screen.getByText(ctaCopy.howYouCreatePersonalizeBody)).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: ctaCopy.howYouCreateBack })).not.toBeInTheDocument()
@@ -150,19 +153,24 @@ describe('CouponSetBuilder', () => {
       expect(screen.getByText(ctaCopy.howYouCreatePersonalizeBody)).toBeInTheDocument()
     })
 
-    it('advances from Preview into the Send step, previewing the recipient message and redemption instructions — never the real builder', async () => {
+    it('advances from Preview into the Send step, previewing the recipient message, instructions, and coupon list — never the real builder', async () => {
       render(<CouponSetBuilder templates={[template()]} />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> preview
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> send (message)
 
+      expect(screen.getByText(ctaCopy.howYouCreateRecipientBanner)).toBeInTheDocument()
       expect(screen.getByText('A gift from Your Name')).toBeInTheDocument()
       expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftMessageContinue }))
 
       expect(screen.getByText(ctaCopy.giftInstructionsHeading)).toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftOpenCoupons }))
+
+      expect(screen.getByRole('button', { name: ctaCopy.recipientRedeemButton })).toBeInTheDocument()
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateDone }))
 
@@ -209,6 +217,21 @@ describe('CouponSetBuilder', () => {
     expect(screen.getByRole('link', { name: ctaCopy.cartLinkLabel(2) })).toBeInTheDocument()
   })
 
+  it('confirms the add with "Added" and disables the button briefly, so a hesitant re-tap can\'t silently add a second set', async () => {
+    render(<CouponSetBuilder templates={[template()]} />)
+
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('2.99') }))
+
+    const confirmedButton = screen.getByRole('button', { name: ctaCopy.designMyGiftAddedCta })
+    expect(confirmedButton).toBeDisabled()
+    expect(screen.getByRole('link', { name: ctaCopy.cartLinkLabel(1) })).toBeInTheDocument()
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('2.99') })).toBeInTheDocument(),
+      { timeout: 2000 }
+    )
+  })
+
   it('shows no separate price label — only the price inside the Design My Gift button, scaling with quantity', async () => {
     render(<CouponSetBuilder templates={[template()]} />)
 
@@ -246,18 +269,19 @@ describe('CouponSetBuilder', () => {
 })
 
 describe('single-use gesture pricing', () => {
-  it('shows a quantity stepper and priced Add to Cart button on a paid gesture, but not on a free one', () => {
+  it('shows a quantity stepper and priced Design My Gift button on a paid gesture, but not on a free one', () => {
     render(<CouponSetBuilder templates={[template()]} />)
 
     expect(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel('Night Out') })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: ctaCopy.addToCartCta('1.99') })).toHaveLength(3) // 3 paid gestures, all $1.99
+    expect(screen.getAllByRole('button', { name: ctaCopy.designMyGiftCta('1.99') })).toHaveLength(3) // 3 paid gestures, all $1.99
     expect(screen.queryByRole('button', { name: ctaCopy.qtyIncreaseLabel('Rescue Mission') })).not.toBeInTheDocument()
   })
 
-  it('still shows "Choose This" on a paid gesture alongside the new Add to Cart control', () => {
+  it('shows the free CTA on a free gesture and no quantity stepper or priced button', () => {
     render(<CouponSetBuilder templates={[template()]} />)
 
-    expect(screen.getAllByRole('button', { name: ctaCopy.singleUseChooseCta }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: ctaCopy.singleUseFreeCta }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: ctaCopy.designMyGiftCta('0.00') })).not.toBeInTheDocument()
   })
 })
 
@@ -393,12 +417,27 @@ describe('coming soon section', () => {
       expect(screen.getByText('Save My Coupons')).toBeInTheDocument()
     })
 
-    it('includes a sender message field, and it flows through to the save payload', async () => {
+    it('leaves the message field empty by default, offering the template\'s smart default as a tappable suggestion instead', async () => {
+      render(<CouponSetBuilder templates={[template()]} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+
+      const textarea = screen.getByPlaceholderText('Something to say before they open it…')
+      expect(textarea).toHaveValue('')
+
+      await userEvent.click(screen.getByText(/For everything you do without ever being asked/))
+
+      expect(textarea).toHaveValue(
+        'For everything you do without ever being asked — a few ways I want to take care of you now.'
+      )
+    })
+
+    it('includes a sender message field, and a custom message flows through to the save payload', async () => {
       saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.clear(screen.getByPlaceholderText('Something to say before they open it…'))
       await userEvent.type(screen.getByPlaceholderText('Something to say before they open it…'), 'Thinking of you every day.')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
@@ -544,11 +583,15 @@ describe('coming soon section', () => {
 
   describe('preview overlay', () => {
     it('opens on "Preview All Coupons" showing the same intro a real recipient sees, then the coupon list, and closes on the close button', async () => {
-      await goToEditor()
+      render(<CouponSetBuilder templates={[template()]} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      // The message field starts empty by default (mirroring GiftUnwrapGate's own
+      // senderMessage ? 'message' : 'instructions'), so this exercises the no-message path.
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
-      // No sender message was written in this flow, so preview opens straight on the
-      // how-it-works step (mirroring GiftUnwrapGate's own senderMessage ? 'message' : 'instructions').
       expect(screen.getByText('How Kindness Currency Works')).toBeInTheDocument()
 
       await userEvent.click(screen.getByRole('button', { name: 'Open Your Coupons' }))
@@ -558,11 +601,29 @@ describe('coming soon section', () => {
       expect(screen.queryByText('Preview')).not.toBeInTheDocument()
     })
 
-    it('shows the sender-message step first when a message was written, before the instructions and coupon list', async () => {
+    it('shows the sender-message step first when the smart-default suggestion is tapped to fill the message', async () => {
       render(<CouponSetBuilder templates={[template()]} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByText(/For everything you do without ever being asked/))
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
+
+      expect(
+        screen.getByText(/For everything you do without ever being asked/)
+      ).toBeInTheDocument()
+      expect(screen.queryByText('How Kindness Currency Works')).not.toBeInTheDocument()
+      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+    })
+
+    it('shows the sender-message step first when a custom message was written, before the instructions and coupon list', async () => {
+      render(<CouponSetBuilder templates={[template()]} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.clear(screen.getByPlaceholderText('Something to say before they open it…'))
       await userEvent.type(screen.getByPlaceholderText('Something to say before they open it…'), 'Thinking of you every day.')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
@@ -578,6 +639,7 @@ describe('coming soon section', () => {
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.clear(screen.getByPlaceholderText('Something to say before they open it…'))
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
@@ -589,17 +651,18 @@ describe('coming soon section', () => {
   })
 
   describe('editing the message from the coupon editor', () => {
-    it('shows a floating button to write a message when none was written yet', async () => {
+    it('shows a floating button to write a message, since the field starts empty by default', async () => {
       await goToEditor()
 
       expect(screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel })).toBeInTheDocument()
     })
 
-    it('shows a floating button to edit the message when one was already written', async () => {
+    it('shows a floating button to edit a custom message the sender wrote themselves', async () => {
       render(<CouponSetBuilder templates={[template()]} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.clear(screen.getByPlaceholderText('Something to say before they open it…'))
       await userEvent.type(screen.getByPlaceholderText('Something to say before they open it…'), 'Thinking of you every day.')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
@@ -621,13 +684,27 @@ describe('coming soon section', () => {
     })
 
     it('discards the draft and keeps the original message when Cancel is tapped', async () => {
-      await goToEditor()
+      saveCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.type(screen.getByPlaceholderText('Something to say before they open it…'), 'The original message.')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.editMessageEditLabel }))
+      await userEvent.clear(screen.getByLabelText('Your message'))
       await userEvent.type(screen.getByLabelText('Your message'), 'A message I changed my mind about.')
       await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
-      expect(screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: ctaCopy.editMessageEditLabel })).toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+      expect(saveCouponSetAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sender_message: 'The original message.',
+        })
+      )
     })
   })
 
@@ -730,6 +807,52 @@ describe('coming soon section', () => {
       expect(await screen.findByText("Mom's Promise Tokens")).toBeInTheDocument()
       expect(screen.queryByText('Your gift is ready')).not.toBeInTheDocument()
       expect(saveCouponSetAction).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('auth link failed banner', () => {
+    afterEach(() => {
+      window.history.pushState({}, '', '/')
+    })
+
+    it('shows a retry banner when the URL carries the auth-callback failure flag', () => {
+      window.history.pushState({}, '', '/?authError=1')
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      expect(screen.getByText(ctaCopy.authLinkFailedBannerText)).toBeInTheDocument()
+    })
+
+    it('strips the authError param from the URL after reading it', () => {
+      window.history.pushState({}, '', '/?authError=1')
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      expect(window.location.search).toBe('')
+    })
+
+    it('does not show the banner on a plain visit with no failure flag', () => {
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
+    })
+
+    it('opens the auth modal when "Try signing in again" is tapped', async () => {
+      window.history.pushState({}, '', '/?authError=1')
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.authLinkFailedRetryButton }))
+
+      expect(screen.getByText('Almost there — save your coupons')).toBeInTheDocument()
+      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
+    })
+
+    it('dismisses without opening the auth modal', async () => {
+      window.history.pushState({}, '', '/?authError=1')
+      render(<CouponSetBuilder templates={[template()]} />)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+
+      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
+      expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
     })
   })
 

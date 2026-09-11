@@ -15,6 +15,7 @@ const mothersDay: TemplateWithCoupons = {
   emotional_tone: null,
   is_age_restricted: false,
   is_active: true,
+  is_single_use: false,
   sort_order: 1,
   template_coupons: [
     { id: 'c1', template_id: 'aaaaaaaa-0000-0000-0000-000000000001', sort_order: 1, service_title: 'One Home-Cooked Meal', micro_copy: 'Made with love', fine_print: 'No expiry' },
@@ -119,6 +120,39 @@ describe('useCouponSetBuilder', () => {
 
       expect(result.current.state.screen).toBe('details')
       expect(result.current.state.coupons.map((c) => c.serviceTitle)).toEqual(['One Home-Cooked Meal', 'One Errand Run'])
+    })
+
+    it('starts the sender message empty on a genuinely new template selection, leaving the template\'s smart default as a suggestion rather than auto-filling it', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.state.senderMessage).toBe('')
+    })
+
+    it('keeps a custom message when the same template is re-selected, but clears it when a genuinely different template is selected', () => {
+      const valentines: TemplateWithCoupons = {
+        ...mothersDay,
+        id: 'bbbbbbbb-0000-0000-0000-000000000002',
+        slug: 'valentines',
+        name: "Valentine's Love Passes",
+        template_coupons: [
+          { id: 'v1', template_id: 'bbbbbbbb-0000-0000-0000-000000000002', sort_order: 1, service_title: 'Breakfast in Bed', micro_copy: null, fine_print: null },
+        ],
+      }
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay, valentines]))
+
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderMessage('A message I wrote myself.'))
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.state.senderMessage).toBe('A message I wrote myself.')
+
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('valentines'))
+
+      expect(result.current.state.senderMessage).toBe('')
     })
 
     it('preserves in-progress customization when the same template is re-selected after backing up to browse', () => {
@@ -287,6 +321,7 @@ describe('useCouponSetBuilder', () => {
     it('omits sender_message when left blank, rather than sending an empty string', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
       act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderMessage(''))
 
       expect(result.current.toSavePayload()).not.toHaveProperty('sender_message')
     })

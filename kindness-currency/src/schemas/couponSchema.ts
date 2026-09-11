@@ -43,9 +43,10 @@ export const RedeemInputSchema = z.object({
   pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
 })
 
-// Full save payload — the AuthGate save mutation parses this before writing coupon_sets + coupons
+// Full save payload — the AuthGate save mutation parses this before writing coupon_sets + coupons.
+// Bundle sets always send exactly 8; a single-use gesture set sends exactly 1 — both are valid.
 export const SaveCouponSetInputSchema = CouponSetMutationSchema.extend({
-  coupons: z.array(CouponMutationSchema.extend({ sort_order: z.number().int().min(1) })).length(8),
+  coupons: z.array(CouponMutationSchema.extend({ sort_order: z.number().int().min(1) })).min(1).max(8),
 })
 
 // Derived types — never write parallel interfaces

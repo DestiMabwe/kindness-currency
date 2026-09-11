@@ -10,6 +10,7 @@ export type Template = {
   emotional_tone: string | null
   is_age_restricted: boolean
   is_active: boolean
+  is_single_use: boolean
   sort_order: number
 }
 
@@ -28,11 +29,32 @@ export type TemplateWithCoupons = Template & {
 
 export function createTemplateRepository(supabase: SupabaseClient) {
   return {
+    /** Bundle templates only — see getActiveSingleUseTemplates for the one-coupon gesture templates. */
     async getActiveTemplates(): Promise<Template[]> {
       const { data, error } = await supabase
         .from('templates')
         .select('*')
         .eq('is_active', true)
+        .eq('is_single_use', false)
+        .order('sort_order')
+
+      if (error) throw error
+      return data ?? []
+    },
+
+    /**
+     * The one-coupon "gesture" templates behind the single-use gallery on /create — real DB rows
+     * so each has a genuine id for coupon_sets.template_id, distinguished from bundle templates by
+     * is_single_use (a boolean, not a template_type TEXT enum — see CLAUDE.md's ban on that).
+     * Content (motif, price, message starter) stays in src/lib/singleUseGestures.ts; only the
+     * identity (id, slug, name) is needed from here.
+     */
+    async getActiveSingleUseTemplates(): Promise<Template[]> {
+      const { data, error } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('is_active', true)
+        .eq('is_single_use', true)
         .order('sort_order')
 
       if (error) throw error
@@ -57,12 +79,13 @@ export function createTemplateRepository(supabase: SupabaseClient) {
       }
     },
 
-    /** All active templates with their default coupons, for /create to hold entirely client-side. */
+    /** All active bundle templates with their default coupons, for /create to hold entirely client-side. */
     async getActiveTemplatesWithCoupons(): Promise<TemplateWithCoupons[]> {
       const { data, error } = await supabase
         .from('templates')
         .select('*, template_coupons(*)')
         .eq('is_active', true)
+        .eq('is_single_use', false)
         .order('sort_order')
 
       if (error || !data) return []

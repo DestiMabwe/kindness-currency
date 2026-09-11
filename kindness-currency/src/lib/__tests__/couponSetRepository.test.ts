@@ -86,14 +86,38 @@ describe('CouponSetRepository', () => {
       expect(insertedCoupons.every((c: { set_id: string }) => c.set_id === 'set-1')).toBe(true)
     })
 
-    it('rejects a payload without exactly 8 coupons before touching the database', async () => {
+    it('rejects a payload with no coupons before touching the database', async () => {
       const { supabase, setChain } = makeSupabase({ setResult: { data: null, error: null } })
       const repo = createCouponSetRepository(supabase as never)
 
-      const result = await repo.saveCouponSet({ ...validInput(), coupons: validInput().coupons.slice(0, 3) }, 'user-1')
+      const result = await repo.saveCouponSet({ ...validInput(), coupons: [] }, 'user-1')
 
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
       expect(setChain.insert).not.toHaveBeenCalled()
+    })
+
+    it('rejects a payload with more than 8 coupons before touching the database', async () => {
+      const { supabase, setChain } = makeSupabase({ setResult: { data: null, error: null } })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const extra = { ...validInput().coupons[0], sort_order: 9 }
+      const result = await repo.saveCouponSet({ ...validInput(), coupons: [...validInput().coupons, extra] }, 'user-1')
+
+      expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+      expect(setChain.insert).not.toHaveBeenCalled()
+    })
+
+    it('accepts a single-coupon payload, as a single-use gesture set sends', async () => {
+      const { supabase, couponsChain } = makeSupabase({
+        setResult: { data: { id: 'set-1' }, error: null },
+        couponsResult: { data: null, error: null },
+      })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.saveCouponSet({ ...validInput(), coupons: validInput().coupons.slice(0, 1) }, 'user-1')
+
+      expect(result.success).toBe(true)
+      expect(couponsChain.insert.mock.calls[0][0]).toHaveLength(1)
     })
 
     it('returns an error if the coupon_sets insert fails', async () => {
@@ -249,6 +273,60 @@ describe('CouponSetRepository', () => {
       const repo = createCouponSetRepository(supabase as never)
 
       const result = await repo.linkSender('set-1', 'sender-user-1')
+
+      expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+    })
+  })
+
+  describe('resetPin', () => {
+    function makeResetPinSupabase(updateResult: { data: unknown; error: unknown }) {
+      const single = vi.fn().mockResolvedValue(updateResult)
+      const select = vi.fn().mockReturnValue({ single })
+      const eqOwner = vi.fn().mockReturnValue({ select })
+      const eqId = vi.fn().mockReturnValue({ eq: eqOwner })
+      const update = vi.fn().mockReturnValue({ eq: eqId })
+      const from = vi.fn().mockReturnValue({ update })
+      return { supabase: { from }, update, eqId, eqOwner }
+    }
+
+    it('generates a new 4-digit PIN, stores only its bcrypt hash, and returns the plaintext PIN once', async () => {
+      const { supabase, update } = makeResetPinSupabase({ data: { id: 'set-1' }, error: null })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.resetPin('set-1', 'user-1')
+
+      expect(result.success).toBe(true)
+      if (!result.success) throw new Error('expected success')
+      expect(result.pin).toMatch(/^\d{4}$/)
+      const updatedFields = update.mock.calls[0][0]
+      expect(updatedFields.pin_code).not.toBe(result.pin)
+      expect(await bcrypt.compare(result.pin, updatedFields.pin_code)).toBe(true)
+    })
+
+    it("only updates the set if it belongs to the given user", async () => {
+      const { supabase, eqId, eqOwner } = makeResetPinSupabase({ data: { id: 'set-1' }, error: null })
+      const repo = createCouponSetRepository(supabase as never)
+
+      await repo.resetPin('set-1', 'user-1')
+
+      expect(eqId).toHaveBeenCalledWith('id', 'set-1')
+      expect(eqOwner).toHaveBeenCalledWith('user_id', 'user-1')
+    })
+
+    it('returns an error result when the set is not owned by the given user', async () => {
+      const { supabase } = makeResetPinSupabase({ data: null, error: null })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.resetPin('set-1', 'someone-else')
+
+      expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+    })
+
+    it('returns an error result if the update fails', async () => {
+      const { supabase } = makeResetPinSupabase({ data: null, error: { message: 'db error' } })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.resetPin('set-1', 'user-1')
 
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
     })

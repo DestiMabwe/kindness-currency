@@ -10,27 +10,35 @@
 // the cart icon occupies that top-right slot by itself — so it passes `alwaysVisible` to always
 // render there, badge or not, rather than leaving that corner blank.
 
+import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { useCartSlugs } from '@/lib/cart'
+import { useCartLines } from '@/lib/cart'
 
 export function CartIcon({ alwaysVisible = false }: { alwaysVisible?: boolean }) {
-  const cartSlugs = useCartSlugs()
-  if (!alwaysVisible && cartSlugs.length === 0) return null
+  const cartLines = useCartLines()
+  const totalUnits = cartLines.reduce((sum, l) => sum + l.qty, 0)
+  if (!alwaysVisible && totalUnits === 0) return null
 
   return (
     <Link
       href="/cart"
-      aria-label={ctaCopy.cartLinkLabel(cartSlugs.length)}
+      aria-label={ctaCopy.cartLinkLabel(totalUnits)}
       className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#1A1A2E]/18"
     >
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 8h12l-1 12H7L6 8z" />
         <path d="M9 8V6a3 3 0 0 1 6 0v2" />
       </svg>
-      {cartSlugs.length > 0 && (
-        <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C2185B] px-1 text-[9.5px] font-bold text-white">
-          {cartSlugs.length}
+      {totalUnits > 0 && (
+        // Remounting on every count change (via `key`) replays the one-shot kc-pop settle —
+        // the badge's own confirmation that an add actually landed, echoing the button's.
+        <span
+          key={totalUnits}
+          style={{ '--kc-pop-delay': '0s' } as CSSProperties}
+          className="kc-pop absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C2185B] px-1 text-[9.5px] font-bold text-white"
+        >
+          {totalUnits}
         </span>
       )}
     </Link>

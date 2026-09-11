@@ -19,11 +19,25 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next')
+  const target = isSafeRedirectPath(next) ? next : DEFAULT_REDIRECT
 
-  if (code) {
-    const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+  if (!code) {
+    return NextResponse.redirect(`${origin}${target}`)
   }
 
-  return NextResponse.redirect(`${origin}${isSafeRedirectPath(next) ? next : DEFAULT_REDIRECT}`)
+  const supabase = await createClient()
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+  // A failed exchange (expired/already-used code, or a link opened on a different device than
+  // the one that requested it — the PKCE verifier lives in that device's cookies) must not
+  // silently land the sender on `target` looking successful while actually still logged out.
+  // The `authError` flag lets the destination page tell them the link didn't work and offer a
+  // real retry, instead of the void CouponSetBuilder used to redirect them into.
+  if (error) {
+    const failureUrl = new URL(`${origin}${target}`)
+    failureUrl.searchParams.set('authError', '1')
+    return NextResponse.redirect(failureUrl.toString())
+  }
+
+  return NextResponse.redirect(`${origin}${target}`)
 }

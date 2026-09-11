@@ -5,11 +5,11 @@
 // genuinely nothing to show (no clutter for senders who haven't used the cart flow).
 
 import Link from 'next/link'
-import { useCartSlugs, usePurchasedSlugs, useOrderHistory, linesForSlugs, cartTotals } from '@/lib/cart'
+import { useCartSlugs, usePendingInstances, useOrderHistory, linesForSlugs, cartTotals } from '@/lib/cart'
 
 export function ProfileCartSection() {
   const cartSlugs = useCartSlugs()
-  const purchasedSlugs = usePurchasedSlugs()
+  const purchasedSlugs = usePendingInstances().map((i) => i.slug)
   const orders = useOrderHistory()
   const cartLines = linesForSlugs(cartSlugs)
   const purchasedLines = linesForSlugs(purchasedSlugs)

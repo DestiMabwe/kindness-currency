@@ -9,8 +9,9 @@ export default async function CreatePage() {
   const templateRepo = createTemplateRepository(supabase)
   const comingSoonRepo = createComingSoonTemplateRepository(supabase)
 
-  const [templates, comingSoonTemplates] = await Promise.all([
+  const [templates, singleUseTemplates, comingSoonTemplates] = await Promise.all([
     templateRepo.getActiveTemplatesWithCoupons(),
+    templateRepo.getActiveSingleUseTemplates(),
     comingSoonRepo.getActiveComingSoonTemplates(),
   ])
 
@@ -22,6 +23,7 @@ export default async function CreatePage() {
   return (
     <CouponSetBuilder
       templates={templates}
+      singleUseTemplates={singleUseTemplates}
       comingSoonTemplates={comingSoonTemplates}
       isLoggedIn={!!user}
       userEmail={user?.email ?? null}

@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { ctaCopy } from '@/constants/ctaCopy'
+import { resetPinAction } from '@/app/profile/actions'
+import { ResetPinModal } from './ResetPinModal'
+import { TabPills } from '@/components/shared/TabPills'
 import type { CouponSetSummary, ReceivedCouponSetSummary } from '@/lib/couponSetRepository'
 
 export type ProfileTabsProps = {
@@ -31,35 +34,20 @@ const SENT_BADGE_STYLE: Record<SentBadge, { label: string; bg: string; color: st
 
 export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
   const [tab, setTab] = useState<Tab>('sent')
+  const [resetPinSetId, setResetPinSetId] = useState<string | null>(null)
+  const resetPinSet = sentSets.find((s) => s.id === resetPinSetId) ?? null
 
   return (
     <div>
-      <div role="tablist" aria-label="Your coupons" className="flex gap-1.5">
-        <button
-          type="button"
-          role="tab"
-          id="profile-tab-sent"
-          aria-selected={tab === 'sent'}
-          aria-controls="profile-panel-sent"
-          onClick={() => setTab('sent')}
-          className="rounded-full px-4 py-2 text-[13px] font-semibold"
-          style={{ backgroundColor: tab === 'sent' ? '#C2185B' : '#F0ECE4', color: tab === 'sent' ? '#fff' : '#2C2C2C' }}
-        >
-          {ctaCopy.profileTabSent}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="profile-tab-received"
-          aria-selected={tab === 'received'}
-          aria-controls="profile-panel-received"
-          onClick={() => setTab('received')}
-          className="rounded-full px-4 py-2 text-[13px] font-semibold"
-          style={{ backgroundColor: tab === 'received' ? '#C2185B' : '#F0ECE4', color: tab === 'received' ? '#fff' : '#2C2C2C' }}
-        >
-          {ctaCopy.profileTabReceived}
-        </button>
-      </div>
+      <TabPills
+        ariaLabel="Your coupons"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'sent', label: ctaCopy.profileTabSent, id: 'profile-tab-sent', panelId: 'profile-panel-sent' },
+          { value: 'received', label: ctaCopy.profileTabReceived, id: 'profile-tab-received', panelId: 'profile-panel-received' },
+        ]}
+      />
 
       {tab === 'sent' && (
         <div role="tabpanel" id="profile-panel-sent" aria-labelledby="profile-tab-sent" className="mt-4">
@@ -81,8 +69,17 @@ export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
                       </span>
                     </div>
                     {set.templateName && <div className="mt-1 text-[12.5px] text-[#2C2C2C] opacity-70">{set.templateName}</div>}
-                    <div className="mt-2.5 text-[12.5px] font-semibold text-[#C2185B]">
-                      {redeemedCount(set.coupons)} of {set.coupons.length} redeemed
+                    <div className="mt-2.5 flex items-center justify-between">
+                      <div className="text-[12.5px] font-semibold text-[#C2185B]">
+                        {redeemedCount(set.coupons)} of {set.coupons.length} redeemed
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setResetPinSetId(set.id)}
+                        className="flex items-center gap-1 text-[12px] font-semibold text-[#1A1A2E] opacity-70"
+                      >
+                        <span aria-hidden="true">👁</span> {ctaCopy.resetPinButtonLabel}
+                      </button>
                     </div>
                   </div>
                 )
@@ -113,6 +110,14 @@ export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
             </div>
           )}
         </div>
+      )}
+
+      {resetPinSet && (
+        <ResetPinModal
+          recipientName={resetPinSet.recipient_name}
+          onReset={() => resetPinAction(resetPinSet.id)}
+          onClose={() => setResetPinSetId(null)}
+        />
       )}
     </div>
   )

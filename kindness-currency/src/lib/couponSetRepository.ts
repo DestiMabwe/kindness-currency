@@ -125,6 +125,28 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
     },
 
     /**
+     * Generates a fresh 4-digit PIN for a set the given user owns, overwriting
+     * pin_code so the old PIN stops verifying immediately. There is no way to
+     * recover the original PIN instead — it's a bcrypt hash — so "view my PIN"
+     * on Profile is really always a reset, never a reveal.
+     */
+    async resetPin(setId: string, userId: string): Promise<{ success: true; pin: string } | { success: false; error: string }> {
+      const pin = String(randomInt(1000, 10000))
+      const pinHash = await bcrypt.hash(pin, 10)
+
+      const { data, error } = await supabase
+        .from('coupon_sets')
+        .update({ pin_code: pinHash })
+        .eq('id', setId)
+        .eq('user_id', userId)
+        .select('id')
+        .single<{ id: string }>()
+
+      if (error || !data) return { success: false, error: GENERIC_ERROR }
+      return { success: true, pin }
+    },
+
+    /**
      * Links a coupon set to the account of the person who redeemed it, so it
      * can later surface under their Profile. A plain update, safely callable
      * more than once for the same user.

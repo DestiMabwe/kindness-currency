@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProfileTabs } from '../ProfileTabs'
 import type { CouponSetSummary, ReceivedCouponSetSummary } from '@/lib/couponSetRepository'
+
+const resetPinAction = vi.fn()
+vi.mock('@/app/profile/actions', () => ({
+  resetPinAction: (setId: string) => resetPinAction(setId),
+}))
 
 const sentSets: CouponSetSummary[] = [
   {
@@ -31,6 +36,10 @@ const receivedSets: ReceivedCouponSetSummary[] = [
 ]
 
 describe('ProfileTabs', () => {
+  beforeEach(() => {
+    resetPinAction.mockReset()
+  })
+
   it('shows the Sent list by default', () => {
     render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
 
@@ -70,6 +79,79 @@ describe('ProfileTabs', () => {
     render(<ProfileTabs sentSets={[]} receivedSets={receivedSets} />)
 
     expect(screen.getByText("You haven't sent any coupon sets yet.")).toBeInTheDocument()
+  })
+
+  it('shows a View PIN button on each sent set', () => {
+    render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
+
+    expect(screen.getByRole('button', { name: 'View PIN' })).toBeInTheDocument()
+  })
+
+  it('does not show a View PIN button on received sets', async () => {
+    render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Received' }))
+
+    expect(screen.queryByRole('button', { name: 'View PIN' })).not.toBeInTheDocument()
+  })
+
+  describe('reset PIN', () => {
+    it('opens a confirmation dialog naming the recipient when View PIN is clicked', async () => {
+      render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
+
+      await userEvent.click(screen.getByRole('button', { name: 'View PIN' }))
+
+      expect(screen.getByText('Generate a new PIN?')).toBeInTheDocument()
+      expect(screen.getByText(/re-share the new one with Mom/)).toBeInTheDocument()
+      expect(resetPinAction).not.toHaveBeenCalled()
+    })
+
+    it('closes without resetting when Cancel is clicked', async () => {
+      render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
+      await userEvent.click(screen.getByRole('button', { name: 'View PIN' }))
+
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.queryByText('Generate a new PIN?')).not.toBeInTheDocument()
+      expect(resetPinAction).not.toHaveBeenCalled()
+    })
+
+    it('reveals the new PIN after confirming', async () => {
+      resetPinAction.mockResolvedValue({ success: true, pin: '7392' })
+      render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
+      await userEvent.click(screen.getByRole('button', { name: 'View PIN' }))
+
+      await userEvent.click(screen.getByRole('button', { name: 'Generate New PIN' }))
+
+      expect(await screen.findByText('7', { selector: 'span' })).toBeInTheDocument()
+      expect(screen.getByText('3', { selector: 'span' })).toBeInTheDocument()
+      expect(screen.getByText('9', { selector: 'span' })).toBeInTheDocument()
+      expect(screen.getByText('2', { selector: 'span' })).toBeInTheDocument()
+      expect(resetPinAction).toHaveBeenCalledWith('set-1')
+    })
+
+    it('shows an error and stays on the confirm step if the reset fails', async () => {
+      resetPinAction.mockResolvedValue({ success: false, error: 'Something went wrong. Please try again.' })
+      render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
+      await userEvent.click(screen.getByRole('button', { name: 'View PIN' }))
+
+      await userEvent.click(screen.getByRole('button', { name: 'Generate New PIN' }))
+
+      expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument()
+      expect(screen.getByText('Generate a new PIN?')).toBeInTheDocument()
+    })
+
+    it('closes the modal from the revealed step via Done', async () => {
+      resetPinAction.mockResolvedValue({ success: true, pin: '7392' })
+      render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
+      await userEvent.click(screen.getByRole('button', { name: 'View PIN' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Generate New PIN' }))
+      await screen.findByText('Here’s the new PIN')
+
+      await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+
+      expect(screen.queryByText('Here’s the new PIN')).not.toBeInTheDocument()
+    })
   })
 
   describe('sent status badge', () => {

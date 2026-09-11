@@ -1,12 +1,16 @@
 'use client'
 
 // The single-use "gesture" gallery on /create — one focused act-of-service coupon per card,
-// distinct from the 8-coupon bundle templates below it. Not wired to Supabase; uses fixture data
-// from src/lib/singleUseGestures.ts (see CLAUDE.md's ban on a template_type TEXT enum).
+// distinct from the 8-coupon bundle templates below it. Display/pricing content comes from the
+// src/lib/singleUseGestures.ts fixture; each gesture also has a real one-coupon `templates` row
+// (see GestureFlow.tsx) so Save/Send can write a real coupon_sets row.
 
+import { useEffect, useRef, useState } from 'react'
 import { GoldCoupon } from '@/components/builder/GoldCoupon'
+import { QuantityStepper } from '@/components/builder/QuantityStepper'
+import { addToCart } from '@/lib/cart'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { antiqueGold, antiqueGoldText, type SingleUseGesture } from '@/lib/singleUseGestures'
+import { antiqueGold, type SingleUseGesture } from '@/lib/singleUseGestures'
 
 export type FilterValue = 'all' | 'focused' | 'range'
 
@@ -68,21 +72,34 @@ export function SingleUseGestureSection({
 }
 
 function GestureCard({ gesture, onChoose }: { gesture: SingleUseGesture; onChoose: (g: SingleUseGesture) => void }) {
+  const [qty, setQty] = useState(1)
+  const [justAdded, setJustAdded] = useState(false)
+  const justAddedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isPaid = gesture.price > 0
+
+  useEffect(() => () => {
+    if (justAddedTimeout.current) clearTimeout(justAddedTimeout.current)
+  }, [])
+
+  const handleAddToCart = () => {
+    addToCart(gesture.slug, qty)
+    setQty(1)
+    // Same confirmed-state pattern as the bundle template card: holds the button in its "Added"
+    // state long enough to read before reverting, so a hesitant re-tap can't silently double it up.
+    setJustAdded(true)
+    if (justAddedTimeout.current) clearTimeout(justAddedTimeout.current)
+    justAddedTimeout.current = setTimeout(() => setJustAdded(false), 1300)
+  }
+
   return (
     <div
       className="overflow-hidden rounded-2xl bg-white shadow-[0_14px_30px_-24px_rgba(26,26,46,0.5)]"
       style={{ border: `1px solid ${antiqueGold}40` }}
     >
-      <div className="flex justify-end px-4 pt-3">
-        <span
-          className="rounded-full border bg-white px-1.75 py-0.5 text-[9px] font-bold tracking-[0.08em]"
-          style={{ borderColor: antiqueGold, color: antiqueGoldText }}
-        >
-          {gesture.price === 0 ? 'FREE' : `$${gesture.price.toFixed(2)}`}
-        </span>
-      </div>
-
-      <div className="px-4 pt-1">
+      {/* Tapping the coupon itself opens the design flow directly, same as tapping a bundle
+          template card — works regardless of price. The priced button below is the separate,
+          explicit "buy now" action (bulk add-to-cart), mirroring the bundle card exactly. */}
+      <button type="button" onClick={() => onChoose(gesture)} className="block w-full px-4 pt-4 text-left">
         <GoldCoupon
           serviceTitle={gesture.serviceTitle}
           microCopy={gesture.microCopy}
@@ -93,16 +110,42 @@ function GestureCard({ gesture, onChoose }: { gesture: SingleUseGesture; onChoos
           expiresAt={null}
           status="sent"
         />
-      </div>
+      </button>
 
-      <div className="px-4 pt-3 pb-4">
-        <button
-          type="button"
-          onClick={() => onChoose(gesture)}
-          className="w-full rounded-2xl bg-[#C2185B] p-3 text-center font-sans text-[14.5px] font-bold text-white shadow-[0_8px_18px_-8px_rgba(194,24,91,0.7)]"
-        >
-          {ctaCopy.singleUseChooseCta}
-        </button>
+      <div className="flex flex-col gap-2.5 px-4 pt-3 pb-4">
+        {isPaid ? (
+          // Priced gestures get one CTA, not two: the price lives on the button itself (matching
+          // the bundle template card's "Design My Gift · $total" pattern) instead of a separate
+          // "Choose This" that skipped straight to designing without ever showing a price.
+          <div className="flex items-center gap-2">
+            <QuantityStepper
+              value={qty}
+              onDecrease={() => setQty((q) => Math.max(1, q - 1))}
+              onIncrease={() => setQty((q) => q + 1)}
+              decreaseLabel={ctaCopy.qtyDecreaseLabel(gesture.serviceTitle)}
+              increaseLabel={ctaCopy.qtyIncreaseLabel(gesture.serviceTitle)}
+            />
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={justAdded}
+              className="flex-1 rounded-2xl p-3 text-center font-sans text-[14.5px] font-bold text-white shadow-[0_8px_18px_-8px_rgba(194,24,91,0.7)] transition-colors duration-300"
+              style={{ backgroundColor: justAdded ? '#2E7D6B' : '#C2185B' }}
+            >
+              <span aria-live="polite" className={justAdded ? 'kc-pop inline-block' : 'inline-block'}>
+                {justAdded ? ctaCopy.designMyGiftAddedCta : ctaCopy.designMyGiftCta((gesture.price * qty).toFixed(2))}
+              </span>
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onChoose(gesture)}
+            className="w-full rounded-2xl bg-[#C2185B] p-3 text-center font-sans text-[14.5px] font-bold text-white shadow-[0_8px_18px_-8px_rgba(194,24,91,0.7)]"
+          >
+            {ctaCopy.singleUseFreeCta}
+          </button>
+        )}
       </div>
     </div>
   )

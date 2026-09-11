@@ -6,19 +6,39 @@
 // are pixel-identical to the bundle flow. Step 3 is a lighter, single-card variant of the real
 // EditScreen — no 8-coupon grid, no "style all 8 the same" — but carries the same preview,
 // customized-tracking, and revisit-message features the bundle flow has, so the single-gesture
-// path doesn't feel like a lesser product. Saving/saveError state is wired the same way the
-// bundle flow does it (disabled-while-saving, an error slot) even though there's no real
-// persistence yet — see the 'done' step below for what happens instead.
+// path doesn't feel like a lesser product.
+//
+// Free vs. paid text editing: free gestures are look-only (title/micro-copy/fine-print locked),
+// paid gestures unlock the same three text fields the bundle flow edits — see the isPaid checks
+// in the 'personalize' step below. Paid gestures also get a gesture-specific message-starter
+// suggestion (gesture.messageStarter) on both message-writing surfaces — the step 2 form and the
+// step 3 edit-message modal.
+//
+// Save/Send is real: it writes a coupon_set + one coupon via the same saveCouponSetAction the
+// bundle flow uses (templateId comes from the real single-use `templates` row seeded for this
+// gesture's slug — see CouponSetBuilder's singleUseTemplateIdBySlug). Auth gating mirrors the
+// bundle flow's handleSaveOrSend exactly (login required before a save is attempted, since every
+// real auth path here is a full page redirect, not an inline verification). The in-progress draft
+// persists to localStorage — keyed by gesture slug, hydrated in an effect (never a lazy useState
+// initializer, which would desync the client's first render from the server-rendered HTML and
+// break hydration) — and a pending-save-intent flag lets the save resume automatically once the
+// redirect lands the sender back here logged in, instead of making them tap Save/Send twice.
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { GoldCoupon } from '@/components/builder/GoldCoupon'
 import { ColorSwatchPicker, DetailsFormScreen, EffectPillPicker, EditMessageModal } from '@/components/builder/CouponSetBuilder'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
+import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { antiqueGold, antiqueGoldText, type SingleUseGesture } from '@/lib/singleUseGestures'
+import { useDialogA11y } from '@/hooks/useDialogA11y'
+import { antiqueGold, antiqueGoldText, type SingleUseGesture, type SingleUseGestureSlug } from '@/lib/singleUseGestures'
+import { saveCouponSetAction } from '@/app/create/actions'
 import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
 import type { BackgroundEffect } from '@/schemas/couponSchema'
-import type { BuilderCoupon } from '@/hooks/useCouponSetBuilder'
+import type { BuilderCoupon, SavedResult } from '@/hooks/useCouponSetBuilder'
+
+const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
 
 type Step = 'details' | 'personalize' | 'done'
 
@@ -30,7 +50,92 @@ type Draft = {
   backgroundEffect: BackgroundEffect
 }
 
-export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; onExit: () => void }) {
+type PersistedGestureDraft = {
+  gestureSlug: SingleUseGestureSlug
+  step: Step
+  senderName: string
+  recipientName: string
+  expiryDate: string
+  senderMessage: string
+  draft: Draft
+  unlocked: boolean
+}
+
+// The "Make This Gift Yours" upsell price — same as a gesture that's paid from the start, per the
+// grill-me decision to keep a single price point rather than a separate unlock tier.
+const GESTURE_UNLOCK_PRICE = 1.99
+
+const GESTURE_DRAFT_KEY = 'kindness-currency:gesture-draft'
+// Set right before opening AuthGate from Save/Send, so the auth redirect's reload knows to finish
+// the save automatically once the sender is logged in — mirrors CouponSetBuilder's own
+// PENDING_SAVE_INTENT_KEY for the bundle flow.
+const GESTURE_PENDING_SAVE_INTENT_KEY = 'kindness-currency:gesture-pending-save-intent'
+
+function readPersistedGestureDraft(): PersistedGestureDraft | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(GESTURE_DRAFT_KEY)
+    return raw ? (JSON.parse(raw) as PersistedGestureDraft) : null
+  } catch {
+    return null
+  }
+}
+
+/** Which gesture (if any) has an in-progress draft — lets TemplateSelectScreen decide whether to
+ * resume straight into GestureFlow on mount instead of showing the gallery. */
+export function peekPersistedGestureSlug(): SingleUseGestureSlug | null {
+  return readPersistedGestureDraft()?.gestureSlug ?? null
+}
+
+function clearPersistedGestureDraft() {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(GESTURE_DRAFT_KEY)
+}
+
+// The confirm step behind the "Make This Gift Yours" upsell — mirrors the bottom-sheet confirm
+// pattern used elsewhere (e.g. CouponSetBuilder's TemplateSwitchWarningModal). No real charge
+// happens yet (see gestureUnlockConfirmBody), matching the rest of the app's mocked-payment state.
+function GestureUnlockConfirm({ onConfirm, onDismiss }: { onConfirm: () => void; onDismiss: () => void }) {
+  const dialogRef = useDialogA11y<HTMLDivElement>(true, onDismiss)
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gesture-unlock-heading"
+        className="w-full rounded-t-[26px] bg-[#FFF8F0] px-6 pt-7 pb-8"
+      >
+        <h2 id="gesture-unlock-heading" className="text-2xl font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+          {ctaCopy.gestureUnlockConfirmHeading}
+        </h2>
+        <div className="mt-3 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-85">{ctaCopy.gestureUnlockConfirmBody}</div>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="mt-5 w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white"
+        >
+          {ctaCopy.gestureUnlockConfirmCta}
+        </button>
+        <button type="button" onClick={onDismiss} className="mt-2 w-full p-1.5 text-center font-sans text-[13.5px] font-semibold text-[#2C2C2C] opacity-70">
+          {ctaCopy.gestureUnlockDismiss}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function GestureFlow({
+  gesture,
+  templateId,
+  isLoggedIn,
+  onExit,
+}: {
+  gesture: SingleUseGesture
+  templateId: string | null
+  isLoggedIn: boolean
+  onExit: () => void
+}) {
   const [step, setStep] = useState<Step>('details')
   const [senderName, setSenderName] = useState('')
   const [recipientName, setRecipientName] = useState('')
@@ -45,17 +150,70 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
   })
   const [previewOpen, setPreviewOpen] = useState(false)
   const [editMessageOpen, setEditMessageOpen] = useState(false)
-  // Mirrors the bundle flow's saving/saveError pattern structurally — there's no real async write
-  // yet, so this never actually blocks on anything, but disabling the buttons and reserving the
-  // error slot means wiring real persistence later is a drop-in, not a redesign.
+  const [unlockConfirmOpen, setUnlockConfirmOpen] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
   const [saving, setSaving] = useState(false)
-  const saveError = ''
+  const [saveError, setSaveError] = useState('')
+  const [authOpen, setAuthOpen] = useState(false)
+  const [savedResult, setSavedResult] = useState<SavedResult | null>(null)
+  const hydrated = useRef(false)
+  const attemptedSaveResume = useRef(false)
 
-  // Service title, micro-copy, and fine print are fixed for every one-time gesture, free or
-  // paid — the wording is precisely tuned "GOOD FOR ONE X" ticket copy, and letting it drift
-  // would break that. Background colour/effect stay editable, since "design of the coupon" isn't
-  // part of this restriction.
-  const isCustomized = draft.backgroundColor !== '#FFF8F0' || draft.backgroundEffect !== 'none'
+  // Rehydrate from localStorage once, after mount — reading it during render (e.g. a lazy
+  // useState initializer) would make the client's first render diverge from the server-rendered
+  // HTML and break hydration, so this has to happen in an effect (mirrors useCouponSetBuilder).
+  useEffect(() => {
+    if (hydrated.current) return
+    hydrated.current = true
+    const persisted = readPersistedGestureDraft()
+    if (!persisted || persisted.gestureSlug !== gesture.slug) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount rehydration from localStorage, not a render-time update
+    setStep(persisted.step)
+    setSenderName(persisted.senderName)
+    setRecipientName(persisted.recipientName)
+    setExpiryDate(persisted.expiryDate)
+    setSenderMessage(persisted.senderMessage)
+    setDraft(persisted.draft)
+    setUnlocked(persisted.unlocked)
+  }, [gesture.slug])
+
+  // Keeps the draft resumable across the full-page reload every auth path here causes — including
+  // the "Make This Gift Yours" unlock, so a sender who unlocks and then hits Save/Send's own auth
+  // redirect doesn't land back on a re-locked coupon. Skips writing once a real save has landed
+  // (step 'done') — completeSave-equivalent below already clears this key, and there's nothing
+  // left worth resuming into.
+  useEffect(() => {
+    if (typeof window === 'undefined' || step === 'done') return
+    const payload: PersistedGestureDraft = {
+      gestureSlug: gesture.slug,
+      step,
+      senderName,
+      recipientName,
+      expiryDate,
+      senderMessage,
+      draft,
+      unlocked,
+    }
+    window.localStorage.setItem(GESTURE_DRAFT_KEY, JSON.stringify(payload))
+  }, [gesture.slug, step, senderName, recipientName, expiryDate, senderMessage, draft, unlocked])
+
+  // Free gestures are look-only: title/micro-copy/fine-print stay fixed to the curated
+  // "GOOD FOR ONE X" wording, and only background colour/effect are editable — that restriction is
+  // the reason they're free. Paying unlocks full text customization too, same as the 8-coupon
+  // bundle flow — either by picking an already-paid gesture, or by paying the same $1.99 in-flow
+  // to unlock a free one (the "Make This Gift Yours" upsell), which is per-send only: it doesn't
+  // persist beyond this one gift.
+  const isPaid = gesture.price > 0 || unlocked
+  // Same price as the gestures that are paid from the start (see ctaCopy.gestureUnlockCta) —
+  // unlocking doesn't get its own separate price point.
+  const displayPrice = unlocked ? GESTURE_UNLOCK_PRICE : gesture.price
+  const isCustomized =
+    draft.backgroundColor !== '#FFF8F0' ||
+    draft.backgroundEffect !== 'none' ||
+    (isPaid &&
+      (draft.serviceTitle !== gesture.serviceTitle ||
+        draft.microCopy !== gesture.microCopy ||
+        draft.finePrint !== gesture.finePrint))
 
   const previewCoupon: BuilderCoupon = {
     id: gesture.slug,
@@ -68,10 +226,70 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
     backgroundEffect: draft.backgroundEffect,
   }
 
-  const handleSaveOrSend = () => {
+  const performSave = async () => {
+    if (!templateId) {
+      setSaveError('Something went wrong. Please try again.')
+      return
+    }
     setSaving(true)
-    // Seam for the real Supabase write + GiftReadyScreen hand-off, once that path is built.
+    setSaveError('')
+    const result = await saveCouponSetAction({
+      template_id: templateId,
+      sender_name: senderName,
+      recipient_name: recipientName,
+      ...(expiryDate ? { expiry_date: expiryDate } : {}),
+      ...(senderMessage.trim() ? { sender_message: senderMessage.trim() } : {}),
+      coupons: [
+        {
+          service_title: draft.serviceTitle,
+          micro_copy: draft.microCopy,
+          fine_print: draft.finePrint,
+          font_choice: 'playfair',
+          background_color: draft.backgroundColor ?? undefined,
+          background_effect: draft.backgroundEffect,
+          sort_order: 1,
+        },
+      ],
+    })
+    setSaving(false)
+    if (!result.success) {
+      setSaveError(result.error)
+      return
+    }
+    clearPersistedGestureDraft()
+    setSavedResult({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
     setStep('done')
+  }
+
+  const handleSaveOrSend = () => {
+    if (!isLoggedIn) {
+      if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, 'true')
+      setAuthOpen(true)
+      return
+    }
+    void performSave()
+  }
+
+  // Completes a save the sender started before AuthGate interrupted them: once the auth redirect
+  // lands back here and isLoggedIn is true, and the intent flag from handleSaveOrSend is still
+  // set, finish the save automatically instead of making them click Save/Send a second time.
+  // Gated on step === 'personalize' since a pending intent's draft must still be hydrating (from
+  // 'details') until the rehydration effect above actually lands it there.
+  useEffect(() => {
+    if (attemptedSaveResume.current || !isLoggedIn) return
+    if (typeof window === 'undefined') return
+    if (window.localStorage.getItem(GESTURE_PENDING_SAVE_INTENT_KEY) !== 'true') return
+    if (step !== 'personalize') return
+    attemptedSaveResume.current = true
+    window.localStorage.removeItem(GESTURE_PENDING_SAVE_INTENT_KEY)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time completion of a save the sender already initiated before the auth redirect, not a render-time side effect
+    void performSave()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- performSave is stable per render and would cause an infinite loop if included
+  }, [isLoggedIn, step])
+
+  const handleExit = () => {
+    clearPersistedGestureDraft()
+    onExit()
   }
 
   if (step === 'details') {
@@ -82,7 +300,8 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
         recipientName={recipientName}
         expiryDate={expiryDate}
         senderMessage={senderMessage}
-        onBack={onExit}
+        messageStarter={isPaid ? gesture.messageStarter : undefined}
+        onBack={handleExit}
         onSenderChange={setSenderName}
         onRecipientChange={setRecipientName}
         onExpiryChange={setExpiryDate}
@@ -92,23 +311,15 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
     )
   }
 
-  if (step === 'done') {
+  if (step === 'done' && savedResult) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-        <h1 className="text-2xl font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
-          {ctaCopy.gestureSendPendingHeading}
-        </h1>
-        <div className="mt-3 max-w-[320px] text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-72">
-          {ctaCopy.gestureSendPendingBody}
-        </div>
-        <button
-          type="button"
-          onClick={onExit}
-          className="mt-6 rounded-2xl bg-[#C2185B] px-6 py-3.5 text-center font-sans text-[15px] font-bold text-white"
-        >
-          Back to gallery
-        </button>
-      </div>
+      <GiftReadyScreen
+        shareLink={`${window.location.origin}/give/${savedResult.setId}`}
+        pin={savedResult.pin}
+        senderName={senderName}
+        recipientName={recipientName}
+        onStartOver={handleExit}
+      />
     )
   }
 
@@ -134,7 +345,7 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
             </div>
             <div className="mt-0.5 text-[11.5px] text-[#2C2C2C] opacity-60">
               For {recipientName || 'them'} · from {senderName || 'you'} ·{' '}
-              <span style={{ color: antiqueGoldText, fontWeight: 700 }}>{gesture.price === 0 ? 'Free' : `$${gesture.price.toFixed(2)}`}</span>
+              <span style={{ color: antiqueGoldText, fontWeight: 700 }}>{displayPrice === 0 ? 'Free' : `$${displayPrice.toFixed(2)}`}</span>
             </div>
           </div>
         </div>
@@ -162,33 +373,45 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
             <div className="mt-3 flex flex-col gap-2.5">
               <input
                 value={draft.serviceTitle}
+                onChange={isPaid ? (e) => setDraft((d) => ({ ...d, serviceTitle: e.target.value })) : undefined}
                 aria-label="Service title"
-                aria-describedby="gesture-text-locked-hint"
+                aria-describedby={isPaid ? undefined : 'gesture-text-locked-hint'}
                 maxLength={SERVICE_TITLE_MAX_LENGTH}
-                disabled
-                readOnly
-                className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#F0ECE4] p-2.5 text-[15px] font-bold text-[#1A1A2E] italic outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                style={{ fontFamily: 'var(--font-playfair)' }}
+                disabled={!isPaid}
+                readOnly={!isPaid}
+                className="w-full rounded-[10px] border border-[#1A1A2E]/12 p-2.5 text-[15px] font-bold text-[#1A1A2E] italic outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ fontFamily: 'var(--font-playfair)', backgroundColor: isPaid ? '#FFF8F0' : '#F0ECE4' }}
               />
               <input
                 value={draft.microCopy}
+                onChange={isPaid ? (e) => setDraft((d) => ({ ...d, microCopy: e.target.value })) : undefined}
                 aria-label="Micro copy"
-                aria-describedby="gesture-text-locked-hint"
-                disabled
-                readOnly
-                className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#F0ECE4] p-2.5 text-[13px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                aria-describedby={isPaid ? undefined : 'gesture-text-locked-hint'}
+                disabled={!isPaid}
+                readOnly={!isPaid}
+                className="w-full rounded-[10px] border border-[#1A1A2E]/12 p-2.5 text-[13px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ backgroundColor: isPaid ? '#FFF8F0' : '#F0ECE4' }}
               />
               <input
                 value={draft.finePrint}
+                onChange={isPaid ? (e) => setDraft((d) => ({ ...d, finePrint: e.target.value })) : undefined}
                 aria-label="Fine print"
-                aria-describedby="gesture-text-locked-hint"
-                disabled
-                readOnly
-                className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#F0ECE4] p-2 text-[11.5px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                aria-describedby={isPaid ? undefined : 'gesture-text-locked-hint'}
+                disabled={!isPaid}
+                readOnly={!isPaid}
+                className="w-full rounded-[10px] border border-[#1A1A2E]/12 p-2 text-[11.5px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ backgroundColor: isPaid ? '#FFF8F0' : '#F0ECE4' }}
               />
-              <div id="gesture-text-locked-hint" className="text-[10.5px] font-semibold text-[#2C2C2C] opacity-50">
-                Locked. This coupon&apos;s text can&apos;t be edited — personalize with a message, colour, and effect instead.
-              </div>
+              {isPaid ? null : (
+                <button
+                  type="button"
+                  id="gesture-text-locked-hint"
+                  onClick={() => setUnlockConfirmOpen(true)}
+                  className="w-full rounded-[10px] border-[1.5px] border-dashed border-[#D4AF37] p-2.5 text-center font-sans text-[12.5px] font-bold text-[#8B6F1F]"
+                >
+                  {ctaCopy.gestureUnlockCta}
+                </button>
+              )}
             </div>
 
             <div className="mt-3.5 flex flex-col gap-2.5">
@@ -247,7 +470,12 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
       </div>
 
       {editMessageOpen && (
-        <EditMessageModal senderMessage={senderMessage} onSave={setSenderMessage} onClose={() => setEditMessageOpen(false)} />
+        <EditMessageModal
+          senderMessage={senderMessage}
+          messageStarter={isPaid ? gesture.messageStarter : undefined}
+          onSave={setSenderMessage}
+          onClose={() => setEditMessageOpen(false)}
+        />
       )}
 
       {previewOpen && (
@@ -259,6 +487,18 @@ export function GestureFlow({ gesture, onExit }: { gesture: SingleUseGesture; on
           expiresAt={expiryDate || null}
           recipientPreview={{ senderName, senderMessage: senderMessage || null }}
           onClose={() => setPreviewOpen(false)}
+        />
+      )}
+
+      {authOpen && <AuthGate redirectTo="/create" onClose={() => setAuthOpen(false)} />}
+
+      {unlockConfirmOpen && (
+        <GestureUnlockConfirm
+          onConfirm={() => {
+            setUnlocked(true)
+            setUnlockConfirmOpen(false)
+          }}
+          onDismiss={() => setUnlockConfirmOpen(false)}
         />
       )}
     </div>

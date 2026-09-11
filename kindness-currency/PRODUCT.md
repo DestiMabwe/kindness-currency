@@ -35,7 +35,7 @@ The mechanism a competitor can't casually copy: a magic link (`/give/[uuid]`, no
 - `CouponCardHero` is the single, locked-layout card component used everywhere a coupon renders (recipient page, sender preview, builder edit tile) — shape, barcode, "GOOD FOR ONE" label, Playfair Display title, and accent-driven border/notch colour are never user-configurable. Only title/micro-copy/fine-print, background colour, and background effect are editable.
 - Mobile-first is non-negotiable: every component must work at 390px before desktop polish.
 - No login/auth requirement anywhere on the recipient (`/give/[id]`) page.
-- No payment infrastructure in v1 — monetisation is explicitly undecided beyond a "Made with Kindness Currency" footer watermark on the recipient page. Confirmed still true as of this writing (2026-08-11).
+- Pricing model decided (2026-08-27, see `PRICING.md`): all templates are paid, one-time per coupon set — no permanent free tier, no subscription. A "3 for 2" bundle discount (buy 3 templates, cheapest is free — modeled on Clicks' promotion) applies at checkout. No payment infrastructure is implemented yet (no Stripe/Paddle/etc. in `package.json`); this is a decided model awaiting a build, not a live capability. Whether the "Made with Kindness Currency" footer watermark stays on all paid sets or becomes a separate removable extra is still open (see `PRICING.md`).
 - Web only for v1 — no native mobile app planned (explicit out-of-scope item).
 - Out of scope for v1: animated coupon reveals, scheduled delivery, watermark removal, corporate/bulk tier, custom branding, analytics dashboard, sender email notifications on redemption, sender redemption-tracking dashboard beyond the basic Profile list, non-WhatsApp/Copy-Link/Web-Share sharing, content moderation, server-side age verification, custom user-created templates.
 - Stack (existing, not delegated): Next.js App Router, TypeScript strict mode, Tailwind CSS, Supabase (Postgres + Auth), Vercel deployment, Zod as the source of truth for types/mutations, `bcryptjs` for PIN hashing.
@@ -52,6 +52,7 @@ The mechanism a competitor can't casually copy: a magic link (`/give/[uuid]`, no
 
 - `PRD.md` (project root) is the canonical source of truth for v1 scope, user stories, and the five templates' full seed content — durable reference, not to be duplicated here.
 - `CLAUDE.md` records absolute implementation rules (no PIN in URL, no `template_type` TEXT enum, bcrypt-only PIN storage, Supabase access boundaries, module map) that any design work must respect.
+- `PRICING.md` (project root) is the durable reference for the pricing model — per-template prices, the bundle discount mechanic, and open billing questions — not to be duplicated here.
 - No user research, testimonials, case studies, or press exist yet — do not fabricate any.
 
 ## Product Principles

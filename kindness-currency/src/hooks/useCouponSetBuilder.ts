@@ -121,6 +121,11 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
           selectedTemplateId: template.id,
           selectedTemplateSlug: slug,
           coupons: isSameTemplate ? s.coupons : couponsFromTemplate(template),
+          // Starts empty on a genuinely new template selection — the template's smart-start
+          // message (templateVisuals[slug].previewMessage) is offered as a tappable suggestion
+          // on the message field instead of being auto-filled, matching the single-use gesture
+          // flow's messageStarter pattern.
+          senderMessage: isSameTemplate ? s.senderMessage : '',
           screen: isSameTemplate && namesFilled ? 'edit' : 'details',
         }
       })

@@ -13,7 +13,7 @@ import { CartIcon } from '@/components/shared/CartIcon'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
 import { bundleTierBySlug, tierPrice, type BundleTier } from '@/lib/bundleTiers'
 import { usePendingInstances, addToCart, consumePendingInstance } from '@/lib/cart'
-import { GestureFlow } from '@/components/builder/GestureFlow'
+import { GestureFlow, peekPersistedGestureSlug } from '@/components/builder/GestureFlow'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
@@ -26,7 +26,7 @@ import { ctaCopy } from '@/constants/ctaCopy'
 import { saveCouponSetAction, linkSenderAction } from '@/app/create/actions'
 import { SERVICE_TITLE_MAX_LENGTH, SENDER_MESSAGE_MAX_LENGTH } from '@/schemas/couponSchema'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
-import type { TemplateCoupon, TemplateWithCoupons } from '@/lib/templateRepository'
+import type { Template, TemplateCoupon, TemplateWithCoupons } from '@/lib/templateRepository'
 import type { ComingSoonTemplate } from '@/lib/comingSoonTemplateRepository'
 import type { FeatureInterestSlug } from '@/schemas/featureInterestSchema'
 
@@ -50,6 +50,7 @@ const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) =
 
 export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
+  singleUseTemplates?: Template[]
   comingSoonTemplates?: ComingSoonTemplate[]
   isLoggedIn?: boolean
   userEmail?: string | null
@@ -69,8 +70,17 @@ const PENDING_SENDER_READY_KEY = 'kindness-currency:pending-sender-ready'
 // so only the "they meant to save" intent needs to be remembered separately.
 const PENDING_SAVE_INTENT_KEY = 'kindness-currency:pending-save-intent'
 
-export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLoggedIn = false, userEmail = null }: CouponSetBuilderProps) {
+export function CouponSetBuilder({
+  templates,
+  singleUseTemplates = [],
+  comingSoonTemplates = [],
+  isLoggedIn = false,
+  userEmail = null,
+}: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
+  // Maps a gesture's fixture slug (src/lib/singleUseGestures.ts) to its real DB template id, so
+  // GestureFlow has something valid to save coupon_sets.template_id with.
+  const singleUseTemplateIdBySlug = Object.fromEntries(singleUseTemplates.map((t) => [t.slug, t.id]))
   const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
   const [pendingTemplateSwitch, setPendingTemplateSwitch] = useState<TemplateWithCoupons | null>(null)
   const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
@@ -81,8 +91,23 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
   const [saveError, setSaveError] = useState('')
   const [authOpen, setAuthOpen] = useState(false)
   const [resumedDraftDismissed, setResumedDraftDismissed] = useState(false)
+  const [authLinkFailed, setAuthLinkFailed] = useState(false)
   const attemptedResume = useRef(false)
   const attemptedSaveResume = useRef(false)
+
+  // /auth/callback flags a failed sign-in-link exchange with ?authError=1 (expired/already-used
+  // code, or the link opened on a different device than the one that requested it) rather than
+  // silently landing the sender back here looking logged in when they're not. Read once on mount
+  // and strip the flag so refreshing doesn't keep re-showing it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('authError') !== '1') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount sync from the URL, not a render-time update
+    setAuthLinkFailed(true)
+    url.searchParams.delete('authError')
+    window.history.replaceState({}, '', url.toString())
+  }, [])
 
   const performSave = async () => {
     const payload = builder.toSavePayload()
@@ -245,12 +270,40 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
       {builder.state.screen === 'select' && (
         <TemplateSelectScreen
           templates={templates}
+          singleUseTemplateIdBySlug={singleUseTemplateIdBySlug}
           comingSoonTemplates={comingSoonTemplates}
           currentTemplateId={builder.state.selectedTemplateId}
+          isLoggedIn={isLoggedIn}
           onSelect={handleSelectTemplate}
           onPreviewSample={handlePreviewSample}
           onFeatureInterest={setFeatureInterestModal}
         />
+      )}
+
+      {authLinkFailed && (
+        <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#C2185B]/25 bg-white px-4 py-3.5">
+          <div className="flex flex-col gap-1 text-left">
+            <span className="text-[12.5px] font-semibold text-[#1A1A2E]">{ctaCopy.authLinkFailedBannerText}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthLinkFailed(false)
+                setAuthOpen(true)
+              }}
+              className="w-fit text-[12.5px] font-semibold text-[#C2185B]"
+            >
+              {ctaCopy.authLinkFailedRetryButton}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAuthLinkFailed(false)}
+            aria-label="Dismiss"
+            className="shrink-0 p-1 text-[15px] text-[#2C2C2C] opacity-50"
+          >
+            ✕
+          </button>
+        </div>
       )}
 
       {builder.resumedDraft && !resumedDraftDismissed && (builder.state.screen === 'details' || builder.state.screen === 'edit') && (
@@ -283,6 +336,7 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
           recipientName={builder.state.recipientName}
           expiryDate={builder.state.expiryDate}
           senderMessage={builder.state.senderMessage}
+          messageStarter={visuals?.previewMessage}
           onBack={builder.backToSelect}
           onSenderChange={builder.setSenderName}
           onRecipientChange={builder.setRecipientName}
@@ -319,6 +373,7 @@ export function CouponSetBuilder({ templates, comingSoonTemplates = [], isLogged
       {editMessageOpen && (
         <EditMessageModal
           senderMessage={builder.state.senderMessage}
+          messageStarter={visuals?.previewMessage}
           onSave={builder.setSenderMessage}
           onClose={() => setEditMessageOpen(false)}
         />
@@ -373,13 +428,25 @@ function BundleTemplateCard({
   onPreviewSample: (template: TemplateWithCoupons) => void
 }) {
   const [qty, setQty] = useState(1)
+  const [justAdded, setJustAdded] = useState(false)
+  const justAddedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const visuals = templateVisuals[template.slug as TemplateSlug]
   const tier = bundleTierBySlug[template.slug]
   const unitPrice = tier ? tierPrice[tier] : null
 
+  useEffect(() => () => {
+    if (justAddedTimeout.current) clearTimeout(justAddedTimeout.current)
+  }, [])
+
   const handleAddToCart = () => {
     addToCart(template.slug, qty)
     setQty(1)
+    // Holds the confirmed state (and disables the button) long enough to read before
+    // reverting — the button is the only feedback a sender gets that the tap landed,
+    // so without it a hesitant re-tap silently adds a second coupon set to the cart.
+    setJustAdded(true)
+    if (justAddedTimeout.current) clearTimeout(justAddedTimeout.current)
+    justAddedTimeout.current = setTimeout(() => setJustAdded(false), 1300)
   }
 
   return (
@@ -444,10 +511,13 @@ function BundleTemplateCard({
           <button
             type="button"
             onClick={handleAddToCart}
-            className="flex-1 rounded-xl p-2.5 text-center font-sans text-[12.5px] font-bold text-white"
-            style={{ backgroundColor: visuals.accent }}
+            disabled={justAdded}
+            className="flex-1 rounded-xl p-2.5 text-center font-sans text-[12.5px] font-bold text-white transition-colors duration-300"
+            style={{ backgroundColor: justAdded ? '#2E7D6B' : visuals.accent }}
           >
-            {ctaCopy.designMyGiftCta((unitPrice * qty).toFixed(2))}
+            <span aria-live="polite" className={justAdded ? 'kc-pop inline-block' : 'inline-block'}>
+              {justAdded ? ctaCopy.designMyGiftAddedCta : ctaCopy.designMyGiftCta((unitPrice * qty).toFixed(2))}
+            </span>
           </button>
         </div>
       )}
@@ -457,15 +527,19 @@ function BundleTemplateCard({
 
 function TemplateSelectScreen({
   templates,
+  singleUseTemplateIdBySlug,
   comingSoonTemplates,
   currentTemplateId,
+  isLoggedIn,
   onSelect,
   onPreviewSample,
   onFeatureInterest,
 }: {
   templates: TemplateWithCoupons[]
+  singleUseTemplateIdBySlug: Record<string, string>
   comingSoonTemplates: ComingSoonTemplate[]
   currentTemplateId: string | null
+  isLoggedIn: boolean
   onSelect: (template: TemplateWithCoupons) => void
   onPreviewSample: (template: TemplateWithCoupons) => void
   onFeatureInterest: (feature: FeatureInterestSlug) => void
@@ -479,6 +553,21 @@ function TemplateSelectScreen({
   const bundleTemplates = bundleTier ? templates.filter((t) => bundleTierBySlug[t.slug] === bundleTier) : templates
   const pendingInstances = usePendingInstances()
   const promoPopupRef = useRef<PromoScrollPopupHandle>(null)
+  const attemptedGestureResume = useRef(false)
+
+  // Resumes straight into GestureFlow if a gesture draft is still in progress — the sender may
+  // have never left (e.g. an auth redirect mid Save/Send reloaded this whole page). Deferred to an
+  // effect rather than a lazy useState initializer for the same hydration-safety reason
+  // useCouponSetBuilder's own draft rehydration is.
+  useEffect(() => {
+    if (attemptedGestureResume.current) return
+    attemptedGestureResume.current = true
+    const slug = peekPersistedGestureSlug()
+    if (!slug) return
+    const match = singleUseGestures.find((g) => g.slug === slug)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount rehydration from localStorage, not a render-time update
+    if (match) setChosenGesture(match)
+  }, [])
 
   const handleFilterChange = (value: FilterValue) => {
     setFilter(value)
@@ -488,7 +577,14 @@ function TemplateSelectScreen({
   }
 
   if (chosenGesture) {
-    return <GestureFlow gesture={chosenGesture} onExit={() => setChosenGesture(null)} />
+    return (
+      <GestureFlow
+        gesture={chosenGesture}
+        templateId={singleUseTemplateIdBySlug[chosenGesture.slug] ?? null}
+        isLoggedIn={isLoggedIn}
+        onExit={() => setChosenGesture(null)}
+      />
+    )
   }
 
   return (
@@ -688,12 +784,31 @@ function TemplateSwitchWarningModal({
   )
 }
 
+// A tappable, gesture-specific opening line for the "write a message" fields — offered as a
+// starting point rather than a placeholder, so it fills the field on tap instead of just hinting
+// at it. Shared between DetailsFormScreen and EditMessageModal so both message-writing surfaces
+// offer the same suggestion.
+function MessageStarterSuggestion({ starter, onUse }: { starter: string; onUse: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onUse}
+      className="mt-1.5 w-full rounded-xl border-[1.5px] border-dashed border-[#C2185B]/35 bg-[#C2185B]/5 p-3 text-left"
+    >
+      <span className="block text-[10.5px] font-bold tracking-[0.04em] text-[#C2185B] uppercase">{ctaCopy.messageStarterPrompt}</span>
+      <span className="mt-1 block text-[13px] leading-snug text-[#1A1A2E] italic opacity-80">&ldquo;{starter}&rdquo;</span>
+      <span className="mt-1 block text-[10.5px] font-semibold text-[#C2185B] opacity-70">{ctaCopy.messageStarterHint}</span>
+    </button>
+  )
+}
+
 export function DetailsFormScreen({
   templateName,
   senderName,
   recipientName,
   expiryDate,
   senderMessage,
+  messageStarter,
   onBack,
   onSenderChange,
   onRecipientChange,
@@ -706,6 +821,7 @@ export function DetailsFormScreen({
   recipientName: string
   expiryDate: string
   senderMessage: string
+  messageStarter?: string
   onBack: () => void
   onSenderChange: (value: string) => void
   onRecipientChange: (value: string) => void
@@ -769,6 +885,9 @@ export function DetailsFormScreen({
             rows={3}
             className="mt-1.5 w-full resize-none rounded-xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
           />
+          {messageStarter && !senderMessage.trim() && (
+            <MessageStarterSuggestion starter={messageStarter} onUse={() => onSenderMessageChange(messageStarter)} />
+          )}
         </label>
         <label className="block">
           <span className="text-[11px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-60">
@@ -1033,10 +1152,12 @@ function EditScreen({
 
 export function EditMessageModal({
   senderMessage,
+  messageStarter,
   onSave,
   onClose,
 }: {
   senderMessage: string
+  messageStarter?: string
   onSave: (value: string) => void
   onClose: () => void
 }) {
@@ -1070,6 +1191,9 @@ export function EditMessageModal({
           rows={4}
           className="mt-4 w-full resize-none rounded-xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
         />
+        {messageStarter && !draft.trim() && (
+          <MessageStarterSuggestion starter={messageStarter} onUse={() => setDraft(messageStarter)} />
+        )}
         <button
           type="button"
           onClick={handleSave}

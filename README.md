@@ -65,4 +65,4 @@ The product is built around five relational templates (Mother's Day, Valentine's
 - **Authentication:** Supabase Email OTP (magic links, no passwords)
 
 # Run the development server
-npm run dev
+bun run dev

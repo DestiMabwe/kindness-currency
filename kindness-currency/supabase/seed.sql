@@ -95,6 +95,21 @@ INSERT INTO template_coupons (template_id, sort_order, service_title, micro_copy
 SELECT id, 8, 'One Wildcard Favour',      'Whatever you need. No explanation required',        'Best friend card · Always valid'               FROM templates WHERE slug = 'besties';
 
 -- ============================================================
+-- Single-use gesture templates — src/lib/singleUseGestures.ts
+-- One coupon each; content/price/motif stay in the fixture, only identity lives here.
+-- ============================================================
+INSERT INTO templates (slug, name, is_single_use, is_active, sort_order)
+VALUES
+  ('relief', 'Rescue Mission', true, true, 1),
+  ('presence', 'Quiet Visit', true, true, 2),
+  ('encouragement', 'Pep Talk', true, true, 3),
+  ('repair', 'Do-Over', true, true, 4),
+  ('restoration', 'Recharge Session', true, true, 5),
+  ('celebration', 'Night Out', true, true, 6),
+  ('adventure', 'Spontaneous Escape', true, true, 7),
+  ('honest-truth', 'Hard Talk', true, true, 8);
+
+-- ============================================================
 -- Campaign banner — Mother's Day launch
 -- ============================================================
 INSERT INTO campaign_banners (message, is_active, starts_at, ends_at)

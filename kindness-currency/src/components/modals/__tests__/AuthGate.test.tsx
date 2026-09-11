@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthGate } from '../AuthGate'
@@ -86,8 +86,8 @@ describe('AuthGate', () => {
     expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
   })
 
-  it('shows an error and stays on the form if sending fails', async () => {
-    signInWithOtp.mockResolvedValue({ error: { message: 'rate limited' } })
+  it('shows a generic error and stays on the form for an unrecognized failure', async () => {
+    signInWithOtp.mockResolvedValue({ error: { message: 'internal server error', code: 'unexpected_failure' } })
     render(<AuthGate onClose={vi.fn()} />)
 
     await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
@@ -95,6 +95,40 @@ describe('AuthGate', () => {
 
     expect(await screen.findByText(/Something went wrong sending your link/)).toBeInTheDocument()
     expect(screen.queryByText('Check your inbox')).not.toBeInTheDocument()
+  })
+
+  it('rejects an obviously malformed email before ever calling Supabase', async () => {
+    render(<AuthGate onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'notanemail')
+    await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+
+    expect(screen.getByText("That doesn't look like a valid email address.")).toBeInTheDocument()
+    expect(signInWithOtp).not.toHaveBeenCalled()
+  })
+
+  it('shows a specific rate-limit message instead of the generic failure text', async () => {
+    signInWithOtp.mockResolvedValue({ error: { message: 'Email rate limit exceeded', code: 'over_email_send_rate_limit' } })
+    render(<AuthGate onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+
+    expect(await screen.findByText(/wait a minute before trying again/)).toBeInTheDocument()
+    expect(screen.queryByText(/Something went wrong sending your link/)).not.toBeInTheDocument()
+  })
+
+  it('distinguishes a rate limit from an invalid email, even though both are 4xx failures', async () => {
+    signInWithOtp.mockResolvedValue({ error: { message: 'Unable to validate email address: invalid format', code: 'email_address_invalid' } })
+    render(<AuthGate onClose={vi.fn()} />)
+
+    // A format Supabase itself rejects but this component's own light client-side check doesn't
+    // (the regex only screens the obvious cases) still needs to reach the network and come back
+    // with its own distinct message, not the rate-limit or generic one.
+    await userEvent.type(screen.getByLabelText('Email address'), 'a@b.c')
+    await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+
+    expect(await screen.findByText("That doesn't look like a valid email address.")).toBeInTheDocument()
   })
 
   describe('login mode', () => {
@@ -156,6 +190,65 @@ describe('AuthGate', () => {
       expect(locationAssign).not.toHaveBeenCalled()
     })
 
+    describe('in production', () => {
+      afterEach(() => {
+        vi.unstubAllEnvs()
+      })
+
+      it('sends a real magic link gated to existing accounts instead of the dev instant-login shortcut', async () => {
+        vi.stubEnv('NODE_ENV', 'production')
+        signInWithOtp.mockResolvedValue({ error: null })
+        render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+
+        await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+        await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
+
+        expect(signInWithOtp).toHaveBeenCalledWith({
+          email: 'alex@example.com',
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fcreate`,
+            shouldCreateUser: false,
+          },
+        })
+        expect(devInstantLoginAction).not.toHaveBeenCalled()
+      })
+
+      it('shows the "check your inbox" step after a successful production login send', async () => {
+        vi.stubEnv('NODE_ENV', 'production')
+        signInWithOtp.mockResolvedValue({ error: null })
+        render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+
+        await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+        await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
+
+        expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
+      })
+
+      it('shows a sign-up nudge when no account exists for that email, without creating one', async () => {
+        vi.stubEnv('NODE_ENV', 'production')
+        signInWithOtp.mockResolvedValue({ error: { message: 'Unable to validate email address: not found' } })
+        render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+
+        await userEvent.type(screen.getByLabelText('Email address'), 'nobody@example.com')
+        await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
+
+        expect(await screen.findByText(/Want to sign up instead/)).toBeInTheDocument()
+        expect(screen.queryByText('Check your inbox')).not.toBeInTheDocument()
+      })
+
+      it('shows a rate-limit message rather than the "no account" nudge when that\'s the real cause', async () => {
+        vi.stubEnv('NODE_ENV', 'production')
+        signInWithOtp.mockResolvedValue({ error: { message: 'Email rate limit exceeded', code: 'over_email_send_rate_limit' } })
+        render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+
+        await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+        await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
+
+        expect(await screen.findByText(/wait a minute before trying again/)).toBeInTheDocument()
+        expect(screen.queryByText(/Want to sign up instead/)).not.toBeInTheDocument()
+      })
+    })
+
     it('switches from signup to login and back via the tabs', async () => {
       render(<AuthGate onClose={vi.fn()} />)
 
@@ -177,6 +270,16 @@ describe('AuthGate', () => {
 
       expect(screen.getByRole('tab', { name: 'Sign Up' })).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByRole('tab', { name: 'Log In' })).toHaveAttribute('aria-selected', 'false')
+    })
+
+    it('links each tab to the panel it controls, and the panel back to whichever tab is active', () => {
+      render(<AuthGate onClose={vi.fn()} />)
+
+      const signUpTab = screen.getByRole('tab', { name: 'Sign Up' })
+      const panel = screen.getByRole('tabpanel')
+
+      expect(signUpTab).toHaveAttribute('aria-controls', panel.id)
+      expect(panel).toHaveAttribute('aria-labelledby', signUpTab.id)
     })
 
     it('opens with the Log In tab active when initialMode is "login"', () => {
