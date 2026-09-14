@@ -16,7 +16,7 @@ describe('HeaderMenu', () => {
     expect(screen.getByRole('link', { name: 'Create Coupons' })).toHaveAttribute('href', '/create')
     expect(screen.queryByRole('link', { name: 'Templates' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'About Us' })).toHaveAttribute('href', '/about')
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '/profile')
+    expect(screen.getByRole('link', { name: 'Your Gifts' })).toHaveAttribute('href', '/profile')
     expect(screen.getByRole('link', { name: 'Give Us Feedback' })).toHaveAttribute('href', '/feedback')
   })
 

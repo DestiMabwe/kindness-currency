@@ -5,6 +5,7 @@ import { createTemplateRepository } from '@/lib/templateRepository'
 import { createCampaignBannerRepository } from '@/lib/campaignBannerRepository'
 import { CampaignBanner } from '@/components/shared/CampaignBanner'
 import { SiteHeader } from '@/components/shared/SiteHeader'
+import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { templateVisuals, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -100,7 +101,11 @@ export default async function HomePage() {
                 className="w-[172px] shrink-0 overflow-hidden rounded-[18px] border border-[#1A1A2E]/8 bg-white shadow-[0_14px_30px_-22px_rgba(26,26,46,0.5)]"
               >
                 <div className="relative aspect-[1748/1240] w-full">
-                  <Image src={visuals.coverImageSrc} alt={template.name} fill sizes="172px" className="object-cover" />
+                  {visuals.coverImageSrc ? (
+                    <Image src={visuals.coverImageSrc} alt={template.name} fill sizes="172px" className="object-cover" />
+                  ) : (
+                    <TemplateCoverArt name={template.name} accent={visuals.accent} tint={visuals.tint} imageSrc={visuals.imageSrc} />
+                  )}
                   {template.is_age_restricted && (
                     <span className="absolute top-2 right-2 rounded-full border border-[#C2185B] bg-white/92 px-1.75 py-0.5 text-[9px] font-bold tracking-[0.08em] text-[#C2185B]">
                       18+

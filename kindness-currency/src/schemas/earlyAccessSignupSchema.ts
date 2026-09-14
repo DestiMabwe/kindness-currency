@@ -6,8 +6,6 @@ import { z } from 'zod'
 export const COMING_SOON_TEMPLATE_SLUGS = [
   'dads',
   'siblings',
-  'made-by-him',
-  'made-by-her',
   'long-distance-lovers',
   'meal-coupons',
   'movie-marathon',

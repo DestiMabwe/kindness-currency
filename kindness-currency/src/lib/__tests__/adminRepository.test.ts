@@ -133,17 +133,17 @@ describe('AdminRepository', () => {
       ])
     })
 
-    it('counts a paired idea (Made By Him / Made By Her) separately, not combined', async () => {
+    it('counts each coming-soon template by its own slug, not combined with others', async () => {
       const supabase = makeComingSoonSupabase({
         comingSoonTemplates: [
-          { slug: 'made-by-him', name: "Made By Him: Lover's Promises" },
-          { slug: 'made-by-her', name: "Made By Her: Lover's Promises" },
+          { slug: 'dads', name: "Dad's Promise Tokens" },
+          { slug: 'siblings', name: 'Sibling Adventure Tokens' },
         ],
         signups: [
-          { template_slug: 'made-by-him' },
-          { template_slug: 'made-by-him' },
-          { template_slug: 'made-by-him' },
-          { template_slug: 'made-by-her' },
+          { template_slug: 'dads' },
+          { template_slug: 'dads' },
+          { template_slug: 'dads' },
+          { template_slug: 'siblings' },
         ],
       })
       const repo = createAdminRepository(supabase as never)
@@ -151,8 +151,8 @@ describe('AdminRepository', () => {
       const result = await repo.getComingSoonTemplateInterest()
 
       expect(result).toEqual([
-        { templateSlug: 'made-by-him', name: "Made By Him: Lover's Promises", count: 3 },
-        { templateSlug: 'made-by-her', name: "Made By Her: Lover's Promises", count: 1 },
+        { templateSlug: 'dads', name: "Dad's Promise Tokens", count: 3 },
+        { templateSlug: 'siblings', name: 'Sibling Adventure Tokens', count: 1 },
       ])
     })
   })

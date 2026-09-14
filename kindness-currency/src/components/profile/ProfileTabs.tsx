@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { resetPinAction } from '@/app/profile/actions'
-import { ResetPinModal } from './ResetPinModal'
 import { TabPills } from '@/components/shared/TabPills'
 import type { CouponSetSummary, ReceivedCouponSetSummary } from '@/lib/couponSetRepository'
 
@@ -34,8 +33,6 @@ const SENT_BADGE_STYLE: Record<SentBadge, { label: string; bg: string; color: st
 
 export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
   const [tab, setTab] = useState<Tab>('sent')
-  const [resetPinSetId, setResetPinSetId] = useState<string | null>(null)
-  const resetPinSet = sentSets.find((s) => s.id === resetPinSetId) ?? null
 
   return (
     <div>
@@ -58,7 +55,11 @@ export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
               {sentSets.map((set) => {
                 const badge = SENT_BADGE_STYLE[sentBadgeFor(set)]
                 return (
-                  <div key={set.id} className="rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
+                  <Link
+                    key={set.id}
+                    href={`/profile/${set.id}`}
+                    className="block rounded-2xl border border-[#1A1A2E]/8 bg-white p-4"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="text-[15.5px] font-bold text-[#1A1A2E]">{set.recipient_name}</div>
                       <span
@@ -69,19 +70,10 @@ export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
                       </span>
                     </div>
                     {set.templateName && <div className="mt-1 text-[12.5px] text-[#2C2C2C] opacity-70">{set.templateName}</div>}
-                    <div className="mt-2.5 flex items-center justify-between">
-                      <div className="text-[12.5px] font-semibold text-[#C2185B]">
-                        {redeemedCount(set.coupons)} of {set.coupons.length} redeemed
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setResetPinSetId(set.id)}
-                        className="flex items-center gap-1 text-[12px] font-semibold text-[#1A1A2E] opacity-70"
-                      >
-                        <span aria-hidden="true">👁</span> {ctaCopy.resetPinButtonLabel}
-                      </button>
+                    <div className="mt-2.5 text-[12.5px] font-semibold text-[#C2185B]">
+                      {redeemedCount(set.coupons)} of {set.coupons.length} redeemed
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>
@@ -110,14 +102,6 @@ export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
             </div>
           )}
         </div>
-      )}
-
-      {resetPinSet && (
-        <ResetPinModal
-          recipientName={resetPinSet.recipient_name}
-          onReset={() => resetPinAction(resetPinSet.id)}
-          onClose={() => setResetPinSetId(null)}
-        />
       )}
     </div>
   )

@@ -14,7 +14,7 @@ beforeEach(() => {
 
 describe('EarlyAccessSignupForm', () => {
   it('renders name and email fields plus a submit button', () => {
-    render(<EarlyAccessSignupForm templateSlug="made-by-him" />)
+    render(<EarlyAccessSignupForm templateSlug="dads" />)
 
     expect(screen.getByLabelText('Name')).toBeInTheDocument()
     expect(screen.getByLabelText('Email address')).toBeInTheDocument()
@@ -22,7 +22,7 @@ describe('EarlyAccessSignupForm', () => {
   })
 
   it('shows an inline error and does not submit when the email is not valid', async () => {
-    render(<EarlyAccessSignupForm templateSlug="made-by-him" />)
+    render(<EarlyAccessSignupForm templateSlug="dads" />)
 
     await userEvent.type(screen.getByLabelText('Name'), 'Jamie')
     await userEvent.type(screen.getByLabelText('Email address'), 'not-an-email')
@@ -33,7 +33,7 @@ describe('EarlyAccessSignupForm', () => {
   })
 
   it('shows an inline error asking for a name and does not submit when the name is blank', async () => {
-    render(<EarlyAccessSignupForm templateSlug="made-by-him" />)
+    render(<EarlyAccessSignupForm templateSlug="dads" />)
 
     await userEvent.type(screen.getByLabelText('Email address'), 'jamie@example.com')
     await userEvent.click(screen.getByRole('button', { name: /notify me/i }))
@@ -45,7 +45,7 @@ describe('EarlyAccessSignupForm', () => {
   it('calls the signup action with the trimmed email, name, and template slug on valid submit', async () => {
     let resolveAction: (value: { success: true; alreadySignedUp: false }) => void = () => {}
     signUpForEarlyAccessAction.mockReturnValue(new Promise((resolve) => (resolveAction = resolve)))
-    render(<EarlyAccessSignupForm templateSlug="made-by-him" />)
+    render(<EarlyAccessSignupForm templateSlug="dads" />)
 
     await userEvent.type(screen.getByLabelText('Name'), 'Jamie')
     await userEvent.type(screen.getByLabelText('Email address'), ' jamie@example.com ')
@@ -54,7 +54,7 @@ describe('EarlyAccessSignupForm', () => {
     expect(signUpForEarlyAccessAction).toHaveBeenCalledWith({
       name: 'Jamie',
       email: 'jamie@example.com',
-      templateSlug: 'made-by-him',
+      templateSlug: 'dads',
     })
     expect(screen.getByRole('button', { name: /notify me/i })).toBeDisabled()
 
@@ -63,7 +63,7 @@ describe('EarlyAccessSignupForm', () => {
 
   it('shows a success message and hides the form after a successful signup', async () => {
     signUpForEarlyAccessAction.mockResolvedValue({ success: true, alreadySignedUp: false })
-    render(<EarlyAccessSignupForm templateSlug="made-by-him" />)
+    render(<EarlyAccessSignupForm templateSlug="dads" />)
 
     await userEvent.type(screen.getByLabelText('Name'), 'Jamie')
     await userEvent.type(screen.getByLabelText('Email address'), 'jamie@example.com')
@@ -75,7 +75,7 @@ describe('EarlyAccessSignupForm', () => {
 
   it('shows a friendly message when the signup is a duplicate', async () => {
     signUpForEarlyAccessAction.mockResolvedValue({ success: true, alreadySignedUp: true })
-    render(<EarlyAccessSignupForm templateSlug="made-by-him" />)
+    render(<EarlyAccessSignupForm templateSlug="dads" />)
 
     await userEvent.type(screen.getByLabelText('Name'), 'Jamie')
     await userEvent.type(screen.getByLabelText('Email address'), 'jamie@example.com')
@@ -87,7 +87,7 @@ describe('EarlyAccessSignupForm', () => {
 
   it('shows an inline error and keeps the form when the server call fails', async () => {
     signUpForEarlyAccessAction.mockResolvedValue({ success: false, error: 'Something went wrong. Please try again.' })
-    render(<EarlyAccessSignupForm templateSlug="made-by-him" />)
+    render(<EarlyAccessSignupForm templateSlug="dads" />)
 
     await userEvent.type(screen.getByLabelText('Name'), 'Jamie')
     await userEvent.type(screen.getByLabelText('Email address'), 'jamie@example.com')

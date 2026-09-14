@@ -12,7 +12,7 @@ function makeSupabase(resolvedValue: { data: unknown; error: unknown }) {
 const validInput = () => ({
   email: 'friend@example.com',
   name: 'Jamie',
-  templateSlug: 'made-by-him',
+  templateSlug: 'dads',
 })
 
 describe('EarlyAccessSignupRepository', () => {
@@ -28,7 +28,7 @@ describe('EarlyAccessSignupRepository', () => {
       expect(chain.insert).toHaveBeenCalledWith({
         email: 'friend@example.com',
         name: 'Jamie',
-        template_slug: 'made-by-him',
+        template_slug: 'dads',
       })
     })
 

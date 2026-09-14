@@ -23,6 +23,8 @@ export const bundleTierBySlug: Record<string, BundleTier> = {
   besties: 'everyday',
   valentines: 'occasion',
   lovers: 'romance',
+  'requested-by-him': 'romance',
+  'requested-by-her': 'romance',
   // Coming soon
   dads: 'everyday',
   siblings: 'everyday',
@@ -32,16 +34,22 @@ export const bundleTierBySlug: Record<string, BundleTier> = {
   'travel-buddies': 'occasion',
   'shopping-spree': 'occasion',
   'long-distance-lovers': 'occasion',
-  'made-by-him': 'romance',
-  'made-by-her': 'romance',
 }
 
-// made-by-him + made-by-her are individually Romance-tier, but PRICING.md prices them as a
-// $9.99 couple's bundle when both are in the cart rather than $6.99 + $6.99 — surfaced as a
+// requested-by-him + requested-by-her are individually Romance-tier, but PRICING.md prices them
+// as a $9.99 couple's bundle when both are in the cart rather than $6.99 + $6.99 — surfaced as a
 // footnote on the pricing page, not modeled as its own tier.
 export const pairedBundlePrice = 9.99
 
-// Only the 5 live templates are ever addable to the cart (coming-soon ones are teasers only, not
+// The other half of each paired-bundle idea, by slug — see pairedBundlePrice. Used both to show
+// "Pairs with X" on the template card/teaser and, in cart.ts, to detect when both halves are in
+// the cart together so the pairing discount actually applies at checkout.
+export const pairedSlugBySlug: Record<string, string> = {
+  'requested-by-him': 'requested-by-her',
+  'requested-by-her': 'requested-by-him',
+}
+
+// Only the 7 live templates are ever addable to the cart (coming-soon ones are teasers only, not
 // purchasable), so the cart view only needs names for these — avoids a server round-trip from a
 // client component just to label cart lines.
 export const liveTemplateNameBySlug: Record<string, string> = {
@@ -50,4 +58,6 @@ export const liveTemplateNameBySlug: Record<string, string> = {
   besties: "Bestie's Surprise Passes",
   valentines: "Valentine's Love Passes",
   lovers: "Lover's Intimate Promises",
+  'requested-by-him': "Requested By Him: Lover's Wishes",
+  'requested-by-her': "Requested By Her: Lover's Wishes",
 }

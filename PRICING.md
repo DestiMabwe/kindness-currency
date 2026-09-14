@@ -44,15 +44,15 @@ Tied to a specific date or moment (a holiday, a trip, a shopping trip) — highe
 
 ### Tier 3 — Romance / Premium ($6.99)
 
-18+ intimate content; consistently the highest willingness-to-pay category in gifting (anniversaries, romance).
+Consistently the highest willingness-to-pay category in gifting (anniversaries, romance). `lovers` is 18+ intimate content and age-gated; `requested-by-him`/`requested-by-her` are not age-restricted.
 
 | Template | Slug |
 |---|---|
-| Lover's Intimate Promises | `lovers` |
-| Made By Him: Lover's Promises | `made-by-him` |
-| Made By Her: Lover's Promises | `made-by-her` |
+| Lover's Intimate Promises (18+) | `lovers` |
+| Requested By Him: Lover's Wishes | `requested-by-him` |
+| Requested By Her: Lover's Wishes | `requested-by-her` |
 
-`made-by-him` and `made-by-her` are designed as a pair — sell them together as a $9.99 couple's bundle at checkout when both are in the cart, rather than $6.99 + $6.99 separately.
+`requested-by-him` and `requested-by-her` are designed as a pair — sell them together as a $9.99 couple's bundle at checkout when both are in the cart, rather than $6.99 + $6.99 separately.
 
 ### Flagship — Custom Coupon Book ($9.99)
 

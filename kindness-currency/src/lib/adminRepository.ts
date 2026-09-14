@@ -28,8 +28,8 @@ export function createAdminRepository(supabase: SupabaseClient) {
 
     /**
      * Early-access signup count per active coming-soon template, most-requested first —
-     * lets the admin prioritize which one to build next. Paired ideas (e.g. Made By
-     * Him / Made By Her) are counted separately, not combined. Retired (inactive)
+     * lets the admin prioritize which one to build next. A paired idea (two templates
+     * meant to be built together) is counted per-slug, not combined. Retired (inactive)
      * templates are excluded, since this drives a "build next" decision, not history.
      */
     async getComingSoonTemplateInterest(): Promise<ComingSoonTemplateInterest[]> {

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { ctaCopy } from '@/constants/ctaCopy'
 
@@ -91,6 +92,10 @@ export default function AboutPage() {
         >
           {ctaCopy.footerTagline}
         </p>
+
+        <Link href="/our-story" className="mt-3.5 inline-block text-[13.5px] font-semibold text-[#1A1A2E] underline">
+          {ctaCopy.ourStoryLinkLabel}
+        </Link>
       </div>
     </div>
   )
