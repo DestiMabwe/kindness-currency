@@ -5,9 +5,15 @@ import { GestureFlow } from '../GestureFlow'
 import { ctaCopy } from '@/constants/ctaCopy'
 import type { SingleUseGesture } from '@/lib/singleUseGestures'
 
-const saveCouponSetAction = vi.fn()
+const saveDraftAction = vi.fn()
+const sendCouponSetAction = vi.fn()
+const initiateSendCheckoutAction = vi.fn()
+const verifyCheckoutAction = vi.fn()
 vi.mock('@/app/create/actions', () => ({
-  saveCouponSetAction: (input: unknown) => saveCouponSetAction(input),
+  saveDraftAction: (input: unknown) => saveDraftAction(input),
+  sendCouponSetAction: (input: unknown) => sendCouponSetAction(input),
+  initiateSendCheckoutAction: (slug: string, product?: string) => initiateSendCheckoutAction(slug, product),
+  verifyCheckoutAction: (reference: string) => verifyCheckoutAction(reference),
 }))
 
 const freeGesture: SingleUseGesture = {

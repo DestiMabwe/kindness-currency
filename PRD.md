@@ -198,14 +198,14 @@ Theme: Token | Decorative element: Balloon or confetti motif | Age restricted: f
 
 | # | service_title | micro_copy | fine_print |
 |---|--------------|------------|------------|
-| 1 | One Birthday Meal, Your Choice | Restaurant, takeout, or homemade — your call | Valid all birthday month |
-| 2 | One Cake of Your Choice | Ordered, baked, or bought — however you want it | Candles included |
-| 3 | One Fun Day Out | Pick the vibe. I'll plan the rest | No budget complaints |
-| 4 | One Sleep-In Morning | I'll handle the noise. You stay in bed | Redeemable any weekend |
-| 5 | One Playlist Made for You | Every song chosen with you in mind | Delivered within 24 hours of redemption |
-| 6 | One Rant Session | Talk. I'll listen. No advice unless you ask | Unlimited time · Full attention |
-| 7 | One Guilt-Free Treat | Order the expensive one. No comments from me | One-time use · Fully valid |
-| 8 | One Birthday Wish Granted | Whatever you want. Today it's yes | Wildcard · Birthday rules apply |
+| 1 | Birthday Meal, Your Choice | Restaurant, takeout, or homemade — your call | Valid all birthday month |
+| 2 | Cake of Your Choice | Ordered, baked, or bought — however you want it | Candles included |
+| 3 | Fun Day Out | Pick the vibe. I'll plan the rest | No budget complaints |
+| 4 | Sleep-In Morning | I'll handle the noise. You stay in bed | Redeemable any weekend |
+| 5 | Playlist Made for You | Every song chosen with you in mind | Delivered within 24 hours of redemption |
+| 6 | Rant Session | Talk. I'll listen. No advice unless you ask | Unlimited time · Full attention |
+| 7 | Guilt-Free Treat | Order the expensive one. No comments from me | One-time use · Fully valid |
+| 8 | Birthday Wish Granted | Whatever you want. Today it's yes | Wildcard · Birthday rules apply |
 
 **Template: `lovers` — "Lover's Intimate Promises"**
 Theme: Promise | Decorative element: Candle or moon motif | Age restricted: **true**
@@ -226,14 +226,47 @@ Theme: Pass | Decorative element: Star or lightning bolt motif | Age restricted:
 
 | # | service_title | micro_copy | fine_print |
 |---|--------------|------------|------------|
-| 1 | One Emergency Vent Call | Drop everything. I'm already listening | Available 24/7 · No judgment ever |
-| 2 | One Unplanned Adventure | Say yes first. Ask questions never | Destination decided on the day |
-| 3 | One Ugly Cry Session | Tissues provided. Mascara optional | Full duration · Snacks included |
-| 4 | One Honest Opinion | The real answer. Not the nice one | You asked. I delivered |
-| 5 | One Hype Session | I will remind you how incredible you are | Redeemable before any big moment |
-| 6 | One Night In Together | Snacks, bad TV, no plans, no effort | Comfy clothes mandatory |
-| 7 | One Errand Buddy | I'll come. I'll complain. I'll make it fun | Available weekends · Complaints are affectionate |
-| 8 | One Wildcard Favour | Whatever you need. No explanation required | Best friend card · Always valid |
+| 1 | Emergency Vent Call | Drop everything. I'm already listening | Available 24/7 · No judgment ever |
+| 2 | Unplanned Adventure | Say yes first. Ask questions never | Destination decided on the day |
+| 3 | Ugly Cry Session | Tissues provided. Mascara optional | Full duration · Snacks included |
+| 4 | Honest Opinion | The real answer. Not the nice one | You asked. I delivered |
+| 5 | Hype Session | I will remind you how incredible you are | Redeemable before any big moment |
+| 6 | Night In Together | Snacks, bad TV, no plans, no effort | Comfy clothes mandatory |
+| 7 | Errand Buddy | I'll come. I'll complain. I'll make it fun | Available weekends · Complaints are affectionate |
+| 8 | Wildcard Favour | Whatever you need. No explanation required | Best friend card · Always valid |
+
+### Templates 6 & 7 — Requested By Him / Requested By Her (post-launch addition)
+
+Added after the original five-template v1 launch described above (user stories 33/37/38 predate these two and intentionally still say "five" — they document what shipped at launch, not current template count). Sold as a couple's pair: each partner fills in their own wishes so the other doesn't have to guess (see `PRICING.md` for the $9.99 paired-bundle price).
+
+**Template: `requested-by-him` — "Requested By Him: Lover's Wishes"**
+Theme: Wish | Decorative element: Bow motif | Age restricted: false | Accent: `#2C3E63` (navy)
+
+| # | service_title | micro_copy | fine_print |
+|---|--------------|------------|------------|
+| 1 | Unfiltered Down Time | Let me have this time without it meaning something's wrong | No explanation needed |
+| 2 | Unconditional Cheer | Tell me you're proud of me, even for the small stuff | Small wins count too |
+| 3 | Initiated Intimacy | Show me you're choosing me — make the first move today | Your move · No hints required |
+| 4 | Surprise Plan | I plan a secret activity — you just show up and trust it | Surprise · Location TBD |
+| 5 | Direct Map | Tell me what's on your mind — no decoding required | Plain talk only |
+| 6 | New Adventure | Let's try something brand-new together, as total beginners | New activity · Both first-timers |
+| 7 | Shared Vision Session | An hour to dream up our future trips and goals together | One hour · Uninterrupted |
+| 8 | Wide-Open Wish | Whatever I ask for that day — no script, just say yes | Wildcard · No limits |
+
+**Template: `requested-by-her` — "Requested By Her: Lover's Wishes"**
+Theme: Wish | Decorative element: Bow motif | Age restricted: false | Accent: `#CD7479` (terracotta-rose)
+
+| # | service_title | micro_copy | fine_print |
+|---|--------------|------------|------------|
+| 1 | Total Logistics Takeover | Giving my brain a rest while I watch you handle it | Full day · Start to finish |
+| 2 | Venting Without Fixing | I don't need a strategy right now — just your shoulder | 20 minutes · No fix-it mode |
+| 3 | Soft Touch | Reach for me first — no destination required | Just for closeness · No agenda |
+| 4 | Solo Sanctuary Time | Time to rest and return to you feeling present | One afternoon · Uninterrupted |
+| 5 | Zero-Logistics Date | Let's stop being project managers and just be us again | One evening · No admin talk |
+| 6 | Verbalized Appreciation | Tell me what you love about me — say it out loud | Spoken · No notes allowed |
+| 7 | Somewhere New | Take me somewhere we've never been | New place · Your pick |
+| 8 | Wide-Open Wish | Whatever I ask for that day — no script, just say yes | Wildcard · No limits |
+
 Post-save screen shown to the sender. Displays:
 - The shareable magic link (no PIN in the URL)
 - The 4-digit PIN in a prominent, copyable format

@@ -72,7 +72,13 @@ body {
 
 @media (prefers-reduced-motion: no-preference) {
   .kc-pop {
-    display: inline-block;
+    /* inline-flex, not inline-block: Tailwind wraps its utilities in @layer utilities, and
+       unlayered rules (this one) always win the cascade over layered ones regardless of source
+       order — so a plain inline-block here would silently clobber a `flex` utility on the same
+       element (as it did on CartIcon's count badge, breaking its centering). inline-flex keeps
+       every current .kc-pop usage visually identical (they're all single-line text/icon content)
+       while staying compatible with callers that also need flex centering. */
+    display: inline-flex;
     animation: kc-pop 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
     animation-delay: var(--kc-pop-delay, 0.15s);
   }

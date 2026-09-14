@@ -14,15 +14,18 @@
 // suggestion (gesture.messageStarter) on both message-writing surfaces — the step 2 form and the
 // step 3 edit-message modal.
 //
-// Save/Send is real: it writes a coupon_set + one coupon via the same saveCouponSetAction the
-// bundle flow uses (templateId comes from the real single-use `templates` row seeded for this
-// gesture's slug — see CouponSetBuilder's singleUseTemplateIdBySlug). Auth gating mirrors the
-// bundle flow's handleSaveOrSend exactly (login required before a save is attempted, since every
-// real auth path here is a full page redirect, not an inline verification). The in-progress draft
-// persists to localStorage — keyed by gesture slug, hydrated in an effect (never a lazy useState
-// initializer, which would desync the client's first render from the server-rendered HTML and
-// break hydration) — and a pending-save-intent flag lets the save resume automatically once the
-// redirect lands the sender back here logged in, instead of making them tap Save/Send twice.
+// Save My Coupons writes a free draft (status='draft'); Send with Love writes status='sent' and,
+// for a paid gesture or an unlocked-for-customization free one, requires real payment via Paystack
+// first (see performSave's paymentRequired branch) — both go through the same saveDraftAction/
+// sendCouponSetAction the bundle flow uses (templateId comes from the real single-use `templates`
+// row seeded for this gesture's slug — see CouponSetBuilder's singleUseTemplateIdBySlug). Auth
+// gating mirrors the bundle flow's handleSaveOrSend exactly (login required before a save is
+// attempted, since every real auth path here is a full page redirect, not an inline verification).
+// The in-progress draft persists to localStorage — keyed by gesture slug, hydrated in an effect
+// (never a lazy useState initializer, which would desync the client's first render from the
+// server-rendered HTML and break hydration) — and a pending-save-intent flag lets the save resume
+// automatically once the auth or Paystack redirect lands the sender back here, instead of making
+// them tap Save/Send twice.
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
@@ -33,7 +36,8 @@ import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { antiqueGold, antiqueGoldText, type SingleUseGesture, type SingleUseGestureSlug } from '@/lib/singleUseGestures'
-import { saveCouponSetAction } from '@/app/create/actions'
+import { GESTURE_UNLOCK_PRICE } from '@/lib/pricing'
+import { saveDraftAction, sendCouponSetAction, initiateSendCheckoutAction, verifyCheckoutAction } from '@/app/create/actions'
 import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
 import type { BackgroundEffect } from '@/schemas/couponSchema'
 import type { BuilderCoupon, SavedResult } from '@/hooks/useCouponSetBuilder'
@@ -60,10 +64,6 @@ type PersistedGestureDraft = {
   draft: Draft
   unlocked: boolean
 }
-
-// The "Make This Gift Yours" upsell price — same as a gesture that's paid from the start, per the
-// grill-me decision to keep a single price point rather than a separate unlock tier.
-const GESTURE_UNLOCK_PRICE = 1.99
 
 const GESTURE_DRAFT_KEY = 'kindness-currency:gesture-draft'
 // Set right before opening AuthGate from Save/Send, so the auth redirect's reload knows to finish
@@ -92,8 +92,9 @@ function clearPersistedGestureDraft() {
 }
 
 // The confirm step behind the "Make This Gift Yours" upsell — mirrors the bottom-sheet confirm
-// pattern used elsewhere (e.g. CouponSetBuilder's TemplateSwitchWarningModal). No real charge
-// happens yet (see gestureUnlockConfirmBody), matching the rest of the app's mocked-payment state.
+// pattern used elsewhere (e.g. CouponSetBuilder's TemplateSwitchWarningModal). Confirming here only
+// unlocks the text fields for editing; the actual GESTURE_UNLOCK_PRICE charge happens later, at
+// Send time, via the same Paystack redirect the paid-from-start gestures use (see performSave).
 function GestureUnlockConfirm({ onConfirm, onDismiss }: { onConfirm: () => void; onDismiss: () => void }) {
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onDismiss)
 
@@ -226,14 +227,19 @@ export function GestureFlow({
     backgroundEffect: draft.backgroundEffect,
   }
 
-  const performSave = async () => {
+  // 'draft' is always free. 'sent' requires payment whenever isPaid is true (a gesture that's
+  // paid from the start, or an unlocked-for-customization free one) — if sendCouponSetAction comes
+  // back paymentRequired, this redirects to Paystack instead of showing an error, charging
+  // GESTURE_UNLOCK_PRICE instead of the gesture's own (zero) base price when unlocked (see
+  // resolveCheckoutPrice in pricing.ts). Mirrors CouponSetBuilder's identical pattern.
+  const performSave = async (intent: 'draft' | 'sent') => {
     if (!templateId) {
       setSaveError('Something went wrong. Please try again.')
       return
     }
     setSaving(true)
     setSaveError('')
-    const result = await saveCouponSetAction({
+    const payload = {
       template_id: templateId,
       sender_name: senderName,
       recipient_name: recipientName,
@@ -244,13 +250,28 @@ export function GestureFlow({
           service_title: draft.serviceTitle,
           micro_copy: draft.microCopy,
           fine_print: draft.finePrint,
-          font_choice: 'playfair',
+          font_choice: 'playfair' as const,
           background_color: draft.backgroundColor ?? undefined,
           background_effect: draft.backgroundEffect,
           sort_order: 1,
         },
       ],
-    })
+    }
+    const result = await (intent === 'draft' ? saveDraftAction(payload) : sendCouponSetAction(payload))
+
+    if (!result.success && result.paymentRequired) {
+      if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, intent)
+      const checkout = await initiateSendCheckoutAction(gesture.slug, unlocked ? 'gestureUnlock' : 'base')
+      if (!checkout.success) {
+        setSaving(false)
+        if (typeof window !== 'undefined') window.localStorage.removeItem(GESTURE_PENDING_SAVE_INTENT_KEY)
+        setSaveError(checkout.error)
+        return
+      }
+      window.location.href = checkout.authorizationUrl
+      return
+    }
+
     setSaving(false)
     if (!result.success) {
       setSaveError(result.error)
@@ -261,29 +282,48 @@ export function GestureFlow({
     setStep('done')
   }
 
-  const handleSaveOrSend = () => {
+  const handleSaveOrSend = (intent: 'draft' | 'sent') => {
     if (!isLoggedIn) {
-      if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, 'true')
+      if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, intent)
       setAuthOpen(true)
       return
     }
-    void performSave()
+    void performSave(intent)
   }
 
-  // Completes a save the sender started before AuthGate interrupted them: once the auth redirect
-  // lands back here and isLoggedIn is true, and the intent flag from handleSaveOrSend is still
-  // set, finish the save automatically instead of making them click Save/Send a second time.
-  // Gated on step === 'personalize' since a pending intent's draft must still be hydrating (from
-  // 'details') until the rehydration effect above actually lands it there.
+  // Completes a save the sender started before AuthGate or a Paystack checkout interrupted them —
+  // mirrors CouponSetBuilder's identical resume effect. A `?reference=` in the URL means this is
+  // specifically a return from Paystack, verified first before resuming; an unpaid result stops
+  // here with an explanatory error instead of silently bouncing them to another checkout. Gated on
+  // step === 'personalize' since a pending intent's draft must still be hydrating (from 'details')
+  // until the rehydration effect above actually lands it there.
   useEffect(() => {
     if (attemptedSaveResume.current || !isLoggedIn) return
     if (typeof window === 'undefined') return
-    if (window.localStorage.getItem(GESTURE_PENDING_SAVE_INTENT_KEY) !== 'true') return
+    const intent = window.localStorage.getItem(GESTURE_PENDING_SAVE_INTENT_KEY)
+    if (intent !== 'draft' && intent !== 'sent') return
     if (step !== 'personalize') return
     attemptedSaveResume.current = true
     window.localStorage.removeItem(GESTURE_PENDING_SAVE_INTENT_KEY)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time completion of a save the sender already initiated before the auth redirect, not a render-time side effect
-    void performSave()
+
+    const url = new URL(window.location.href)
+    const reference = url.searchParams.get('reference')
+    if (reference) {
+      url.searchParams.delete('reference')
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    const resume = async () => {
+      if (reference) {
+        const verified = await verifyCheckoutAction(reference)
+        if (!verified.paid) {
+          setSaveError("Your payment wasn't completed, so this wasn't sent. Feel free to try again.")
+          return
+        }
+      }
+      void performSave(intent)
+    }
+    void resume()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- performSave is stable per render and would cause an infinite loop if included
   }, [isLoggedIn, step])
 
@@ -452,7 +492,7 @@ export function GestureFlow({
         <div className="flex gap-2.5">
           <button
             type="button"
-            onClick={handleSaveOrSend}
+            onClick={() => handleSaveOrSend('draft')}
             disabled={saving}
             className="flex-1 rounded-[13px] border-[1.5px] border-[#C2185B] p-3.5 font-sans text-sm font-bold text-[#C2185B] disabled:opacity-50"
           >
@@ -460,7 +500,7 @@ export function GestureFlow({
           </button>
           <button
             type="button"
-            onClick={handleSaveOrSend}
+            onClick={() => handleSaveOrSend('sent')}
             disabled={saving}
             className="flex-[1.3] rounded-[13px] bg-[#C2185B] p-3.5 font-sans text-sm font-bold text-white disabled:opacity-50"
           >

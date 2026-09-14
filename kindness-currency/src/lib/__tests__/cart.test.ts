@@ -4,8 +4,10 @@ import {
   addToCart,
   useCartLines,
   cartTotals,
-  completePurchase,
+  syncPurchasedInstancesFromServer,
+  recordCompletedCheckout,
   usePendingInstances,
+  useOrderHistory,
   consumePendingInstance,
   linesForCart,
   setCartQty,
@@ -26,24 +28,34 @@ describe('cart quantities', () => {
   })
 })
 
-describe('completePurchase', () => {
-  it('creates one pending instance per unit for bundle templates, and none for a gesture slug', () => {
+describe('syncPurchasedInstancesFromServer', () => {
+  it('overwrites the local display cache with the server-provided list', () => {
     const { result } = renderHook(() => usePendingInstances())
 
-    act(() => addToCart('mothers_day', 2))
-    act(() => addToCart('celebration', 1)) // a single-use gesture slug, not a bundle template
-    act(() => completePurchase())
+    act(() => syncPurchasedInstancesFromServer([{ id: '1', slug: 'mothers_day' }, { id: '2', slug: 'mothers_day' }]))
 
     expect(result.current.filter((i) => i.slug === 'mothers_day')).toHaveLength(2)
-    expect(result.current.filter((i) => i.slug === 'celebration')).toHaveLength(0)
+  })
+})
+
+describe('recordCompletedCheckout', () => {
+  it('appends an order to history and clears the cart', () => {
+    const cartResult = renderHook(() => useCartLines())
+    const orderResult = renderHook(() => useOrderHistory())
+    act(() => addToCart('mothers_day', 2))
+
+    act(() => recordCompletedCheckout([{ slug: 'mothers_day', name: "Mom's Promise Tokens", price: 2.99, qty: 2 }], 5.98))
+
+    expect(cartResult.result.current).toEqual([])
+    expect(orderResult.result.current).toHaveLength(1)
+    expect(orderResult.result.current[0].total).toBe(5.98)
   })
 })
 
 describe('consumePendingInstance', () => {
   it('removes exactly one pending instance for the slug, leaving the rest', () => {
     const { result } = renderHook(() => usePendingInstances())
-    act(() => addToCart('mothers_day', 2))
-    act(() => completePurchase())
+    act(() => syncPurchasedInstancesFromServer([{ id: '1', slug: 'mothers_day' }, { id: '2', slug: 'mothers_day' }]))
 
     act(() => consumePendingInstance('mothers_day'))
 
@@ -80,5 +92,44 @@ describe('cartTotals', () => {
 
     expect(discount).toBe(2.99)
     expect(total).toBeCloseTo(5.98)
+  })
+
+  it('charges $9.99 for one of each paired-bundle template instead of $6.99 + $6.99', () => {
+    const lines = [
+      { slug: 'requested-by-him', name: "Requested By Him: Lover's Wishes", price: 6.99, qty: 1 },
+      { slug: 'requested-by-her', name: "Requested By Her: Lover's Wishes", price: 6.99, qty: 1 },
+    ]
+
+    const { pairDiscount, total } = cartTotals(lines)
+
+    expect(pairDiscount).toBeCloseTo(3.99)
+    expect(total).toBeCloseTo(9.99)
+  })
+
+  it('only discounts as many pairs as both sides actually have, charging the surplus at full price (plus the 3-for-2 discount, since this also totals 3 units)', () => {
+    const lines = [
+      { slug: 'requested-by-him', name: "Requested By Him: Lover's Wishes", price: 6.99, qty: 2 },
+      { slug: 'requested-by-her', name: "Requested By Her: Lover's Wishes", price: 6.99, qty: 1 },
+    ]
+
+    const { pairDiscount, discount, total } = cartTotals(lines)
+
+    expect(pairDiscount).toBeCloseTo(3.99)
+    expect(discount).toBe(6.99)
+    expect(total).toBeCloseTo(6.99 * 3 - 3.99 - 6.99)
+  })
+
+  it('stacks the pairing discount with the 3-for-2 discount rather than one suppressing the other', () => {
+    const lines = [
+      { slug: 'requested-by-him', name: "Requested By Him: Lover's Wishes", price: 6.99, qty: 1 },
+      { slug: 'requested-by-her', name: "Requested By Her: Lover's Wishes", price: 6.99, qty: 1 },
+      { slug: 'mothers_day', name: "Mom's Promise Tokens", price: 2.99, qty: 1 },
+    ]
+
+    const { pairDiscount, discount, total } = cartTotals(lines)
+
+    expect(pairDiscount).toBeCloseTo(3.99)
+    expect(discount).toBe(2.99)
+    expect(total).toBeCloseTo(6.99 * 2 + 2.99 - 3.99 - 2.99)
   })
 })

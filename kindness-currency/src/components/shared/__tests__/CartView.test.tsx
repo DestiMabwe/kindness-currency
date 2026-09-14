@@ -12,7 +12,7 @@ describe('CartView', () => {
 
   it("decrements a line's quantity via its stepper, and removes the line entirely once it reaches 0", async () => {
     addToCart('mothers_day', 1)
-    render(<CartView />)
+    render(<CartView isLoggedIn={true} />)
 
     await userEvent.click(screen.getByRole('button', { name: ctaCopy.qtyDecreaseLabel("Mom's Promise Tokens") }))
 
@@ -23,7 +23,7 @@ describe('CartView', () => {
   it('splits a discounted line with qty > 1 into "qty × price" plus a separate FREE sub-line', () => {
     addToCart('mothers_day', 2) // $2.99 each — the cheapest unit once a 3rd is added
     addToCart('lovers', 1) // $6.99 — brings total units to 3, triggering the discount
-    render(<CartView />)
+    render(<CartView isLoggedIn={true} />)
 
     expect(screen.getByText("Mom's Promise Tokens × 2")).toBeInTheDocument()
     expect(screen.getByText('$5.98')).toBeInTheDocument()

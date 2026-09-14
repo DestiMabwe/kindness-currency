@@ -2,25 +2,25 @@
 
 // Cart state for the "pay for several, personalize later" path. Backed by localStorage (not a
 // database) so it survives navigation between /create, /cart, and back during a browsing session.
+// Pricing math lives in pricing.ts (no 'use client' — safely importable from server checkout code
+// too); this file re-exports it for existing callers plus owns purely local cart/display state.
 
 import { useEffect, useState } from 'react'
-import { bundleTierBySlug, tierPrice, liveTemplateNameBySlug } from '@/lib/bundleTiers'
-import { singleUseGestures } from '@/lib/singleUseGestures'
+import { linesForCart, linesForSlugs, cartTotals, priceForSlug, type CartLineItem, type CartLine } from '@/lib/pricing'
 
-const gestureBySlug = Object.fromEntries(singleUseGestures.map((g) => [g.slug, g]))
+export { linesForCart, linesForSlugs, cartTotals, priceForSlug }
+export type { CartLineItem, CartLine }
 
 const CART_KEY = 'kindness-currency:cart-v2'
-// "Purchased, not yet personalized" — an instance is removed from this the moment it's actually
-// personalized and sent (see consumePendingInstance), so it only ever reflects what's still pending.
+// "Purchased, not yet personalized" — a display cache only, synced from the server's real
+// purchased_instances after a checkout return confirms payment (see
+// syncPurchasedInstancesFromServer). Enforcement of who's actually entitled to send happens
+// server-side in create_coupon_set(); this can never be trusted for that.
 const PURCHASED_KEY = 'kindness-currency:purchased'
-// The lasting receipt log — appended to at checkout, never removed from, independent of whether
-// the coupons inside have since been personalized. This is what makes "purchase history" actually
-// a history, rather than a list that empties itself out as soon as you act on it.
+// The lasting receipt log — appended to once per real, paid checkout (see
+// recordCompletedCheckout), never removed from, independent of whether the coupons inside have
+// since been personalized.
 const ORDER_HISTORY_KEY = 'kindness-currency:order-history'
-
-export type CartLineItem = { slug: string; qty: number }
-export type CartLine = { slug: string; name: string; price: number; qty: number }
-export type OrderRecord = { id: string; date: string; lines: CartLine[]; total: number }
 
 function readCartLines(): CartLineItem[] {
   if (typeof window === 'undefined') return []
@@ -35,46 +35,6 @@ function readCartLines(): CartLineItem[] {
 function writeCartLines(lines: CartLineItem[]) {
   window.localStorage.setItem(CART_KEY, JSON.stringify(lines))
   window.dispatchEvent(new Event('kc-cart-updated'))
-}
-
-export function priceForSlug(slug: string): number | null {
-  const tier = bundleTierBySlug[slug]
-  if (tier) return tierPrice[tier]
-  return gestureBySlug[slug]?.price ?? null
-}
-
-function nameForSlug(slug: string): string | undefined {
-  return liveTemplateNameBySlug[slug] ?? gestureBySlug[slug]?.serviceTitle
-}
-
-export function linesForSlugs(slugs: string[]): CartLine[] {
-  return slugs
-    .map((slug) => {
-      const price = priceForSlug(slug)
-      const name = nameForSlug(slug)
-      return price !== null && name ? { slug, name, price, qty: 1 } : null
-    })
-    .filter((line): line is CartLine => line !== null)
-}
-
-export function linesForCart(items: CartLineItem[]): CartLine[] {
-  return items
-    .map(({ slug, qty }) => {
-      const price = priceForSlug(slug)
-      const name = nameForSlug(slug)
-      return price !== null && name ? { slug, name, price, qty } : null
-    })
-    .filter((line): line is CartLine => line !== null)
-}
-
-/** The single cheapest unit is free once the cart holds 3 or more units total (across any mix of
- * lines/quantities) — mirrors PRICING.md's 3-for-2 mechanic. */
-export function cartTotals(lines: CartLine[]) {
-  const subtotal = lines.reduce((sum, l) => sum + l.price * l.qty, 0)
-  const totalUnits = lines.reduce((sum, l) => sum + l.qty, 0)
-  if (totalUnits < 3) return { subtotal, discount: 0, total: subtotal, freeSlug: null as string | null }
-  const cheapest = lines.reduce((min, l) => (l.price < min.price ? l : min), lines[0])
-  return { subtotal, discount: cheapest.price, total: subtotal - cheapest.price, freeSlug: cheapest.slug }
 }
 
 /** Live cart contents — re-reads localStorage on the 'kc-cart-updated' event so every consumer
@@ -124,6 +84,7 @@ export function clearCart() {
 }
 
 export type PurchasedInstance = { id: string; slug: string }
+export type OrderRecord = { id: string; date: string; lines: CartLine[]; total: number }
 
 function newId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
@@ -146,8 +107,8 @@ function writePendingInstances(instances: PurchasedInstance[]) {
 
 /** One entry per purchased-but-not-yet-personalized unit — a buyer of qty 2 of the same template
  * gets 2 independent instances here, each consumed separately as they personalize and send each
- * one (see consumePendingInstance). Only ever populated for real bundle templates: a gesture's
- * send/save flow doesn't persist anything yet, so there'd be nothing real to consume against. */
+ * one (see consumePendingInstance). Only ever populated for real bundle templates: gestures are
+ * never sold through the cart (see singleUseGestures/GestureFlow's own direct-checkout path). */
 export function usePendingInstances(): PurchasedInstance[] {
   const [instances, setInstances] = useState<PurchasedInstance[]>([])
   useEffect(() => {
@@ -186,36 +147,30 @@ export function useOrderHistory(): OrderRecord[] {
   return orders
 }
 
-/** Called on "successful" (stubbed) checkout: records a permanent order-history entry, moves the
- * cart into "purchased, not yet personalized", and empties the cart. Personalizing/sending each
- * one afterward reuses the existing template select → edit → Save/Send flow untouched — that flow
- * has never had a payment gate, so paying only ever happens here, once, at checkout. */
-export function completePurchase() {
-  const cartLines = readCartLines()
-  const lines = linesForCart(cartLines)
+/** Overwrites the local "paid, not yet personalized" cache with the server's real, authoritative
+ * list of unconsumed purchased_instances — called right after a checkout return confirms payment
+ * landed (see CartCompleteView). Purely a display cache: enforcement of who's actually entitled to
+ * send lives entirely server-side in the create_coupon_set() Postgres function, never here. */
+export function syncPurchasedInstancesFromServer(instances: PurchasedInstance[]) {
+  writePendingInstances(instances)
+}
 
-  if (lines.length > 0) {
-    const { total } = cartTotals(lines)
-    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(ORDER_HISTORY_KEY) : null
-    const existing: OrderRecord[] = raw ? JSON.parse(raw) : []
-    const order: OrderRecord = {
-      id: newId(),
-      date: new Date().toISOString(),
-      lines,
-      total,
-    }
-    window.localStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify([...existing, order]))
-  }
-
-  const newInstances = cartLines
-    .filter((l) => !!bundleTierBySlug[l.slug])
-    .flatMap((l) => Array.from({ length: l.qty }, () => ({ id: newId(), slug: l.slug })))
-  writePendingInstances([...readPendingInstances(), ...newInstances])
+/** Records a real, paid order into the permanent purchase-history cache and clears the cart —
+ * called right after a checkout return confirms payment landed, with the real line items/total
+ * from the server order rather than re-derived from whatever's currently in the cart (which may
+ * have changed since checkout started). */
+export function recordCompletedCheckout(lines: CartLine[], total: number) {
+  if (typeof window === 'undefined') return
+  const raw = window.localStorage.getItem(ORDER_HISTORY_KEY)
+  const existing: OrderRecord[] = raw ? JSON.parse(raw) : []
+  const order: OrderRecord = { id: newId(), date: new Date().toISOString(), lines, total }
+  window.localStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify([...existing, order]))
   writeCartLines([])
 }
 
 /** Consumes exactly one pending instance for this slug (the buyer just personalized and sent
- * one of possibly several purchased copies) — the rest stay pending. */
+ * one of possibly several purchased copies) — the rest stay pending. Purely a display-cache
+ * update; the real consumption already happened server-side inside create_coupon_set(). */
 export function consumePendingInstance(slug: string) {
   const current = readPendingInstances()
   const idx = current.findIndex((i) => i.slug === slug)

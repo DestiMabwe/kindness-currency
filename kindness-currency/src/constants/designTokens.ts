@@ -1,3 +1,5 @@
+import { singleUseGestures, antiqueGold } from '@/lib/singleUseGestures'
+
 export const colors = {
   primary: '#1A1A2E', // Deep Ink
   secondary: '#C2185B', // Kindness Red
@@ -20,11 +22,14 @@ export const colorWheelSwatches = [
   '#DCEEE8',
 ] as const
 
-export type TemplateSlug = 'mothers_day' | 'valentines' | 'birthday' | 'lovers' | 'besties'
+export type TemplateSlug = 'mothers_day' | 'valentines' | 'birthday' | 'lovers' | 'besties' | 'requested-by-him' | 'requested-by-her'
 
 export const templateVisuals: Record<
   TemplateSlug,
-  { accent: string; tint: string; motif: string; imageSrc: string; coverImageSrc: string; previewMessage: string }
+  // coverImageSrc is null for templates with no staged cover-book photo yet — see
+  // TemplateCoverArt, the composed accent/motif fallback CouponSetBuilder and the home
+  // gallery render instead of <Image> in that case.
+  { accent: string; tint: string; motif: string; imageSrc: string; coverImageSrc: string | null; previewMessage: string }
 > = {
   mothers_day: {
     accent: 'rgb(131, 131, 228)',
@@ -66,4 +71,37 @@ export const templateVisuals: Record<
     coverImageSrc: '/images/covers/besties.png',
     previewMessage: "For my ride-or-die — a few ways I've got your back, any time.",
   },
+  'requested-by-him': {
+    accent: '#2C3E63',
+    tint: '#E3E7F0',
+    motif: '✩',
+    imageSrc: '/images/requested-by-him.png',
+    coverImageSrc: '/images/covers/requested-by-him.png',
+    previewMessage: "No guessing what I actually want — here's exactly what would mean something.",
+  },
+  'requested-by-her': {
+    accent: '#CD7479',
+    tint: '#F8E3E1',
+    motif: '❈',
+    imageSrc: '/images/requested-by-her.png',
+    coverImageSrc: '/images/covers/requested-by-her.png',
+    previewMessage: "No guessing what I actually want — here's exactly what would mean something.",
+  },
+}
+
+/**
+ * Resolves the accent color and motif icon for a gift, given its template's
+ * slug. Handles both bundle templates (`templateVisuals`) and single-use
+ * gestures (`singleUseGestures`, which share one accent — `antiqueGold` —
+ * across the whole tier), falling back to a neutral default for anything
+ * unrecognized so callers never have to null-check the result.
+ */
+export function resolveGiftVisual(templateSlug: string | null): { accent: string; motif: string } {
+  if (templateSlug && templateSlug in templateVisuals) {
+    const visual = templateVisuals[templateSlug as TemplateSlug]
+    return { accent: visual.accent, motif: visual.motif }
+  }
+  const gesture = singleUseGestures.find((g) => g.slug === templateSlug)
+  if (gesture) return { accent: antiqueGold, motif: gesture.motif }
+  return { accent: colors.secondary, motif: '✦' }
 }

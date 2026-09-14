@@ -3,22 +3,22 @@ import bcrypt from 'bcryptjs'
 import { createCouponSetRepository } from '../couponSetRepository'
 
 function makeSupabase({
-  setResult,
-  couponsResult,
+  template = { slug: 'mothers_day', is_single_use: false },
+  templateError = null,
+  rpcResult = { data: 'set-1', error: null },
 }: {
-  setResult: { data: unknown; error: unknown }
-  couponsResult?: { data: unknown; error: unknown }
-}) {
-  const setChain = {
-    insert: vi.fn().mockReturnThis(),
+  template?: { slug: string; is_single_use: boolean } | null
+  templateError?: unknown
+  rpcResult?: { data: unknown; error: unknown }
+} = {}) {
+  const templateChain = {
     select: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue(setResult),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: template, error: templateError }),
   }
-  const couponsChain = {
-    insert: vi.fn().mockResolvedValue(couponsResult ?? { data: null, error: null }),
-  }
-  const from = vi.fn().mockReturnValueOnce(setChain).mockReturnValueOnce(couponsChain)
-  return { supabase: { from }, setChain, couponsChain }
+  const from = vi.fn().mockReturnValue(templateChain)
+  const rpc = vi.fn().mockResolvedValue(rpcResult)
+  return { supabase: { from, rpc }, from, rpc, templateChain }
 }
 
 const validInput = () => ({
@@ -39,118 +39,181 @@ const validInput = () => ({
 describe('CouponSetRepository', () => {
   describe('saveCouponSet', () => {
     it('generates a 4-digit PIN, stores only its bcrypt hash, and returns the plaintext PIN once', async () => {
-      const { supabase, setChain } = makeSupabase({
-        setResult: { data: { id: 'set-1' }, error: null },
-        couponsResult: { data: null, error: null },
-      })
+      const { supabase, rpc } = makeSupabase()
       const repo = createCouponSetRepository(supabase as never)
 
-      const result = await repo.saveCouponSet(validInput(), 'user-1')
+      const result = await repo.saveCouponSet(validInput(), 'user-1', 'sent')
 
       expect(result.success).toBe(true)
       if (!result.success) throw new Error('expected success')
       expect(result.pin).toMatch(/^\d{4}$/)
       expect(result.id).toBe('set-1')
 
-      const insertedSet = setChain.insert.mock.calls[0][0]
-      expect(insertedSet.pin_code).not.toBe(result.pin)
-      expect(await bcrypt.compare(result.pin, insertedSet.pin_code)).toBe(true)
-      expect(insertedSet.user_id).toBe('user-1')
+      const rpcArgs = rpc.mock.calls[0][1]
+      expect(rpcArgs.p_set.pin_code).not.toBe(result.pin)
+      expect(await bcrypt.compare(result.pin, rpcArgs.p_set.pin_code)).toBe(true)
+      expect(rpcArgs.p_user_id).toBe('user-1')
     })
 
     it('saves with a null user_id for an anonymous sender', async () => {
-      const { supabase, setChain } = makeSupabase({
-        setResult: { data: { id: 'set-1' }, error: null },
-        couponsResult: { data: null, error: null },
-      })
+      const { supabase, rpc } = makeSupabase()
       const repo = createCouponSetRepository(supabase as never)
 
-      const result = await repo.saveCouponSet(validInput(), null)
+      const result = await repo.saveCouponSet(validInput(), null, 'draft')
 
       expect(result.success).toBe(true)
-      const insertedSet = setChain.insert.mock.calls[0][0]
-      expect(insertedSet.user_id).toBeNull()
+      expect(rpc.mock.calls[0][1].p_user_id).toBeNull()
     })
 
-    it('inserts all 8 coupons tied to the new set id', async () => {
-      const { supabase, couponsChain } = makeSupabase({
-        setResult: { data: { id: 'set-1' }, error: null },
-        couponsResult: { data: null, error: null },
-      })
+    it('passes all 8 coupons through to the RPC call', async () => {
+      const { supabase, rpc } = makeSupabase()
       const repo = createCouponSetRepository(supabase as never)
 
-      await repo.saveCouponSet(validInput(), 'user-1')
+      await repo.saveCouponSet(validInput(), 'user-1', 'sent')
 
-      const insertedCoupons = couponsChain.insert.mock.calls[0][0]
-      expect(insertedCoupons).toHaveLength(8)
-      expect(insertedCoupons.every((c: { set_id: string }) => c.set_id === 'set-1')).toBe(true)
+      expect(rpc.mock.calls[0][1].p_coupons).toHaveLength(8)
     })
 
     it('rejects a payload with no coupons before touching the database', async () => {
-      const { supabase, setChain } = makeSupabase({ setResult: { data: null, error: null } })
+      const { supabase, from, rpc } = makeSupabase()
       const repo = createCouponSetRepository(supabase as never)
 
-      const result = await repo.saveCouponSet({ ...validInput(), coupons: [] }, 'user-1')
+      const result = await repo.saveCouponSet({ ...validInput(), coupons: [] }, 'user-1', 'sent')
 
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
-      expect(setChain.insert).not.toHaveBeenCalled()
+      expect(from).not.toHaveBeenCalled()
+      expect(rpc).not.toHaveBeenCalled()
     })
 
     it('rejects a payload with more than 8 coupons before touching the database', async () => {
-      const { supabase, setChain } = makeSupabase({ setResult: { data: null, error: null } })
+      const { supabase, rpc } = makeSupabase()
       const repo = createCouponSetRepository(supabase as never)
 
       const extra = { ...validInput().coupons[0], sort_order: 9 }
-      const result = await repo.saveCouponSet({ ...validInput(), coupons: [...validInput().coupons, extra] }, 'user-1')
+      const result = await repo.saveCouponSet({ ...validInput(), coupons: [...validInput().coupons, extra] }, 'user-1', 'sent')
 
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
-      expect(setChain.insert).not.toHaveBeenCalled()
+      expect(rpc).not.toHaveBeenCalled()
     })
 
     it('accepts a single-coupon payload, as a single-use gesture set sends', async () => {
-      const { supabase, couponsChain } = makeSupabase({
-        setResult: { data: { id: 'set-1' }, error: null },
-        couponsResult: { data: null, error: null },
-      })
+      const { supabase, rpc } = makeSupabase({ template: { slug: 'relief', is_single_use: true } })
       const repo = createCouponSetRepository(supabase as never)
 
-      const result = await repo.saveCouponSet({ ...validInput(), coupons: validInput().coupons.slice(0, 1) }, 'user-1')
+      const result = await repo.saveCouponSet({ ...validInput(), coupons: validInput().coupons.slice(0, 1) }, 'user-1', 'draft')
 
       expect(result.success).toBe(true)
-      expect(couponsChain.insert.mock.calls[0][0]).toHaveLength(1)
+      expect(rpc.mock.calls[0][1].p_coupons).toHaveLength(1)
     })
 
-    it('returns an error if the coupon_sets insert fails', async () => {
-      const { supabase } = makeSupabase({ setResult: { data: null, error: { message: 'db error' } } })
+    it('returns an error if the RPC call fails for a reason other than payment', async () => {
+      const { supabase } = makeSupabase({ rpcResult: { data: null, error: { message: 'db error' } } })
       const repo = createCouponSetRepository(supabase as never)
 
-      const result = await repo.saveCouponSet(validInput(), 'user-1')
+      const result = await repo.saveCouponSet(validInput(), 'user-1', 'sent')
 
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
     })
 
-    it('persists sender_message through to the insert when provided', async () => {
-      const { supabase, setChain } = makeSupabase({
-        setResult: { data: { id: 'set-1' }, error: null },
-        couponsResult: { data: null, error: null },
-      })
+    it('returns paymentRequired when the RPC raises PAYMENT_REQUIRED, without a generic error', async () => {
+      const { supabase } = makeSupabase({ rpcResult: { data: null, error: { message: 'PAYMENT_REQUIRED' } } })
       const repo = createCouponSetRepository(supabase as never)
 
-      await repo.saveCouponSet({ ...validInput(), sender_message: 'Thinking of you every day.' }, 'user-1')
+      const result = await repo.saveCouponSet(validInput(), 'user-1', 'sent')
 
-      expect(setChain.insert.mock.calls[0][0].sender_message).toBe('Thinking of you every day.')
+      expect(result.success).toBe(false)
+      if (result.success) throw new Error('expected failure')
+      expect(result.paymentRequired).toBe(true)
+    })
+
+    it('returns an error when the template lookup fails', async () => {
+      const { supabase } = makeSupabase({ template: null, templateError: { message: 'not found' } })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.saveCouponSet(validInput(), 'user-1', 'sent')
+
+      expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+    })
+
+    it('persists sender_message through to the RPC call when provided', async () => {
+      const { supabase, rpc } = makeSupabase()
+      const repo = createCouponSetRepository(supabase as never)
+
+      await repo.saveCouponSet({ ...validInput(), sender_message: 'Thinking of you every day.' }, 'user-1', 'sent')
+
+      expect(rpc.mock.calls[0][1].p_set.sender_message).toBe('Thinking of you every day.')
     })
 
     it('does not require a sender_message', async () => {
-      const { supabase } = makeSupabase({
-        setResult: { data: { id: 'set-1' }, error: null },
-        couponsResult: { data: null, error: null },
-      })
+      const { supabase } = makeSupabase()
       const repo = createCouponSetRepository(supabase as never)
 
-      const result = await repo.saveCouponSet(validInput(), 'user-1')
+      const result = await repo.saveCouponSet(validInput(), 'user-1', 'sent')
 
       expect(result.success).toBe(true)
+    })
+
+    describe('requiresPaymentForSend (p_requires_payment passed to the RPC)', () => {
+      it('never requires payment for a draft, regardless of template', async () => {
+        const { supabase, rpc } = makeSupabase({ template: { slug: 'mothers_day', is_single_use: false } })
+        const repo = createCouponSetRepository(supabase as never)
+
+        await repo.saveCouponSet(validInput(), 'user-1', 'draft')
+
+        expect(rpc.mock.calls[0][1].p_requires_payment).toBe(false)
+      })
+
+      it('always requires payment when sending a bundle template', async () => {
+        const { supabase, rpc } = makeSupabase({ template: { slug: 'mothers_day', is_single_use: false } })
+        const repo = createCouponSetRepository(supabase as never)
+
+        await repo.saveCouponSet(validInput(), 'user-1', 'sent')
+
+        expect(rpc.mock.calls[0][1].p_requires_payment).toBe(true)
+      })
+
+      it('requires payment when sending a gesture whose base price is nonzero', async () => {
+        const { supabase, rpc } = makeSupabase({ template: { slug: 'celebration', is_single_use: true } })
+        const repo = createCouponSetRepository(supabase as never)
+
+        await repo.saveCouponSet({ ...validInput(), coupons: validInput().coupons.slice(0, 1) }, 'user-1', 'sent')
+
+        expect(rpc.mock.calls[0][1].p_requires_payment).toBe(true)
+      })
+
+      it('does not require payment for a free gesture sent with its unmodified default text', async () => {
+        const { supabase, rpc } = makeSupabase({ template: { slug: 'relief', is_single_use: true } })
+        const repo = createCouponSetRepository(supabase as never)
+        const coupon = {
+          service_title: 'Rescue Mission',
+          micro_copy: 'Let me take over something for you — you choose what',
+          fine_print: "Redeemable whenever it's heavy",
+          font_choice: 'playfair' as const,
+          background_effect: 'none' as const,
+          sort_order: 1,
+        }
+
+        await repo.saveCouponSet({ ...validInput(), coupons: [coupon] }, 'user-1', 'sent')
+
+        expect(rpc.mock.calls[0][1].p_requires_payment).toBe(false)
+      })
+
+      it('requires payment for a free gesture sent with customized text (the unlock)', async () => {
+        const { supabase, rpc } = makeSupabase({ template: { slug: 'relief', is_single_use: true } })
+        const repo = createCouponSetRepository(supabase as never)
+        const coupon = {
+          service_title: 'My Own Title',
+          micro_copy: 'Let me take over something for you — you choose what',
+          fine_print: "Redeemable whenever it's heavy",
+          font_choice: 'playfair' as const,
+          background_effect: 'none' as const,
+          sort_order: 1,
+        }
+
+        await repo.saveCouponSet({ ...validInput(), coupons: [coupon] }, 'user-1', 'sent')
+
+        expect(rpc.mock.calls[0][1].p_requires_payment).toBe(true)
+      })
     })
   })
 
@@ -205,6 +268,59 @@ describe('CouponSetRepository', () => {
       const result = await repo.getCouponSetsForUser('user-1')
 
       expect(result[0].openedAt).toBeNull()
+    })
+  })
+
+  describe('getCouponSetDetailForSender', () => {
+    function makeDetailSupabase(resolvedValue: { data: unknown; error: unknown }) {
+      const single = vi.fn().mockResolvedValue(resolvedValue)
+      const eqUser = vi.fn().mockReturnValue({ single })
+      const eqId = vi.fn().mockReturnValue({ eq: eqUser })
+      const select = vi.fn().mockReturnValue({ eq: eqId })
+      const from = vi.fn().mockReturnValue({ select })
+      return { supabase: { from }, eqId, eqUser }
+    }
+
+    it('scopes the lookup to both the set id and the owning user', async () => {
+      const { supabase, eqId, eqUser } = makeDetailSupabase({ data: null, error: { message: 'not found' } })
+      const repo = createCouponSetRepository(supabase as never)
+
+      await repo.getCouponSetDetailForSender('set-1', 'user-1')
+
+      expect(eqId).toHaveBeenCalledWith('id', 'set-1')
+      expect(eqUser).toHaveBeenCalledWith('user_id', 'user-1')
+    })
+
+    it('returns null when the set does not exist or is not owned by this user', async () => {
+      const { supabase } = makeDetailSupabase({ data: null, error: { message: 'not found' } })
+      const repo = createCouponSetRepository(supabase as never)
+
+      expect(await repo.getCouponSetDetailForSender('set-1', 'user-1')).toBeNull()
+    })
+
+    it('maps template slug and per-coupon redemption detail, sorted by sort_order', async () => {
+      const { supabase } = makeDetailSupabase({
+        data: {
+          id: 'set-1',
+          recipient_name: 'Mom',
+          status: 'sent',
+          created_at: '2026-08-20T00:00:00Z',
+          opened_at: '2026-08-21T00:00:00Z',
+          templates: { name: "Mom's Promise Tokens", slug: 'mothers_day' },
+          coupons: [
+            { id: 'c2', service_title: 'Second', status: 'sent', redeemed_at: null, sort_order: 2 },
+            { id: 'c1', service_title: 'First', status: 'redeemed', redeemed_at: '2026-08-22T00:00:00Z', sort_order: 1 },
+          ],
+        },
+        error: null,
+      })
+      const repo = createCouponSetRepository(supabase as never)
+
+      const result = await repo.getCouponSetDetailForSender('set-1', 'user-1')
+
+      expect(result?.templateSlug).toBe('mothers_day')
+      expect(result?.coupons.map((c) => c.id)).toEqual(['c1', 'c2'])
+      expect(result?.coupons[0].redeemed_at).toBe('2026-08-22T00:00:00Z')
     })
   })
 

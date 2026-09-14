@@ -1,9 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import bcrypt from 'bcryptjs'
 import { randomInt } from 'node:crypto'
-import { SaveCouponSetInputSchema } from '@/schemas/couponSchema'
+import { SaveCouponSetInputSchema, type CouponSetStatus } from '@/schemas/couponSchema'
+import { singleUseGestures } from '@/lib/singleUseGestures'
 
-export type SaveCouponSetResult = { success: true; id: string; pin: string } | { success: false; error: string }
+const gestureBySlug = Object.fromEntries(singleUseGestures.map((g) => [g.slug, g]))
+
+export type SaveCouponSetResult =
+  | { success: true; id: string; pin: string }
+  | { success: false; error: string; paymentRequired?: boolean }
 
 export type CouponSetSummary = {
   id: string
@@ -24,51 +29,110 @@ export type ReceivedCouponSetSummary = {
   coupons: { id: string; status: string }[]
 }
 
+export type GiftTrackingCoupon = {
+  id: string
+  service_title: string
+  status: string
+  redeemed_at: string | null
+}
+
+export type GiftTrackingDetail = {
+  id: string
+  recipient_name: string
+  status: string
+  created_at: string
+  openedAt: string | null
+  templateName: string | null
+  templateSlug: string | null
+  coupons: GiftTrackingCoupon[]
+}
+
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
+
+/**
+ * Whether sending this coupon set needs a consumed purchased_instances row. Every bundle template
+ * is always paid. A single-use gesture only needs one when its base price is nonzero, or — for an
+ * otherwise-free gesture — when the submitted coupon's text has actually been customized off the
+ * curated defaults (the "Make This Gift Yours" unlock is what's paid for, not the gesture itself;
+ * sending a free gesture unmodified must stay free). Compares against the same singleUseGestures
+ * fixture GestureFlow.tsx renders from, so this can't be fooled by client-side state — it's judged
+ * purely from what was actually submitted.
+ */
+function requiresPaymentForSend(
+  template: { slug: string; is_single_use: boolean },
+  firstCoupon: { service_title: string; micro_copy?: string; fine_print?: string } | undefined
+): boolean {
+  if (!template.is_single_use) return true
+  const gesture = gestureBySlug[template.slug]
+  if (!gesture) return true
+  if (gesture.price > 0) return true
+  if (!firstCoupon) return false
+  return (
+    firstCoupon.service_title !== gesture.serviceTitle ||
+    (firstCoupon.micro_copy ?? '') !== gesture.microCopy ||
+    (firstCoupon.fine_print ?? '') !== gesture.finePrint
+  )
+}
 
 export function createCouponSetRepository(supabase: SupabaseClient) {
   return {
     /**
-     * Creates a coupon set + its 8 coupons. userId is null for an anonymous
-     * sender — the set still saves and shares the same as a logged-in one,
-     * just without a user_id attached (mirrors the recipient side, which
-     * already supports an anonymous /give/[id] visitor linking their account
-     * later). Generates the 4-digit PIN and returns it once, in plaintext, so
-     * the caller can show it on GiftReadyScreen — only the bcrypt hash is stored.
+     * Creates a coupon set + its coupons via the create_coupon_set() Postgres function — one
+     * atomic transaction, so a crash mid-save can never burn a paid entitlement with nothing
+     * created, or let a paid send through without consuming one (see the migration for the
+     * function body). userId is null for an anonymous sender — mirrors the recipient side, which
+     * already supports an anonymous /give/[id] visitor linking their account later. Generates the
+     * 4-digit PIN and returns it once, in plaintext, so the caller can show it on GiftReadyScreen
+     * — only the bcrypt hash is stored.
+     *
+     * status is decided by the caller's own server action (saveDraftAction vs
+     * sendCouponSetAction), never taken from the client's payload — a 'draft' save is always free;
+     * a 'sent' save requires payment for every bundle template, and for a single-use gesture only
+     * once its price is nonzero or its text has actually been customized off the free defaults
+     * (see requiresPaymentForSend below). When payment is required and no unconsumed
+     * purchased_instances row exists for (userId, template_id), the function raises
+     * 'PAYMENT_REQUIRED' and nothing is written — surfaced here as `paymentRequired: true` so the
+     * caller can redirect to checkout instead of showing a generic error.
      */
-    async saveCouponSet(input: unknown, userId: string | null): Promise<SaveCouponSetResult> {
+    async saveCouponSet(input: unknown, userId: string | null, status: CouponSetStatus): Promise<SaveCouponSetResult> {
       const parsed = SaveCouponSetInputSchema.safeParse(input)
       if (!parsed.success) return { success: false, error: GENERIC_ERROR }
-      const { coupons, expiry_date, ...setFields } = parsed.data
+      const { coupons, expiry_date, sender_message, ...setFields } = parsed.data
+
+      const { data: template, error: templateError } = await supabase
+        .from('templates')
+        .select('slug, is_single_use')
+        .eq('id', setFields.template_id)
+        .single<{ slug: string; is_single_use: boolean }>()
+      if (templateError || !template) return { success: false, error: GENERIC_ERROR }
+
+      const requiresPayment = status === 'sent' && requiresPaymentForSend(template, coupons[0])
 
       const pin = String(randomInt(1000, 10000))
       const pinHash = await bcrypt.hash(pin, 10)
 
-      const { data: set, error: setError } = await supabase
-        .from('coupon_sets')
-        .insert({ ...setFields, expiry_date: expiry_date ?? null, user_id: userId, pin_code: pinHash, status: 'sent' })
-        .select('id')
-        .single<{ id: string }>()
+      const { data: setId, error } = await supabase.rpc('create_coupon_set', {
+        p_user_id: userId,
+        p_status: status,
+        p_requires_payment: requiresPayment,
+        p_set: {
+          ...setFields,
+          expiry_date: expiry_date ?? null,
+          sender_message: sender_message ?? null,
+          pin_code: pinHash,
+        },
+        p_coupons: coupons,
+      })
 
-      if (setError || !set) return { success: false, error: GENERIC_ERROR }
+      if (error) {
+        if (error.message?.includes('PAYMENT_REQUIRED')) {
+          return { success: false, error: 'Payment required.', paymentRequired: true }
+        }
+        return { success: false, error: GENERIC_ERROR }
+      }
+      if (!setId) return { success: false, error: GENERIC_ERROR }
 
-      const { error: couponsError } = await supabase.from('coupons').insert(
-        coupons.map((c) => ({
-          set_id: set.id,
-          sort_order: c.sort_order,
-          service_title: c.service_title,
-          micro_copy: c.micro_copy ?? null,
-          fine_print: c.fine_print ?? null,
-          font_choice: c.font_choice,
-          background_color: c.background_color ?? null,
-          background_effect: c.background_effect,
-          status: 'sent',
-        }))
-      )
-
-      if (couponsError) return { success: false, error: GENERIC_ERROR }
-
-      return { success: true, id: set.id, pin }
+      return { success: true, id: setId as string, pin }
     },
 
     /**
@@ -122,6 +186,48 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
           coupons: row.coupons,
         }
       })
+    },
+
+    /**
+     * Full tracking detail for a single sent gift — everything Profile's
+     * per-gift detail page needs (status timeline, per-coupon breakdown).
+     * Scoped to the owning sender via user_id so a sender can never view
+     * someone else's gift by guessing an id.
+     */
+    async getCouponSetDetailForSender(setId: string, userId: string): Promise<GiftTrackingDetail | null> {
+      const { data, error } = await supabase
+        .from('coupon_sets')
+        .select(
+          'id, recipient_name, status, created_at, opened_at, templates(name, slug), coupons(id, service_title, status, redeemed_at, sort_order)'
+        )
+        .eq('id', setId)
+        .eq('user_id', userId)
+        .single<{
+          id: string
+          recipient_name: string
+          status: string
+          created_at: string
+          opened_at: string | null
+          templates: { name: string; slug: string } | { name: string; slug: string }[] | null
+          coupons: { id: string; service_title: string; status: string; redeemed_at: string | null; sort_order: number }[]
+        }>()
+
+      if (error || !data) return null
+
+      const template = Array.isArray(data.templates) ? data.templates[0] : data.templates
+
+      return {
+        id: data.id,
+        recipient_name: data.recipient_name,
+        status: data.status,
+        created_at: data.created_at,
+        openedAt: data.opened_at,
+        templateName: template?.name ?? null,
+        templateSlug: template?.slug ?? null,
+        coupons: [...data.coupons]
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(({ id, service_title, status, redeemed_at }) => ({ id, service_title, status, redeemed_at })),
+      }
     },
 
     /**

@@ -10,9 +10,11 @@ import { QuantityStepper } from '@/components/builder/QuantityStepper'
 import { BundleTierPills } from '@/components/builder/BundleTierPills'
 import { PromoScrollPopup, type PromoScrollPopupHandle } from '@/components/shared/PromoScrollPopup'
 import { CartIcon } from '@/components/shared/CartIcon'
+import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
-import { bundleTierBySlug, tierPrice, type BundleTier } from '@/lib/bundleTiers'
+import { bundleTierBySlug, tierPrice, pairedSlugBySlug, type BundleTier } from '@/lib/bundleTiers'
 import { usePendingInstances, addToCart, consumePendingInstance } from '@/lib/cart'
+import { saveDraftAction, sendCouponSetAction, initiateSendCheckoutAction, verifyCheckoutAction, linkSenderAction } from '@/app/create/actions'
 import { GestureFlow, peekPersistedGestureSlug } from '@/components/builder/GestureFlow'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
@@ -23,20 +25,11 @@ import { SaveToAccountBanner, pendingLinkKey } from '@/components/shared/SaveToA
 import { EarlyAccessSignupForm } from '@/components/templates/EarlyAccessSignupForm'
 import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { saveCouponSetAction, linkSenderAction } from '@/app/create/actions'
 import { SERVICE_TITLE_MAX_LENGTH, SENDER_MESSAGE_MAX_LENGTH } from '@/schemas/couponSchema'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import type { Template, TemplateCoupon, TemplateWithCoupons } from '@/lib/templateRepository'
 import type { ComingSoonTemplate } from '@/lib/comingSoonTemplateRepository'
 import type { FeatureInterestSlug } from '@/schemas/featureInterestSchema'
-
-// Made By Him / Made By Her are two halves of one paired idea — a couple makes
-// one each and swaps. Look up each other's display name by slug so the on-card
-// badge stays correct if a name changes, instead of hardcoding it here.
-const PAIRED_SLUGS: Record<string, string> = {
-  'made-by-him': 'made-by-her',
-  'made-by-her': 'made-by-him',
-}
 
 // Deferred: only needed if a giver opens one of the fake-door "want this?" buttons.
 const FeatureInterestModal = dynamic(
@@ -109,12 +102,37 @@ export function CouponSetBuilder({
     window.history.replaceState({}, '', url.toString())
   }, [])
 
-  const performSave = async () => {
+  // 'draft' (Save My Coupons) is always free. 'sent' (Send with Love) requires payment for every
+  // paid template — if sendCouponSetAction comes back paymentRequired, this redirects to Paystack
+  // instead of showing an error; the pending-save-intent flag (already used for the auth-redirect
+  // interrupt below) does double duty for the payment-redirect interrupt too, since both need the
+  // exact same "come back and finish the save automatically" resume behavior.
+  const performSave = async (intent: 'draft' | 'sent') => {
     const payload = builder.toSavePayload()
     if (!payload) return
     setSaving(true)
     setSaveError('')
-    const result = await saveCouponSetAction(payload)
+    const result = await (intent === 'draft' ? saveDraftAction(payload) : sendCouponSetAction(payload))
+
+    if (!result.success && result.paymentRequired) {
+      const slug = builder.state.selectedTemplateSlug
+      if (!slug) {
+        setSaving(false)
+        setSaveError(result.error)
+        return
+      }
+      if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, intent)
+      const checkout = await initiateSendCheckoutAction(slug)
+      if (!checkout.success) {
+        setSaving(false)
+        if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+        setSaveError(checkout.error)
+        return
+      }
+      window.location.href = checkout.authorizationUrl
+      return
+    }
+
     setSaving(false)
     if (!result.success) {
       setSaveError(result.error)
@@ -123,16 +141,16 @@ export function CouponSetBuilder({
     builder.completeSave({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
     // Clears the "purchased, not yet personalized" flag once this template's coupons are
     // actually saved/sent — otherwise it would show as pending forever on /create and Profile.
-    if (builder.state.selectedTemplateSlug) consumePendingInstance(builder.state.selectedTemplateSlug)
+    if (intent === 'sent' && builder.state.selectedTemplateSlug) consumePendingInstance(builder.state.selectedTemplateSlug)
   }
 
-  const handleSaveOrSend = () => {
+  const handleSaveOrSend = (intent: 'draft' | 'sent') => {
     if (!isLoggedIn) {
-      if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, 'true')
+      if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, intent)
       setAuthOpen(true)
       return
     }
-    void performSave()
+    void performSave(intent)
   }
 
   // Right after an anonymous save, remember {setId, pin} so that if the sender clicks
@@ -165,23 +183,44 @@ export function CouponSetBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to resume a pending sender link, not on every state change
   }, [isLoggedIn])
 
-  // Completes a save the sender started before AuthGate interrupted them: once the auth
-  // redirect lands back here and isLoggedIn is true, and the intent flag from
-  // handleSaveOrSend is still set, finish the save automatically instead of making them
-  // click "Save My Coupons" a second time. The draft itself is already correct at this
-  // point via useCouponSetBuilder's own hydration.
+  // Completes a save the sender started before AuthGate or a Paystack checkout interrupted them:
+  // once back here (auth redirect, or Paystack's callback_url) with isLoggedIn true and the intent
+  // flag from handleSaveOrSend/performSave still set, finish the save automatically instead of
+  // making them tap Save/Send a second time. The draft itself is already correct at this point via
+  // useCouponSetBuilder's own hydration. A `?reference=` in the URL means this is specifically a
+  // return from Paystack — verified first (fast-path fallback alongside the webhook, see
+  // verifyCheckoutAction) before resuming; if that comes back unpaid (declined/abandoned), the
+  // resume stops with an explanatory error instead of silently bouncing them to another checkout.
   useEffect(() => {
     if (attemptedSaveResume.current || !isLoggedIn) return
     if (typeof window === 'undefined') return
-    if (window.localStorage.getItem(PENDING_SAVE_INTENT_KEY) !== 'true') return
+    const intent = window.localStorage.getItem(PENDING_SAVE_INTENT_KEY)
+    if (intent !== 'draft' && intent !== 'sent') return
     // Save/Send is only reachable from the edit screen, so a pending intent's draft must
     // still be hydrating (from 'select') until the screen actually reaches 'edit' — firing
     // any earlier would call performSave() with the stale pre-hydration builder.state.
     if (builder.state.screen !== 'edit') return
     attemptedSaveResume.current = true
     window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time completion of a save the sender already initiated before the auth redirect, not a render-time side effect
-    void performSave()
+
+    const url = new URL(window.location.href)
+    const reference = url.searchParams.get('reference')
+    if (reference) {
+      url.searchParams.delete('reference')
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    const resume = async () => {
+      if (reference) {
+        const verified = await verifyCheckoutAction(reference)
+        if (!verified.paid) {
+          setSaveError("Your payment wasn't completed, so this wasn't sent. Feel free to try again.")
+          return
+        }
+      }
+      void performSave(intent)
+    }
+    void resume()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- performSave is stable per render and would cause an infinite loop if included
   }, [isLoggedIn, builder.state.screen])
 
@@ -365,8 +404,8 @@ export function CouponSetBuilder({
           onPatchAllCoupons={builder.patchAllCoupons}
           onPreview={() => setPreviewOpen(true)}
           onEditMessage={() => setEditMessageOpen(true)}
-          onSave={handleSaveOrSend}
-          onSend={handleSaveOrSend}
+          onSave={() => handleSaveOrSend('draft')}
+          onSend={() => handleSaveOrSend('sent')}
         />
       )}
 
@@ -456,7 +495,11 @@ function BundleTemplateCard({
     >
       <button type="button" onClick={() => onSelect(template)} className="block w-full text-left">
         <div className="relative aspect-[1748/1240] w-full">
-          <Image src={visuals.coverImageSrc} alt={template.name} fill sizes="100vw" className="object-cover" />
+          {visuals.coverImageSrc ? (
+            <Image src={visuals.coverImageSrc} alt={template.name} fill sizes="100vw" className="object-cover" />
+          ) : (
+            <TemplateCoverArt name={template.name} accent={visuals.accent} tint={visuals.tint} imageSrc={visuals.imageSrc} />
+          )}
         </div>
         <div className="px-4 pt-3.5">
           <div className="flex items-center gap-2">
@@ -479,6 +522,9 @@ function BundleTemplateCard({
           </div>
           {template.emotional_tone && (
             <div className="mt-1 text-xs leading-snug text-[#2C2C2C] opacity-70">{template.emotional_tone}</div>
+          )}
+          {pairedSlugBySlug[template.slug] && (
+            <div className="mt-1 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.pricingPairNote}</div>
           )}
         </div>
       </button>
@@ -649,7 +695,7 @@ function TemplateSelectScreen({
           </div>
           <div className="mt-4 flex flex-col gap-3.25 px-5.5">
             {comingSoonTemplates.map((template) => {
-              const pairedSlug = PAIRED_SLUGS[template.slug]
+              const pairedSlug = pairedSlugBySlug[template.slug]
               const pairedTemplate = pairedSlug ? comingSoonTemplates.find((t) => t.slug === pairedSlug) : undefined
               return (
                 <button
@@ -700,7 +746,7 @@ function TemplateSelectScreen({
 function ComingSoonModal({ template, onClose }: { template: ComingSoonTemplate; onClose: () => void }) {
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
   const tier = bundleTierBySlug[template.slug]
-  const isPairedSlug = template.slug in PAIRED_SLUGS
+  const isPairedSlug = template.slug in pairedSlugBySlug
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">

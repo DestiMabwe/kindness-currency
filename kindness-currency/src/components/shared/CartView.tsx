@@ -1,16 +1,19 @@
 'use client'
 
-// Cart contents, 3-for-2 math, and checkout. No real payment provider is wired up yet — "Pay"
-// marks the order as purchased (recorded in order history) and clears the cart without collecting
-// any money, and the done screen says so plainly rather than claiming a charge that didn't happen.
+// Cart contents, 3-for-2 math, and checkout — real Paystack payment via initiateCartCheckoutAction.
+// "Pay" redirects to Paystack's hosted checkout; the buyer lands back on /cart/complete once done.
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { QuantityStepper } from '@/components/builder/QuantityStepper'
-import { useCartLines, setCartQty, removeFromCart, completePurchase, linesForCart, cartTotals, type CartLine } from '@/lib/cart'
+import { useCartLines, setCartQty, removeFromCart, linesForCart, cartTotals, type CartLine } from '@/lib/cart'
+import { initiateCartCheckoutAction } from '@/app/cart/actions'
 
-type Step = 'cart' | 'checkout' | 'done'
+const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
+
+type Step = 'cart' | 'checkout'
 
 /** A line where the free unit doesn't cover the whole line (qty > 1) shows its own price as
  * "qty × price" plus a separate "1 unit FREE" callout, rather than crossing out the whole row —
@@ -21,50 +24,32 @@ function LineDiscountNote({ line, isFreeLine }: { line: CartLine; isFreeLine: bo
   return <span className="mt-0.5 block font-bold text-[#2E7D6B]">1 unit FREE (3-for-2) −${line.price.toFixed(2)}</span>
 }
 
-export function CartView() {
+export function CartView({ isLoggedIn }: { isLoggedIn: boolean }) {
   const cartLines = useCartLines()
   const [step, setStep] = useState<Step>('cart')
-  const [purchasedNames, setPurchasedNames] = useState<string[]>([])
-  // Frozen at the moment of payment: completePurchase() clears the cart, and useCartLines()
-  // reacts to that immediately, so recomputing `total` from the (now-empty) live cart on the
-  // "done" screen would show $0.00 instead of the order's actual value.
-  const [purchasedTotal, setPurchasedTotal] = useState(0)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState('')
 
   const lines = linesForCart(cartLines)
   const totalUnits = lines.reduce((sum, l) => sum + l.qty, 0)
 
-  const { subtotal, discount, total, freeSlug } = cartTotals(lines)
+  const { subtotal, pairDiscount, discount, total, freeSlug } = cartTotals(lines)
 
-  const handlePay = () => {
-    setPurchasedNames(lines.map((l) => l.name))
-    setPurchasedTotal(total)
-    completePurchase()
-    setStep('done')
-  }
-
-  if (step === 'done') {
-    return (
-      <div className="px-5.5 pt-2 pb-10">
-        <h1 className="text-[23px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
-          {ctaCopy.cartDoneHeading}
-        </h1>
-        <div className="mt-2 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.cartDoneBody}</div>
-        <div className="mt-1 text-[12px] font-semibold text-[#2C2C2C] opacity-50">Order value: ${purchasedTotal.toFixed(2)} (not charged)</div>
-        <div className="mt-5 flex flex-col gap-2.5">
-          {purchasedNames.map((name) => (
-            <div key={name} className="rounded-xl border border-[#1A1A2E]/8 bg-white px-3.5 py-3 text-[13.5px] font-semibold text-[#1A1A2E]">
-              {name}
-            </div>
-          ))}
-        </div>
-        <Link
-          href="/create"
-          className="mt-6 block w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white"
-        >
-          {ctaCopy.cartPersonalizeCta}
-        </Link>
-      </div>
-    )
+  const handlePay = async () => {
+    if (!isLoggedIn) {
+      setAuthOpen(true)
+      return
+    }
+    setPaying(true)
+    setPayError('')
+    const result = await initiateCartCheckoutAction(cartLines)
+    if (!result.success) {
+      setPaying(false)
+      setPayError(result.error)
+      return
+    }
+    window.location.href = result.authorizationUrl
   }
 
   if (step === 'checkout') {
@@ -93,13 +78,17 @@ export function CartView() {
           </div>
         </div>
         <div className="mt-4 text-[12px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.cartCheckoutNote}</div>
+        {payError && <div className="mt-3 text-center text-[12.5px] text-[#C2185B]">{payError}</div>}
         <button
           type="button"
           onClick={handlePay}
-          className="mt-4 w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white"
+          disabled={paying}
+          className="mt-4 w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white disabled:opacity-50"
         >
-          {ctaCopy.cartPayCta(total.toFixed(2))}
+          {paying ? ctaCopy.sendPaymentRedirecting : ctaCopy.cartPayCta(total.toFixed(2))}
         </button>
+
+        {authOpen && <AuthGate redirectTo="/cart" onClose={() => setAuthOpen(false)} />}
       </div>
     )
   }
@@ -171,6 +160,12 @@ export function CartView() {
               <span>Subtotal</span>
               <span>${subtotal.toFixed(2)}</span>
             </div>
+            {pairDiscount > 0 && (
+              <div className="mt-1 flex items-center justify-between text-[13px] font-semibold text-[#2E7D6B]">
+                <span>{ctaCopy.cartPairDiscountLabel}</span>
+                <span>-${pairDiscount.toFixed(2)}</span>
+              </div>
+            )}
             {discount > 0 && (
               <div className="mt-1 flex items-center justify-between text-[13px] font-semibold text-[#2E7D6B]">
                 <span>3-for-2 discount</span>

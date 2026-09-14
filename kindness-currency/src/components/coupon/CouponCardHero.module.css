@@ -15,7 +15,7 @@
   --content-pad-y: clamp(11px, 2.97vw, 20px);
   --headline-fs: clamp(19px, 5.9vw, 40px);
   --eyebrow-fs: clamp(9px, 1.78vw, 12px);
-  --subline-fs: clamp(10px, 1.93vw, 13px);
+  --subline-fs: clamp(9px, 1.7vw, 11px);
   --fineprint-fs: clamp(7.5px, 1.41vw, 9.5px);
   --stub-label-fs: clamp(7.5px, 1.48vw, 10px);
   --motif-fs: clamp(26px, 6.83vw, 46px);
@@ -172,6 +172,11 @@
   justify-content: center;
   padding: var(--content-pad-y) var(--content-pad-x);
   position: relative;
+  /* Grid items default to min-width:auto, so a single long unbreakable word (e.g.
+     "Unconditional") in the headline can force this column wider than its 1fr track,
+     overflowing .inner's right edge and dragging the absolutely-positioned
+     decorativeImage out past the clipped card border with it. */
+  min-width: 0;
 }
 
 .eyebrow {
@@ -197,6 +202,7 @@
   line-clamp: 3;
   overflow: hidden;
   text-overflow: ellipsis;
+  overflow-wrap: break-word;
 }
 
 .subline {
@@ -207,6 +213,7 @@
   letter-spacing: 1px;
   color: #2c2c2c;
   opacity: 0.75;
+  overflow-wrap: break-word;
 }
 
 .finePrint {
@@ -218,6 +225,7 @@
   color: #2c2c2c;
   text-transform: uppercase;
   opacity: 0.78;
+  overflow-wrap: break-word;
 }
 
 .contentWithImage {

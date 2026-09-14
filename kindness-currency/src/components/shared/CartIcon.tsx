@@ -36,7 +36,7 @@ export function CartIcon({ alwaysVisible = false }: { alwaysVisible?: boolean })
         <span
           key={totalUnits}
           style={{ '--kc-pop-delay': '0s' } as CSSProperties}
-          className="kc-pop absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C2185B] px-1 text-[9.5px] font-bold text-white"
+          className="kc-pop absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C2185B] px-1 text-[9.5px] leading-none font-bold text-white"
         >
           {totalUnits}
         </span>
