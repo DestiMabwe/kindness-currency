@@ -35,6 +35,14 @@ export type BuilderState = {
   senderMessage: string
   coupons: BuilderCoupon[]
   savedResult: SavedResult | null
+  /**
+   * The template id the sender has actually cleared CouponSetBuilder's entitlement gate for —
+   * set only by startEditing, which is only ever called once that gate passes (see
+   * CouponSetBuilder's unlockEditorIfEntitled). Distinct from namesFilled below: without this,
+   * re-selecting the in-progress template after backing out of an unpaid gate attempt (form
+   * filled, gate never cleared) would fast-path straight back into the editor for free.
+   */
+  editorUnlockedTemplateId: string | null
 }
 
 const DRAFT_STORAGE_KEY = 'kindness-currency:coupon-set-draft'
@@ -49,6 +57,7 @@ const initialState: BuilderState = {
   senderMessage: '',
   coupons: [],
   savedResult: null,
+  editorUnlockedTemplateId: null,
 }
 
 export function couponsFromTemplate(template: TemplateWithCoupons): BuilderCoupon[] {
@@ -113,9 +122,12 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
         // wiping it back to template defaults — only a genuinely different template
         // should regenerate fresh coupons.
         const isSameTemplate = s.selectedTemplateId === template.id
-        // "In progress" for skip-the-form purposes matches startEditing's own bar:
-        // the form was already completed, so there's real customizing to resume.
+        // "In progress" for skip-the-form purposes requires both the form being already
+        // completed AND the entitlement gate already cleared for this exact template — matching
+        // startEditing's own bar of "there's real, paid-for customizing to resume" rather than
+        // just "the names happen to be filled in already".
         const namesFilled = Boolean(s.senderName.trim() && s.recipientName.trim())
+        const editorAlreadyUnlocked = isSameTemplate && s.editorUnlockedTemplateId === template.id
         return {
           ...s,
           selectedTemplateId: template.id,
@@ -126,7 +138,8 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
           // on the message field instead of being auto-filled, matching the single-use gesture
           // flow's messageStarter pattern.
           senderMessage: isSameTemplate ? s.senderMessage : '',
-          screen: isSameTemplate && namesFilled ? 'edit' : 'details',
+          editorUnlockedTemplateId: isSameTemplate ? s.editorUnlockedTemplateId : null,
+          screen: editorAlreadyUnlocked && namesFilled ? 'edit' : 'details',
         }
       })
     },
@@ -143,7 +156,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
 
   const startEditing = useCallback(() => {
     if (!state.senderName.trim() || !state.recipientName.trim()) return false
-    setState((s) => ({ ...s, screen: 'edit' }))
+    setState((s) => ({ ...s, screen: 'edit', editorUnlockedTemplateId: s.selectedTemplateId }))
     return true
   }, [state.senderName, state.recipientName])
 

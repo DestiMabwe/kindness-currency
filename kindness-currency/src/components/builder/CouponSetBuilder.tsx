@@ -14,7 +14,14 @@ import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
 import { bundleTierBySlug, tierPrice, pairedSlugBySlug, type BundleTier } from '@/lib/bundleTiers'
 import { usePendingInstances, addToCart, consumePendingInstance } from '@/lib/cart'
-import { saveDraftAction, sendCouponSetAction, initiateSendCheckoutAction, verifyCheckoutAction, linkSenderAction } from '@/app/create/actions'
+import {
+  saveDraftAction,
+  sendCouponSetAction,
+  initiateSendCheckoutAction,
+  verifyCheckoutAction,
+  linkSenderAction,
+  checkTemplateEntitlementAction,
+} from '@/app/create/actions'
 import { GestureFlow, peekPersistedGestureSlug } from '@/components/builder/GestureFlow'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
@@ -57,10 +64,12 @@ type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'previ
 // provider forces mid "save to your account" click — see the effects below.
 const PENDING_SENDER_READY_KEY = 'kindness-currency:pending-sender-ready'
 
-// Set right before opening AuthGate from Save/Send, so the auth redirect's reload knows
-// to finish the save automatically once the sender is actually logged in — the draft
-// itself survives that redirect via useCouponSetBuilder's own localStorage persistence,
-// so only the "they meant to save" intent needs to be remembered separately.
+// Set right before opening AuthGate from Save/Send, or before either an auth-only redirect or a
+// Paystack redirect triggered from the details screen's "Personalise the coupons" gate, so the
+// redirect's reload knows what the sender was trying to do once they're back — the draft itself
+// survives that redirect via useCouponSetBuilder's own localStorage persistence, so only the
+// intent needs to be remembered separately. 'edit' means "unlock the coupon editor" (see the
+// entitlement gate below) rather than save or send.
 const PENDING_SAVE_INTENT_KEY = 'kindness-currency:pending-save-intent'
 
 export function CouponSetBuilder({
@@ -82,6 +91,8 @@ export function CouponSetBuilder({
   const [featureInterestModal, setFeatureInterestModal] = useState<FeatureInterestSlug | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [checkingEntitlement, setCheckingEntitlement] = useState(false)
+  const [detailsError, setDetailsError] = useState('')
   const [authOpen, setAuthOpen] = useState(false)
   const [resumedDraftDismissed, setResumedDraftDismissed] = useState(false)
   const [authLinkFailed, setAuthLinkFailed] = useState(false)
@@ -153,6 +164,44 @@ export function CouponSetBuilder({
     void performSave(intent)
   }
 
+  // The coupon editor (Step 3) itself is the paywall, not just the final Send: every template
+  // reachable through this screen is a paid bundle (single-use gestures never get here — see
+  // GestureFlow), so a sender must already hold an unconsumed purchased_instances row for it
+  // before the editor opens. This checks that and either unlocks the editor or sends the sender to
+  // Paystack for exactly this template — reused by the Step 2 button, by the auth-redirect resume,
+  // and by the checkout-return resume below.
+  const unlockEditorIfEntitled = async (slug: TemplateSlug) => {
+    const entitlement = await checkTemplateEntitlementAction(slug)
+    if (entitlement.entitled) {
+      setCheckingEntitlement(false)
+      builder.startEditing()
+      return
+    }
+    if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, 'edit')
+    const checkout = await initiateSendCheckoutAction(slug)
+    if (!checkout.success) {
+      setCheckingEntitlement(false)
+      if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+      setDetailsError(checkout.error)
+      return
+    }
+    window.location.href = checkout.authorizationUrl
+  }
+
+  const handleContinueToEdit = () => {
+    if (!builder.state.senderName.trim() || !builder.state.recipientName.trim()) return
+    const slug = builder.state.selectedTemplateSlug
+    if (!slug) return
+    if (!isLoggedIn) {
+      if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, 'edit')
+      setAuthOpen(true)
+      return
+    }
+    setDetailsError('')
+    setCheckingEntitlement(true)
+    void unlockEditorIfEntitled(slug)
+  }
+
   // Right after an anonymous save, remember {setId, pin} so that if the sender clicks
   // "Save this to your account" and gets redirected away for auth, the reload below can
   // find it again — the builder's own draft was already cleared by completeSave.
@@ -183,23 +232,28 @@ export function CouponSetBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to resume a pending sender link, not on every state change
   }, [isLoggedIn])
 
-  // Completes a save the sender started before AuthGate or a Paystack checkout interrupted them:
-  // once back here (auth redirect, or Paystack's callback_url) with isLoggedIn true and the intent
-  // flag from handleSaveOrSend/performSave still set, finish the save automatically instead of
-  // making them tap Save/Send a second time. The draft itself is already correct at this point via
-  // useCouponSetBuilder's own hydration. A `?reference=` in the URL means this is specifically a
-  // return from Paystack — verified first (fast-path fallback alongside the webhook, see
-  // verifyCheckoutAction) before resuming; if that comes back unpaid (declined/abandoned), the
-  // resume stops with an explanatory error instead of silently bouncing them to another checkout.
+  // Completes whatever the sender was trying to do before AuthGate or a Paystack checkout
+  // interrupted them: once back here (auth redirect, or Paystack's callback_url) with isLoggedIn
+  // true and the intent flag from handleSaveOrSend/performSave/handleContinueToEdit still set,
+  // finish it automatically instead of making them tap the button a second time. The draft itself
+  // is already correct at this point via useCouponSetBuilder's own hydration. A `?reference=` in
+  // the URL means this is specifically a return from Paystack — verified first (fast-path fallback
+  // alongside the webhook, see verifyCheckoutAction) before resuming; if that comes back unpaid
+  // (declined/abandoned), the resume stops with an explanatory error instead of silently bouncing
+  // them to another checkout.
+  //
+  // 'edit' resumes into the coupon editor rather than saving/sending: it's reachable from a plain
+  // auth-only redirect (no `?reference=` — re-run the entitlement gate now that they're logged in)
+  // as well as from a checkout return (verify the payment, then unlock straight away). Save/Send
+  // are only reachable from the edit screen, so their pending intent's draft must still be
+  // hydrating (from 'select') until the screen actually reaches 'edit'; 'edit' itself is left
+  // waiting on the details screen instead, since that's where handleContinueToEdit set it.
   useEffect(() => {
     if (attemptedSaveResume.current || !isLoggedIn) return
     if (typeof window === 'undefined') return
     const intent = window.localStorage.getItem(PENDING_SAVE_INTENT_KEY)
-    if (intent !== 'draft' && intent !== 'sent') return
-    // Save/Send is only reachable from the edit screen, so a pending intent's draft must
-    // still be hydrating (from 'select') until the screen actually reaches 'edit' — firing
-    // any earlier would call performSave() with the stale pre-hydration builder.state.
-    if (builder.state.screen !== 'edit') return
+    if (intent !== 'draft' && intent !== 'sent' && intent !== 'edit') return
+    if (builder.state.screen !== (intent === 'edit' ? 'details' : 'edit')) return
     attemptedSaveResume.current = true
     window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
 
@@ -211,6 +265,22 @@ export function CouponSetBuilder({
     }
 
     const resume = async () => {
+      if (intent === 'edit') {
+        const slug = builder.state.selectedTemplateSlug
+        if (!slug) return
+        if (!reference) {
+          setCheckingEntitlement(true)
+          void unlockEditorIfEntitled(slug)
+          return
+        }
+        const verified = await verifyCheckoutAction(reference)
+        if (!verified.paid) {
+          setDetailsError("Your payment wasn't completed, so the coupon editor isn't unlocked yet. Feel free to try again.")
+          return
+        }
+        builder.startEditing()
+        return
+      }
       if (reference) {
         const verified = await verifyCheckoutAction(reference)
         if (!verified.paid) {
@@ -221,7 +291,7 @@ export function CouponSetBuilder({
       void performSave(intent)
     }
     void resume()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- performSave is stable per render and would cause an infinite loop if included
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- performSave/unlockEditorIfEntitled are stable per render and would cause an infinite loop if included
   }, [isLoggedIn, builder.state.screen])
 
   // Switching to a template other than the one already in progress regenerates that
@@ -376,12 +446,14 @@ export function CouponSetBuilder({
           expiryDate={builder.state.expiryDate}
           senderMessage={builder.state.senderMessage}
           messageStarter={visuals?.previewMessage}
+          checkingEntitlement={checkingEntitlement}
+          entitlementError={detailsError}
           onBack={builder.backToSelect}
           onSenderChange={builder.setSenderName}
           onRecipientChange={builder.setRecipientName}
           onExpiryChange={builder.setExpiryDate}
           onSenderMessageChange={builder.setSenderMessage}
-          onContinue={builder.startEditing}
+          onContinue={handleContinueToEdit}
         />
       )}
 
@@ -855,6 +927,8 @@ export function DetailsFormScreen({
   expiryDate,
   senderMessage,
   messageStarter,
+  checkingEntitlement = false,
+  entitlementError = '',
   onBack,
   onSenderChange,
   onRecipientChange,
@@ -868,6 +942,8 @@ export function DetailsFormScreen({
   expiryDate: string
   senderMessage: string
   messageStarter?: string
+  checkingEntitlement?: boolean
+  entitlementError?: string
   onBack: () => void
   onSenderChange: (value: string) => void
   onRecipientChange: (value: string) => void
@@ -949,10 +1025,12 @@ export function DetailsFormScreen({
         <button
           type="button"
           onClick={handleContinue}
-          className="mt-1.5 w-full rounded-2xl bg-[#C2185B] p-3.5 font-sans text-[15.5px] font-bold text-white"
+          disabled={checkingEntitlement}
+          className="mt-1.5 w-full rounded-2xl bg-[#C2185B] p-3.5 font-sans text-[15.5px] font-bold text-white disabled:opacity-60"
         >
-          Personalise the coupons →
+          {checkingEntitlement ? ctaCopy.sendPaymentRedirecting : 'Personalise the coupons →'}
         </button>
+        {entitlementError && <div className="text-center text-[12.5px] text-[#C2185B]">{entitlementError}</div>}
         {attempted && !senderName.trim() && (
           <div className="text-center text-[11.5px] text-[#C2185B]">Add your name first ♥</div>
         )}

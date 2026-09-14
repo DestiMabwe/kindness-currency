@@ -10,12 +10,14 @@ const sendCouponSetAction = vi.fn()
 const initiateSendCheckoutAction = vi.fn()
 const verifyCheckoutAction = vi.fn()
 const linkSenderAction = vi.fn()
+const checkTemplateEntitlementAction = vi.fn()
 vi.mock('@/app/create/actions', () => ({
   saveDraftAction: (input: unknown) => saveDraftAction(input),
   sendCouponSetAction: (input: unknown) => sendCouponSetAction(input),
   initiateSendCheckoutAction: (slug: string, product?: string) => initiateSendCheckoutAction(slug, product),
   verifyCheckoutAction: (reference: string) => verifyCheckoutAction(reference),
   linkSenderAction: (setId: string) => linkSenderAction(setId),
+  checkTemplateEntitlementAction: (slug: string) => checkTemplateEntitlementAction(slug),
 }))
 
 vi.mock('@/app/early-access/actions', () => ({
@@ -92,6 +94,12 @@ describe('CouponSetBuilder', () => {
     verifyCheckoutAction.mockReset()
     linkSenderAction.mockReset()
     recordFeatureInterestAction.mockReset()
+    checkTemplateEntitlementAction.mockReset()
+    // Every bundle template is paid, so continuing past the details screen always checks
+    // entitlement first (see CouponSetBuilder's unlockEditorIfEntitled) — default to "already
+    // entitled" so tests unrelated to the paywall gate can reach the editor without each one
+    // wiring this up; tests that exercise the gate itself override this per-test.
+    checkTemplateEntitlementAction.mockResolvedValue({ entitled: true })
   })
 
   describe('home logo link', () => {
@@ -271,7 +279,7 @@ describe('CouponSetBuilder', () => {
     await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
     await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
     await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
-    await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+    await userEvent.click(await screen.findByRole('button', { name: ctaCopy.sendWithLove }))
     await screen.findByText('Your gift is ready')
     await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftReadyStartOver }))
 
@@ -417,7 +425,19 @@ describe('coming soon section', () => {
       expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
     })
 
-    it('advances to the editor once both names are entered', async () => {
+    it('advances to the editor once both names are entered, already logged in and entitled', async () => {
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      expect(await screen.findByText('Save My Coupons')).toBeInTheDocument()
+      expect(checkTemplateEntitlementAction).toHaveBeenCalledWith('mothers_day')
+    })
+
+    it('opens the auth prompt instead of the editor when continuing while logged out — every bundle template is paid', async () => {
       render(<CouponSetBuilder templates={[template()]} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -425,7 +445,37 @@ describe('coming soon section', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
-      expect(screen.getByText('Save My Coupons')).toBeInTheDocument()
+      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+      expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
+      expect(checkTemplateEntitlementAction).not.toHaveBeenCalled()
+    })
+
+    it('redirects straight to checkout instead of opening the editor when logged in but not yet entitled', async () => {
+      checkTemplateEntitlementAction.mockResolvedValue({ entitled: false })
+      initiateSendCheckoutAction.mockResolvedValue({ success: true, authorizationUrl: 'https://paystack.test/pay/abc' })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      await waitFor(() => expect(initiateSendCheckoutAction).toHaveBeenCalledWith('mothers_day', undefined))
+      expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
+    })
+
+    it('shows the checkout error and stays on the details screen if starting checkout fails', async () => {
+      checkTemplateEntitlementAction.mockResolvedValue({ entitled: false })
+      initiateSendCheckoutAction.mockResolvedValue({ success: false, error: 'Something went wrong starting checkout. Please try again.' })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+
+      expect(await screen.findByText('Something went wrong starting checkout. Please try again.')).toBeInTheDocument()
+      expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
     })
 
     it('leaves the message field empty by default, offering the template\'s smart default as a tappable suggestion instead', async () => {
@@ -452,7 +502,7 @@ describe('coming soon section', () => {
       await userEvent.type(screen.getByPlaceholderText('Something to say before they open it…'), 'Thinking of you every day.')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+      await userEvent.click(await screen.findByRole('button', { name: ctaCopy.saveMyCoupons }))
 
       expect(saveDraftAction).toHaveBeenCalledWith(expect.objectContaining({ sender_message: 'Thinking of you every day.' }))
     })
@@ -465,19 +515,23 @@ describe('coming soon section', () => {
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+      await userEvent.click(await screen.findByRole('button', { name: ctaCopy.saveMyCoupons }))
 
       const payload = saveDraftAction.mock.calls[0][0]
       expect(payload).not.toHaveProperty('sender_message')
     })
   })
 
-  async function goToEditor(isLoggedIn = false) {
+  // Defaults to logged in — every bundle template is paid, so reaching the editor at all
+  // requires it (see CouponSetBuilder's entitlement gate); pass false explicitly for the tests
+  // that specifically exercise the logged-out path.
+  async function goToEditor(isLoggedIn = true) {
     render(<CouponSetBuilder templates={[template()]} isLoggedIn={isLoggedIn} />)
     await userEvent.click(screen.getByText("Mom's Promise Tokens"))
     await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
     await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
     await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+    if (isLoggedIn) await screen.findByText('Save My Coupons')
   }
 
   async function expandCoupon(title: string | RegExp) {
@@ -552,13 +606,14 @@ describe('coming soon section', () => {
     })
 
     it('shows the real expiry date in the edit tile once set on the details step', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       fireEvent.change(screen.getByLabelText(/expiry date/i), { target: { value: '2026-12-25' } })
 
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await screen.findByText('Save My Coupons')
       await expandCoupon(/One Home-Cooked Meal/)
 
       expect(screen.getByText('DEC 25, 2026')).toBeInTheDocument()
@@ -594,13 +649,14 @@ describe('coming soon section', () => {
 
   describe('preview overlay', () => {
     it('opens on "Preview All Coupons" showing the same intro a real recipient sees, then the coupon list, and closes on the close button', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       // The message field starts empty by default (mirroring GiftUnwrapGate's own
       // senderMessage ? 'message' : 'instructions'), so this exercises the no-message path.
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await screen.findByText('Save My Coupons')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
       expect(screen.getByText('How Kindness Currency Works')).toBeInTheDocument()
@@ -613,12 +669,13 @@ describe('coming soon section', () => {
     })
 
     it('shows the sender-message step first when the smart-default suggestion is tapped to fill the message', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       await userEvent.click(screen.getByText(/For everything you do without ever being asked/))
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await screen.findByText('Save My Coupons')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
 
@@ -630,13 +687,14 @@ describe('coming soon section', () => {
     })
 
     it('shows the sender-message step first when a custom message was written, before the instructions and coupon list', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       await userEvent.clear(screen.getByPlaceholderText('Something to say before they open it…'))
       await userEvent.type(screen.getByPlaceholderText('Something to say before they open it…'), 'Thinking of you every day.')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await screen.findByText('Save My Coupons')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
 
@@ -646,12 +704,13 @@ describe('coming soon section', () => {
     })
 
     it('shows every one of the sender\'s own coupons, uncapped, even with more than 3', async () => {
-      render(<CouponSetBuilder templates={[templateWithFourCoupons]} />)
+      render(<CouponSetBuilder templates={[templateWithFourCoupons]} isLoggedIn={true} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       await userEvent.clear(screen.getByPlaceholderText('Something to say before they open it…'))
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await screen.findByText('Save My Coupons')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
       await userEvent.click(screen.getByRole('button', { name: 'Open Your Coupons' }))
@@ -669,7 +728,7 @@ describe('coming soon section', () => {
     })
 
     it('shows a floating button to edit a custom message the sender wrote themselves', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -677,7 +736,7 @@ describe('coming soon section', () => {
       await userEvent.type(screen.getByPlaceholderText('Something to say before they open it…'), 'Thinking of you every day.')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
-      expect(screen.getByRole('button', { name: ctaCopy.editMessageEditLabel })).toBeInTheDocument()
+      expect(await screen.findByRole('button', { name: ctaCopy.editMessageEditLabel })).toBeInTheDocument()
     })
 
     it('opens a modal that saves the new message into the builder state', async () => {
@@ -720,16 +779,6 @@ describe('coming soon section', () => {
   })
 
   describe('save and send', () => {
-    it('does not save when the sender is not logged in — opens the auth prompt instead', async () => {
-      await goToEditor(false)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
-
-      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
-      expect(saveDraftAction).not.toHaveBeenCalled()
-      expect(screen.queryByText('Your gift is ready')).not.toBeInTheDocument()
-    })
-
     it('saves a free draft when already logged in and "Save My Coupons" is clicked', async () => {
       saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
       await goToEditor(true)
@@ -752,16 +801,17 @@ describe('coming soon section', () => {
       expect(initiateSendCheckoutAction).not.toHaveBeenCalled()
     })
 
-    it('closing the auth prompt returns to the editor with nothing saved', async () => {
+    it('closing the auth prompt returns to the details screen with nothing unlocked', async () => {
       await goToEditor(false)
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
       await screen.findByText('Almost there — save your coupons')
 
       await userEvent.click(screen.getByRole('button', { name: 'Not yet' }))
 
       expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: ctaCopy.saveMyCoupons })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Personalise the coupons →' })).toBeInTheDocument()
+      expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
       expect(saveDraftAction).not.toHaveBeenCalled()
+      expect(checkTemplateEntitlementAction).not.toHaveBeenCalled()
     })
 
     it('shows the WhatsApp share option on the ready screen once logged in', async () => {
@@ -794,14 +844,15 @@ describe('coming soon section', () => {
       expect(screen.queryByText('Add this to your account')).not.toBeInTheDocument()
     })
 
-    it('finishes the save automatically after the auth redirect brings the sender back logged in', async () => {
-      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+    it('resumes straight into the unlocked editor after the auth redirect brings the sender back logged in', async () => {
+      // The entitlement gate now sits on the details screen (see CouponSetBuilder's
+      // handleContinueToEdit), so an auth interruption from there resumes into the editor
+      // itself, not straight into a save — the sender still taps Save/Send themselves.
       const first = render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
       await screen.findByText('Almost there — save your coupons')
       first.unmount()
 
@@ -810,8 +861,8 @@ describe('coming soon section', () => {
       // no React state) carrying the sender's original intent forward.
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
 
-      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
-      expect(saveDraftAction).toHaveBeenCalledOnce()
+      expect(await screen.findByText('Save My Coupons')).toBeInTheDocument()
+      expect(checkTemplateEntitlementAction).toHaveBeenCalledWith('mothers_day')
     })
 
     it('does not auto-save on a plain later visit to /create that never involved the auth prompt', async () => {
@@ -957,6 +1008,10 @@ describe('coming soon section', () => {
             },
           ],
           savedResult: null,
+          // Already customizing means this draft already cleared CouponSetBuilder's entitlement
+          // gate once — without this, re-selecting the in-progress template would now land back
+          // on the details screen instead of straight into the editor (see loadTemplate).
+          editorUnlockedTemplateId: template().id,
         })
       )
     }

@@ -186,12 +186,13 @@ describe('useCouponSetBuilder', () => {
       expect(result.current.state.coupons.map((c) => c.serviceTitle)).toEqual(['Breakfast in Bed'])
     })
 
-    it('re-selecting the same template goes straight to the edit screen once the form was already filled in', () => {
+    it('re-selecting the same template goes straight to the edit screen once the editor was already unlocked', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
 
       act(() => result.current.loadTemplate('mothers_day'))
       act(() => result.current.setSenderName('Alex'))
       act(() => result.current.setRecipientName('Mom'))
+      act(() => result.current.startEditing())
       act(() => result.current.backToSelect())
       act(() => result.current.loadTemplate('mothers_day'))
 
@@ -204,6 +205,46 @@ describe('useCouponSetBuilder', () => {
       act(() => result.current.loadTemplate('mothers_day'))
       act(() => result.current.backToSelect())
       act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.state.screen).toBe('details')
+    })
+
+    it('does not fast-path to the edit screen just because the names are filled in — the editor must have actually been unlocked first (CouponSetBuilder\'s entitlement gate)', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderName('Alex'))
+      act(() => result.current.setRecipientName('Mom'))
+      // Backs out to browse without ever calling startEditing — e.g. the sender was blocked at
+      // CouponSetBuilder's paywall gate and never actually paid.
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('mothers_day'))
+
+      expect(result.current.state.screen).toBe('details')
+    })
+
+    it('resets editorUnlockedTemplateId when a genuinely different template is selected', () => {
+      const valentines: TemplateWithCoupons = {
+        ...mothersDay,
+        id: 'bbbbbbbb-0000-0000-0000-000000000002',
+        slug: 'valentines',
+        name: "Valentine's Love Passes",
+        template_coupons: [
+          { id: 'v1', template_id: 'bbbbbbbb-0000-0000-0000-000000000002', sort_order: 1, service_title: 'Breakfast in Bed', micro_copy: null, fine_print: null },
+        ],
+      }
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay, valentines]))
+
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.setSenderName('Alex'))
+      act(() => result.current.setRecipientName('Mom'))
+      act(() => result.current.startEditing())
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('valentines'))
+      act(() => result.current.setSenderName('Alex'))
+      act(() => result.current.setRecipientName('Mom'))
+      act(() => result.current.backToSelect())
+      act(() => result.current.loadTemplate('valentines'))
 
       expect(result.current.state.screen).toBe('details')
     })

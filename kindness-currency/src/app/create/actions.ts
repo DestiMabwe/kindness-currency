@@ -1,6 +1,7 @@
 'use server'
 
 import { createCouponSetRepository, type SaveCouponSetResult } from '@/lib/couponSetRepository'
+import { createOrderRepository } from '@/lib/orderRepository'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 import { initiateSingleCheckout, verifyAndFulfillCheckout, type InitiateCheckoutResult, type VerifyAndFulfillResult } from '@/lib/checkoutService'
@@ -52,6 +53,21 @@ export async function initiateSendCheckoutAction(slug: string, product: 'base' |
  * fulfills it if paid, in case the webhook hasn't landed yet. Safe to call more than once. */
 export async function verifyCheckoutAction(reference: string): Promise<VerifyAndFulfillResult> {
   return verifyAndFulfillCheckout(reference)
+}
+
+/**
+ * Whether the signed-in sender already has an unconsumed purchased_instances row for this
+ * template — used to gate entry into the coupon editor itself (Step 3 of the builder), not just
+ * the final Send, so a bundle template can't be fully personalized for free before payment.
+ * Always false for a logged-out visitor: purchased_instances is keyed to a real user_id, so there
+ * is nothing to check without one. Single-use gestures never go through this gate (see
+ * CouponSetBuilder — they're handled entirely by GestureFlow instead).
+ */
+export async function checkTemplateEntitlementAction(slug: string): Promise<{ entitled: boolean }> {
+  const user = await getAuthedUser()
+  if (!user) return { entitled: false }
+  const instances = await createOrderRepository(createServiceClient()).getUnconsumedInstancesForUser(user.id)
+  return { entitled: instances.some((instance) => instance.slug === slug) }
 }
 
 export async function linkSenderAction(setId: string) {
