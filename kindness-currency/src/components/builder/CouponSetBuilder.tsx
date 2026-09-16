@@ -12,7 +12,8 @@ import { PromoScrollPopup, type PromoScrollPopupHandle } from '@/components/shar
 import { CartIcon } from '@/components/shared/CartIcon'
 import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
-import { bundleTierBySlug, tierPrice, pairedSlugBySlug, type BundleTier } from '@/lib/bundleTiers'
+import { bundleTierBySlug, pairedSlugBySlug, type BundleTier } from '@/lib/bundleTiers'
+import { REGION_TIER_PRICE, REGION_PAIRED_BUNDLE_PRICE, formatPrice, type PricingRegion } from '@/lib/geoPricing'
 import { usePendingInstances, addToCart, consumePendingInstance } from '@/lib/cart'
 import {
   saveDraftAction,
@@ -54,6 +55,7 @@ export type CouponSetBuilderProps = {
   comingSoonTemplates?: ComingSoonTemplate[]
   isLoggedIn?: boolean
   userEmail?: string | null
+  region: PricingRegion
 }
 
 type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
@@ -78,6 +80,7 @@ export function CouponSetBuilder({
   comingSoonTemplates = [],
   isLoggedIn = false,
   userEmail = null,
+  region,
 }: CouponSetBuilderProps) {
   const builder = useCouponSetBuilder(templates)
   // Maps a gesture's fixture slug (src/lib/singleUseGestures.ts) to its real DB template id, so
@@ -383,6 +386,7 @@ export function CouponSetBuilder({
           comingSoonTemplates={comingSoonTemplates}
           currentTemplateId={builder.state.selectedTemplateId}
           isLoggedIn={isLoggedIn}
+          region={region}
           onSelect={handleSelectTemplate}
           onPreviewSample={handlePreviewSample}
           onFeatureInterest={setFeatureInterestModal}
@@ -529,12 +533,14 @@ function BundleTemplateCard({
   template,
   isCurrent,
   pendingCount,
+  region,
   onSelect,
   onPreviewSample,
 }: {
   template: TemplateWithCoupons
   isCurrent: boolean
   pendingCount: number
+  region: PricingRegion
   onSelect: (template: TemplateWithCoupons) => void
   onPreviewSample: (template: TemplateWithCoupons) => void
 }) {
@@ -543,7 +549,7 @@ function BundleTemplateCard({
   const justAddedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const visuals = templateVisuals[template.slug as TemplateSlug]
   const tier = bundleTierBySlug[template.slug]
-  const unitPrice = tier ? tierPrice[tier] : null
+  const unitPrice = tier ? REGION_TIER_PRICE[region][tier] : null
 
   useEffect(() => () => {
     if (justAddedTimeout.current) clearTimeout(justAddedTimeout.current)
@@ -596,7 +602,12 @@ function BundleTemplateCard({
             <div className="mt-1 text-xs leading-snug text-[#2C2C2C] opacity-70">{template.emotional_tone}</div>
           )}
           {pairedSlugBySlug[template.slug] && (
-            <div className="mt-1 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.pricingPairNote}</div>
+            <div className="mt-1 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">
+              {ctaCopy.pricingPairNote(
+                formatPrice(REGION_PAIRED_BUNDLE_PRICE[region], region),
+                formatPrice(REGION_TIER_PRICE[region].romance, region)
+              )}
+            </div>
           )}
         </div>
       </button>
@@ -634,7 +645,7 @@ function BundleTemplateCard({
             style={{ backgroundColor: justAdded ? '#2E7D6B' : visuals.accent }}
           >
             <span aria-live="polite" className={justAdded ? 'kc-pop inline-block' : 'inline-block'}>
-              {justAdded ? ctaCopy.designMyGiftAddedCta : ctaCopy.designMyGiftCta((unitPrice * qty).toFixed(2))}
+              {justAdded ? ctaCopy.designMyGiftAddedCta : ctaCopy.designMyGiftCta(formatPrice(unitPrice * qty, region))}
             </span>
           </button>
         </div>
@@ -649,6 +660,7 @@ function TemplateSelectScreen({
   comingSoonTemplates,
   currentTemplateId,
   isLoggedIn,
+  region,
   onSelect,
   onPreviewSample,
   onFeatureInterest,
@@ -658,6 +670,7 @@ function TemplateSelectScreen({
   comingSoonTemplates: ComingSoonTemplate[]
   currentTemplateId: string | null
   isLoggedIn: boolean
+  region: PricingRegion
   onSelect: (template: TemplateWithCoupons) => void
   onPreviewSample: (template: TemplateWithCoupons) => void
   onFeatureInterest: (feature: FeatureInterestSlug) => void
@@ -700,6 +713,7 @@ function TemplateSelectScreen({
         gesture={chosenGesture}
         templateId={singleUseTemplateIdBySlug[chosenGesture.slug] ?? null}
         isLoggedIn={isLoggedIn}
+        region={region}
         onExit={() => setChosenGesture(null)}
       />
     )
@@ -725,7 +739,7 @@ function TemplateSelectScreen({
 
       <div className="pt-4">
         <FilterPills value={filter} onChange={handleFilterChange} />
-        <SingleUseGestureSection gestures={singleUseGestures} layout={singleUseLayout} onChoose={setChosenGesture} />
+        <SingleUseGestureSection gestures={singleUseGestures} layout={singleUseLayout} region={region} onChoose={setChosenGesture} />
       </div>
 
       {showBundleList && (
@@ -750,6 +764,7 @@ function TemplateSelectScreen({
             template={template}
             isCurrent={template.id === currentTemplateId}
             pendingCount={pendingInstances.filter((i) => i.slug === template.slug).length}
+            region={region}
             onSelect={onSelect}
             onPreviewSample={onPreviewSample}
           />
@@ -810,12 +825,20 @@ function TemplateSelectScreen({
         </button>
       </div>
 
-      {comingSoonModal && <ComingSoonModal template={comingSoonModal} onClose={() => setComingSoonModal(null)} />}
+      {comingSoonModal && <ComingSoonModal template={comingSoonModal} region={region} onClose={() => setComingSoonModal(null)} />}
     </div>
   )
 }
 
-function ComingSoonModal({ template, onClose }: { template: ComingSoonTemplate; onClose: () => void }) {
+function ComingSoonModal({
+  template,
+  region,
+  onClose,
+}: {
+  template: ComingSoonTemplate
+  region: PricingRegion
+  onClose: () => void
+}) {
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
   const tier = bundleTierBySlug[template.slug]
   const isPairedSlug = template.slug in pairedSlugBySlug
@@ -834,13 +857,20 @@ function ComingSoonModal({ template, onClose }: { template: ComingSoonTemplate; 
             <h2 id="coming-soon-heading" className="text-2xl font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
               {template.name}
             </h2>
-            {tier && <div className="mt-1 text-[15px] font-bold text-[#C2185B]">${tierPrice[tier].toFixed(2)}</div>}
+            {tier && <div className="mt-1 text-[15px] font-bold text-[#C2185B]">{formatPrice(REGION_TIER_PRICE[region][tier], region)}</div>}
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-xl text-[#1A1A2E]">
             ✕
           </button>
         </div>
-        {isPairedSlug && <div className="mt-1 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.pricingPairNote}</div>}
+        {isPairedSlug && (
+          <div className="mt-1 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">
+            {ctaCopy.pricingPairNote(
+              formatPrice(REGION_PAIRED_BUNDLE_PRICE[region], region),
+              formatPrice(REGION_TIER_PRICE[region].romance, region)
+            )}
+          </div>
+        )}
         <ul className="mt-4 flex flex-col gap-2.5 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-85">
           {template.blurb_points.map((point) => (
             <li key={point} className="flex gap-2">

@@ -6,17 +6,18 @@
 
 import Link from 'next/link'
 import { useCartSlugs, usePendingInstances, useOrderHistory, linesForSlugs, cartTotals } from '@/lib/cart'
+import { formatPrice, REGION_PAIRED_BUNDLE_PRICE, type PricingRegion } from '@/lib/geoPricing'
 
-export function ProfileCartSection() {
+export function ProfileCartSection({ region }: { region: PricingRegion }) {
   const cartSlugs = useCartSlugs()
   const purchasedSlugs = usePendingInstances().map((i) => i.slug)
   const orders = useOrderHistory()
-  const cartLines = linesForSlugs(cartSlugs)
-  const purchasedLines = linesForSlugs(purchasedSlugs)
+  const cartLines = linesForSlugs(cartSlugs, region)
+  const purchasedLines = linesForSlugs(purchasedSlugs, region)
 
   if (cartLines.length === 0 && purchasedLines.length === 0 && orders.length === 0) return null
 
-  const { total } = cartTotals(cartLines)
+  const { total } = cartTotals(cartLines, REGION_PAIRED_BUNDLE_PRICE[region])
 
   return (
     <div className="mb-6 flex flex-col gap-3">
@@ -29,7 +30,7 @@ export function ProfileCartSection() {
             <div className="text-[13.5px] font-bold text-[#1A1A2E]">
               Your Cart · {cartLines.length} {cartLines.length === 1 ? 'item' : 'items'}
             </div>
-            <div className="mt-0.5 text-[12px] text-[#2C2C2C] opacity-60">${total.toFixed(2)} total</div>
+            <div className="mt-0.5 text-[12px] text-[#2C2C2C] opacity-60">{formatPrice(total, region)} total</div>
           </div>
           <span className="text-[13px] font-semibold text-[#C2185B]">View Cart →</span>
         </Link>
@@ -68,7 +69,10 @@ export function ProfileCartSection() {
                     <span>
                       {new Date(order.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
-                    <span className="font-semibold">${order.total.toFixed(2)}</span>
+                    {/* Always the real ZAR amount actually charged (checkoutService only ever settles in
+                        ZAR) — not the visitor's current display region, which is a browsing convenience,
+                        not what happened at the time of this historical purchase. */}
+                    <span className="font-semibold">{formatPrice(order.total, 'ZA')}</span>
                   </div>
                   <div className="mt-1 text-[13px] text-[#1A1A2E]">{order.lines.map((l) => l.name).join(', ')}</div>
                 </div>

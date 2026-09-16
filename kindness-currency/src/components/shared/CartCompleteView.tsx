@@ -10,17 +10,32 @@ import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { linesForSlugs, syncPurchasedInstancesFromServer, recordCompletedCheckout, type PurchasedInstance } from '@/lib/cart'
 import type { VerifyAndFulfillResult } from '@/lib/checkoutService'
+import type { PricingRegion } from '@/lib/geoPricing'
 
-export function CartCompleteView({ result, instances }: { result: VerifyAndFulfillResult; instances: PurchasedInstance[] }) {
+export function CartCompleteView({
+  result,
+  instances,
+  region,
+}: {
+  result: VerifyAndFulfillResult
+  instances: PurchasedInstance[]
+  region: PricingRegion
+}) {
   const recorded = useRef(false)
 
   useEffect(() => {
     if (recorded.current || !result.paid) return
     recorded.current = true
     syncPurchasedInstancesFromServer(instances)
-    const lines = linesForSlugs(result.cartSnapshot.flatMap((l) => Array.from({ length: l.qty }, () => l.slug)))
+    // Only .name is used from these lines (recordCompletedCheckout's total comes from
+    // result.amountCents — the real ZAR settlement amount — not from these per-line display
+    // prices), so `region` here only affects a value nothing ever reads.
+    const lines = linesForSlugs(
+      result.cartSnapshot.flatMap((l) => Array.from({ length: l.qty }, () => l.slug)),
+      region
+    )
     recordCompletedCheckout(lines, result.amountCents / 100)
-  }, [result, instances])
+  }, [result, instances, region])
 
   if (!result.paid) {
     return (
@@ -36,7 +51,7 @@ export function CartCompleteView({ result, instances }: { result: VerifyAndFulfi
     )
   }
 
-  const purchasedNames = linesForSlugs(instances.map((i) => i.slug)).map((l) => l.name)
+  const purchasedNames = linesForSlugs(instances.map((i) => i.slug), region).map((l) => l.name)
 
   return (
     <div className="px-5.5 pt-2 pb-10">

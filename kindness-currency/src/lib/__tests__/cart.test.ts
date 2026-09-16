@@ -12,6 +12,7 @@ import {
   linesForCart,
   setCartQty,
 } from '../cart'
+import { REGION_PAIRED_BUNDLE_PRICE } from '../geoPricing'
 
 beforeEach(() => {
   window.localStorage.clear()
@@ -78,7 +79,7 @@ describe('setCartQty', () => {
 
 describe('linesForCart', () => {
   it('resolves price and name for a single-use gesture slug too, not just bundle templates', () => {
-    const lines = linesForCart([{ slug: 'celebration', qty: 1 }])
+    const lines = linesForCart([{ slug: 'celebration', qty: 1 }], 'US')
 
     expect(lines).toEqual([{ slug: 'celebration', name: 'Night Out', price: 1.99, qty: 1 }])
   })
@@ -88,7 +89,7 @@ describe('cartTotals', () => {
   it('triggers the 3-for-2 discount once total units reach 3, even from a single line with qty 3', () => {
     const lines = [{ slug: 'mothers_day', name: "Mom's Promise Tokens", price: 2.99, qty: 3 }]
 
-    const { discount, total } = cartTotals(lines)
+    const { discount, total } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE.US)
 
     expect(discount).toBe(2.99)
     expect(total).toBeCloseTo(5.98)
@@ -100,7 +101,7 @@ describe('cartTotals', () => {
       { slug: 'requested-by-her', name: "Requested By Her: Lover's Wishes", price: 6.99, qty: 1 },
     ]
 
-    const { pairDiscount, total } = cartTotals(lines)
+    const { pairDiscount, total } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE.US)
 
     expect(pairDiscount).toBeCloseTo(3.99)
     expect(total).toBeCloseTo(9.99)
@@ -112,7 +113,7 @@ describe('cartTotals', () => {
       { slug: 'requested-by-her', name: "Requested By Her: Lover's Wishes", price: 6.99, qty: 1 },
     ]
 
-    const { pairDiscount, discount, total } = cartTotals(lines)
+    const { pairDiscount, discount, total } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE.US)
 
     expect(pairDiscount).toBeCloseTo(3.99)
     expect(discount).toBe(6.99)
@@ -126,7 +127,7 @@ describe('cartTotals', () => {
       { slug: 'mothers_day', name: "Mom's Promise Tokens", price: 2.99, qty: 1 },
     ]
 
-    const { pairDiscount, discount, total } = cartTotals(lines)
+    const { pairDiscount, discount, total } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE.US)
 
     expect(pairDiscount).toBeCloseTo(3.99)
     expect(discount).toBe(2.99)

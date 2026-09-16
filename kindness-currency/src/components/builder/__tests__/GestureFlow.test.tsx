@@ -36,8 +36,11 @@ const paidGesture: SingleUseGesture = {
   messageStarter: "I've been wanting to celebrate you properly — no better excuse than tonight.",
 }
 
+const unlockCtaName = ctaCopy.gestureUnlockCta('$1.99')
+const unlockConfirmCtaName = ctaCopy.gestureUnlockConfirmCta('$1.99')
+
 async function goToPersonalize(gesture: SingleUseGesture) {
-  render(<GestureFlow gesture={gesture} templateId="template-1" isLoggedIn={false} onExit={vi.fn()} />)
+  render(<GestureFlow gesture={gesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
   await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
   await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
   await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
@@ -45,8 +48,8 @@ async function goToPersonalize(gesture: SingleUseGesture) {
 
 async function unlockGesture(gesture: SingleUseGesture) {
   await goToPersonalize(gesture)
-  await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockCta }))
-  await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockConfirmCta }))
+  await userEvent.click(screen.getByRole('button', { name: unlockCtaName }))
+  await userEvent.click(screen.getByRole('button', { name: unlockConfirmCtaName }))
 }
 
 describe('GestureFlow', () => {
@@ -58,30 +61,30 @@ describe('GestureFlow', () => {
     it('shows a "Make This Gift Yours" upsell instead of editable text fields', async () => {
       await goToPersonalize(freeGesture)
 
-      expect(screen.getByRole('button', { name: ctaCopy.gestureUnlockCta })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: unlockCtaName })).toBeInTheDocument()
       expect(screen.getByLabelText('Service title')).toBeDisabled()
     })
 
     it('opens a confirm sheet with the unlock offer when the upsell is tapped', async () => {
       await goToPersonalize(freeGesture)
 
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockCta }))
+      await userEvent.click(screen.getByRole('button', { name: unlockCtaName }))
 
       expect(screen.getByText(ctaCopy.gestureUnlockConfirmHeading)).toBeInTheDocument()
       expect(screen.getByText(ctaCopy.gestureUnlockConfirmBody)).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: ctaCopy.gestureUnlockConfirmCta })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: unlockConfirmCtaName })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: ctaCopy.gestureUnlockDismiss })).toBeInTheDocument()
     })
 
     it('keeps the fields locked and closes the sheet when "Keep the original wording" is tapped', async () => {
       await goToPersonalize(freeGesture)
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockCta }))
+      await userEvent.click(screen.getByRole('button', { name: unlockCtaName }))
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockDismiss }))
 
       expect(screen.queryByText(ctaCopy.gestureUnlockConfirmHeading)).not.toBeInTheDocument()
       expect(screen.getByLabelText('Service title')).toBeDisabled()
-      expect(screen.getByRole('button', { name: ctaCopy.gestureUnlockCta })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: unlockCtaName })).toBeInTheDocument()
     })
 
     it('unlocks the text fields for editing once "Make It Mine" is confirmed', async () => {
@@ -89,7 +92,7 @@ describe('GestureFlow', () => {
 
       expect(screen.queryByText(ctaCopy.gestureUnlockConfirmHeading)).not.toBeInTheDocument()
       expect(screen.getByLabelText('Service title')).toBeEnabled()
-      expect(screen.queryByRole('button', { name: ctaCopy.gestureUnlockCta })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: unlockCtaName })).not.toBeInTheDocument()
 
       await userEvent.clear(screen.getByLabelText('Service title'))
       await userEvent.type(screen.getByLabelText('Service title'), 'A Kinder Word')
@@ -97,14 +100,14 @@ describe('GestureFlow', () => {
     })
 
     it('shows the price as $1.99 in the header once unlocked, instead of Free', async () => {
-      render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} onExit={vi.fn()} />)
+      render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
       expect(screen.getByText('Free')).toBeInTheDocument()
 
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockCta }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockConfirmCta }))
+      await userEvent.click(screen.getByRole('button', { name: unlockCtaName }))
+      await userEvent.click(screen.getByRole('button', { name: unlockConfirmCtaName }))
 
       expect(screen.queryByText('Free')).not.toBeInTheDocument()
       expect(screen.getByText('$1.99')).toBeInTheDocument()
@@ -122,16 +125,16 @@ describe('GestureFlow', () => {
 
   describe('unlock persistence', () => {
     it('keeps the unlock after a remount, as happens when Save/Send\'s auth redirect reloads the page', async () => {
-      const { unmount } = render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} onExit={vi.fn()} />)
+      const { unmount } = render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockCta }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.gestureUnlockConfirmCta }))
+      await userEvent.click(screen.getByRole('button', { name: unlockCtaName }))
+      await userEvent.click(screen.getByRole('button', { name: unlockConfirmCtaName }))
       unmount()
       // A fresh render (not unlockGesture) — this test is specifically about surviving a remount
       // without re-doing the unlock steps.
-      render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} onExit={vi.fn()} />)
+      render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
 
       expect(await screen.findByLabelText('Service title')).toBeEnabled()
       expect(screen.getByText('$1.99')).toBeInTheDocument()
@@ -142,7 +145,7 @@ describe('GestureFlow', () => {
     it('never shows the unlock upsell — its fields are editable from the start', async () => {
       await goToPersonalize(paidGesture)
 
-      expect(screen.queryByRole('button', { name: ctaCopy.gestureUnlockCta })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: unlockCtaName })).not.toBeInTheDocument()
       expect(screen.getByLabelText('Service title')).toBeEnabled()
       expect(screen.getByText('$1.99')).toBeInTheDocument()
     })

@@ -6,7 +6,9 @@ import { createTemplateRepository } from '@/lib/templateRepository'
 import { createComingSoonTemplateRepository } from '@/lib/comingSoonTemplateRepository'
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { bundleTierBySlug, tierPrice, flagshipPrice, type BundleTier } from '@/lib/bundleTiers'
+import { bundleTierBySlug, type BundleTier } from '@/lib/bundleTiers'
+import { REGION_TIER_PRICE, REGION_FLAGSHIP_PRICE, REGION_PAIRED_BUNDLE_PRICE, formatPrice } from '@/lib/geoPricing'
+import { getRegion } from '@/lib/region'
 
 const TIER_ORDER: { tier: BundleTier; label: string }[] = [
   { tier: 'everyday', label: ctaCopy.bundleTierPillEveryday },
@@ -17,6 +19,7 @@ const TIER_ORDER: { tier: BundleTier; label: string }[] = [
 type Row = { name: string; status: 'live' | 'coming-soon' }
 
 export default async function PricingPage() {
+  const region = await getRegion()
   const supabase = createServiceClient()
   const templateRepo = createTemplateRepository(supabase)
   const comingSoonRepo = createComingSoonTemplateRepository(supabase)
@@ -57,7 +60,7 @@ export default async function PricingPage() {
                 <h2 className="text-[18px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
                   {label}
                 </h2>
-                <span className="text-[15px] font-bold text-[#C2185B]">${tierPrice[tier].toFixed(2)}</span>
+                <span className="text-[15px] font-bold text-[#C2185B]">{formatPrice(REGION_TIER_PRICE[region][tier], region)}</span>
               </div>
               <div className="mt-2.5 flex flex-col gap-2">
                 {rowsByTier[tier].map((row) => (
@@ -82,7 +85,9 @@ export default async function PricingPage() {
           ))}
         </div>
 
-        <div className="mt-2 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.pricingPairNote}</div>
+        <div className="mt-2 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">
+          {ctaCopy.pricingPairNote(formatPrice(REGION_PAIRED_BUNDLE_PRICE[region], region), formatPrice(REGION_TIER_PRICE[region].romance, region))}
+        </div>
 
         <div className="mt-7 h-px bg-[#1A1A2E]/10" />
 
@@ -91,7 +96,7 @@ export default async function PricingPage() {
             <h2 className="text-[18px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
               {ctaCopy.pricingFlagshipHeading}
             </h2>
-            <span className="text-[15px] font-bold text-[#C2185B]">${flagshipPrice.toFixed(2)}</span>
+            <span className="text-[15px] font-bold text-[#C2185B]">{formatPrice(REGION_FLAGSHIP_PRICE[region], region)}</span>
           </div>
           <div className="mt-2 text-[13px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.pricingFlagshipBody}</div>
         </div>

@@ -10,14 +10,20 @@ import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { templateVisuals, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { PromoBanner } from '@/components/shared/PromoBanner'
-import { bundleTierBySlug, tierPrice } from '@/lib/bundleTiers'
+import { bundleTierBySlug } from '@/lib/bundleTiers'
+import { REGION_TIER_PRICE, formatPrice } from '@/lib/geoPricing'
+import { getRegion } from '@/lib/region'
 
 export default async function HomePage() {
   const supabase = createServiceClient()
   const templateRepo = createTemplateRepository(supabase)
   const bannerRepo = createCampaignBannerRepository(supabase)
 
-  const [templates, banner] = await Promise.all([templateRepo.getActiveTemplatesWithCoupons(), bannerRepo.getActiveBanner()])
+  const [templates, banner, region] = await Promise.all([
+    templateRepo.getActiveTemplatesWithCoupons(),
+    bannerRepo.getActiveBanner(),
+    getRegion(),
+  ])
 
   const heroTemplates = templates.filter((t) => !t.is_age_restricted)
   const marqueeItems = [...heroTemplates, ...heroTemplates] // duplicated so the scroll loop is seamless
@@ -119,7 +125,7 @@ export default async function HomePage() {
                     </div>
                     {bundleTierBySlug[template.slug] && (
                       <span className="shrink-0 text-[12.5px] font-bold text-[#C2185B]">
-                        ${tierPrice[bundleTierBySlug[template.slug]].toFixed(2)}
+                        {formatPrice(REGION_TIER_PRICE[region][bundleTierBySlug[template.slug]], region)}
                       </span>
                     )}
                   </div>

@@ -5,6 +5,7 @@ import { createCouponSetRepository } from '@/lib/couponSetRepository'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { ProfileCartSection } from '@/components/shared/ProfileCartSection'
 import { ctaCopy } from '@/constants/ctaCopy'
+import { getRegion } from '@/lib/region'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -32,9 +33,10 @@ export default async function ProfilePage() {
   }
 
   const repo = createCouponSetRepository(createServiceClient())
-  const [sentSets, receivedSets] = await Promise.all([
+  const [sentSets, receivedSets, region] = await Promise.all([
     repo.getCouponSetsForUser(user.id),
     repo.getCouponSetsForRecipient(user.id),
+    getRegion(),
   ])
 
   return (
@@ -48,7 +50,7 @@ export default async function ProfilePage() {
           {ctaCopy.profileHeading}
         </h1>
         <div className="mt-5">
-          <ProfileCartSection />
+          <ProfileCartSection region={region} />
           <ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />
         </div>
       </div>

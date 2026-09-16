@@ -4,17 +4,16 @@
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { CartView } from '@/components/shared/CartView'
 import { createClient } from '@/lib/supabase/server'
+import { getRegion } from '@/lib/region'
 
 export default async function CartPage() {
   const authClient = await createClient()
-  const {
-    data: { user },
-  } = await authClient.auth.getUser()
+  const [{ data: { user } }, region] = await Promise.all([authClient.auth.getUser(), getRegion()])
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FFF8F0]">
       <SiteHeader />
-      <CartView isLoggedIn={!!user} />
+      <CartView isLoggedIn={!!user} region={region} />
     </div>
   )
 }

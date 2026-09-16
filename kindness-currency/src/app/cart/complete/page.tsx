@@ -9,6 +9,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 import { createOrderRepository } from '@/lib/orderRepository'
 import { CartCompleteView } from '@/components/shared/CartCompleteView'
+import { getRegion } from '@/lib/region'
 
 export default async function CartCompletePage({ searchParams }: { searchParams: Promise<{ reference?: string }> }) {
   const { reference } = await searchParams
@@ -18,13 +19,16 @@ export default async function CartCompletePage({ searchParams }: { searchParams:
     data: { user },
   } = await authClient.auth.getUser()
 
-  const result = reference ? await verifyAndFulfillCheckout(reference) : { paid: false as const }
+  const [result, region] = await Promise.all([
+    reference ? verifyAndFulfillCheckout(reference) : Promise.resolve({ paid: false as const }),
+    getRegion(),
+  ])
   const instances = user ? await createOrderRepository(createServiceClient()).getUnconsumedInstancesForUser(user.id) : []
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FFF8F0]">
       <SiteHeader />
-      <CartCompleteView result={result} instances={instances} />
+      <CartCompleteView result={result} instances={instances} region={region} />
     </div>
   )
 }

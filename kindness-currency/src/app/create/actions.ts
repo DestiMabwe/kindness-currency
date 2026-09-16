@@ -33,8 +33,9 @@ export async function sendCouponSetAction(input: unknown): Promise<SaveCouponSet
 /**
  * Starts a Paystack checkout for exactly one unit of one template/gesture — the single-send
  * counterpart to the cart's initiateCartCheckoutAction. `product` distinguishes a normal send from
- * the "Make This Gift Yours" gesture-unlock upsell, which charges GESTURE_UNLOCK_PRICE instead of
- * the gesture's (zero) base price for the same slug — see resolveCheckoutPrice in pricing.ts.
+ * the "Make This Gift Yours" gesture-unlock upsell, which charges the region's gesture-unlock
+ * price instead of the gesture's (zero) base price for the same slug — see resolveSettlementPrice
+ * in pricing.ts (checkoutService.ts resolves the region itself; nothing to pass here).
  */
 export async function initiateSendCheckoutAction(slug: string, product: 'base' | 'gestureUnlock' = 'base'): Promise<InitiateCheckoutResult> {
   const user = await getAuthedUser()

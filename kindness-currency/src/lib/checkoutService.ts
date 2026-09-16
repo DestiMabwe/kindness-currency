@@ -3,8 +3,10 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createOrderRepository } from '@/lib/orderRepository'
 import { createPaystackClient } from '@/lib/paystack/client'
 import { getOrigin } from '@/lib/origin'
+import { getRegion } from '@/lib/region'
 import { CartCheckoutInputSchema } from '@/schemas/checkoutSchema'
-import { linesForCart, cartTotals, resolveCheckoutPrice, type CartLineItem } from '@/lib/pricing'
+import { cartTotals, settlementLinesForCart, resolveSettlementPrice, type CartLineItem } from '@/lib/pricing'
+import { settlementBucketForRegion, SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR } from '@/lib/geoPricing'
 
 export type InitiateCheckoutResult = { success: true; authorizationUrl: string } | { success: false; error: string }
 
@@ -35,7 +37,7 @@ async function createOrderAndInitialize(params: {
     userId: params.userId,
     email: params.email,
     amountCents: params.amountCents,
-    currency: 'USD',
+    currency: 'ZAR',
     reference,
     cartSnapshot: params.cartSnapshot,
   })
@@ -48,7 +50,7 @@ async function createOrderAndInitialize(params: {
   const initialized = await paystack.initializeTransaction({
     email: params.email,
     amountCents: params.amountCents,
-    currency: 'USD',
+    currency: 'ZAR',
     reference,
     callbackUrl,
   })
@@ -59,9 +61,14 @@ async function createOrderAndInitialize(params: {
 
 /**
  * The cart's multi-line checkout — the charge amount is always recomputed here from {slug, qty}
- * pairs against the live pricing tables (3-for-2 + paired-bundle math included), never taken from
- * the caller. Rejects the whole request if any line's slug doesn't resolve to a real, purchasable
- * price rather than silently billing a smaller subset.
+ * pairs against the live settlement tables (3-for-2 + paired-bundle math included), never taken
+ * from the caller. Rejects the whole request if any line's slug doesn't resolve to a real,
+ * purchasable price rather than silently billing a smaller subset.
+ *
+ * Charges the visitor's settlement bucket (South Africa vs. everyone else), not their display
+ * currency — Paystack only ever settles in ZAR, so what a US/UK visitor *sees* on the cart page
+ * (geoPricing.ts's display tables) and what they're actually *charged* here are deliberately
+ * different lookups over the same slugs.
  */
 export async function initiateCartCheckout(params: {
   userId: string
@@ -72,10 +79,11 @@ export async function initiateCartCheckout(params: {
   const parsed = CartCheckoutInputSchema.safeParse(params.items)
   if (!parsed.success) return { success: false, error: GENERIC_ERROR }
 
-  const lines = linesForCart(parsed.data)
+  const bucket = settlementBucketForRegion(await getRegion())
+  const lines = settlementLinesForCart(parsed.data, bucket)
   if (lines.length !== parsed.data.length) return { success: false, error: GENERIC_ERROR }
 
-  const { total } = cartTotals(lines)
+  const { total } = cartTotals(lines, SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR[bucket])
   return createOrderAndInitialize({
     userId: params.userId,
     email: params.email,
@@ -88,8 +96,9 @@ export async function initiateCartCheckout(params: {
 /**
  * A single unit of one template/gesture — the direct-send counterpart to initiateCartCheckout.
  * `product` distinguishes a normal paid send from the "Make This Gift Yours" gesture-unlock
- * upsell, which charges GESTURE_UNLOCK_PRICE for an otherwise-free slug instead of its (zero)
- * base price — see resolveCheckoutPrice in pricing.ts, the only place that number is resolved.
+ * upsell, which charges the region's gesture-unlock price for an otherwise-free slug instead of
+ * its (zero) base price — see resolveSettlementPrice in pricing.ts, the only place that number is
+ * resolved. Same ZAR-settlement-vs-display-price split as initiateCartCheckout above.
  */
 export async function initiateSingleCheckout(params: {
   userId: string
@@ -98,7 +107,8 @@ export async function initiateSingleCheckout(params: {
   product: 'base' | 'gestureUnlock'
   callbackPath: string
 }): Promise<InitiateCheckoutResult> {
-  const price = resolveCheckoutPrice(params.slug, params.product)
+  const bucket = settlementBucketForRegion(await getRegion())
+  const price = resolveSettlementPrice(params.slug, params.product, bucket)
   if (price === null) return { success: false, error: GENERIC_ERROR }
 
   return createOrderAndInitialize({

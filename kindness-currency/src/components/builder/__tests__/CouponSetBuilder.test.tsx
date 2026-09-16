@@ -104,13 +104,13 @@ describe('CouponSetBuilder', () => {
 
   describe('home logo link', () => {
     it('shows a clickable logo link to home on the template-select screen', () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(screen.getByRole('link', { name: 'Kindness Currency home' })).toHaveAttribute('href', '/')
     })
 
     it('does not show the logo link on the details screen', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
 
       expect(screen.queryByRole('link', { name: 'Kindness Currency home' })).not.toBeInTheDocument()
@@ -119,7 +119,7 @@ describe('CouponSetBuilder', () => {
 
   describe('template selection', () => {
     it('advances straight to the details screen for a non-restricted template', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
 
@@ -128,7 +128,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it("shows the template's emotional_tone as a description", () => {
-      render(<CouponSetBuilder templates={[template({ emotional_tone: 'Everyday acts of care for the person who raised you.' })]} />)
+      render(<CouponSetBuilder templates={[template({ emotional_tone: 'Everyday acts of care for the person who raised you.' })]} region="US" />)
 
       expect(screen.getByText('Everyday acts of care for the person who raised you.')).toBeInTheDocument()
     })
@@ -136,7 +136,7 @@ describe('CouponSetBuilder', () => {
 
   describe('"How You Create Your Perfect Gift" walkthrough', () => {
     it('opens on the Personalize step, showing a static snapshot of the real form and editor with the template\'s own first default coupon', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
 
@@ -149,7 +149,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('advances to the Preview step, showing only the first 3 default coupons when the template has more than 3', async () => {
-      render(<CouponSetBuilder templates={[templateWithFourCoupons]} />)
+      render(<CouponSetBuilder templates={[templateWithFourCoupons]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext }))
@@ -161,7 +161,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('goes back to Personalize from Preview', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext }))
@@ -171,7 +171,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('advances from Preview into the Send step, previewing the recipient message, instructions, and coupon list — never the real builder', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> preview
@@ -196,7 +196,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('shows the age gate, not the walkthrough, until confirmed for a restricted template', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
 
@@ -210,7 +210,7 @@ describe('CouponSetBuilder', () => {
     })
 
     it('closes via the close button without selecting the template', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
@@ -226,38 +226,38 @@ describe('CouponSetBuilder', () => {
   })
 
   it('adds the chosen quantity to the cart when Design My Gift is tapped', async () => {
-    render(<CouponSetBuilder templates={[template()]} />)
+    render(<CouponSetBuilder templates={[template()]} region="US" />)
 
     await userEvent.click(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel("Mom's Promise Tokens") }))
-    await userEvent.click(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('5.98') }))
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('$5.98') }))
 
     expect(screen.getByRole('link', { name: ctaCopy.cartLinkLabel(2) })).toBeInTheDocument()
   })
 
   it('confirms the add with "Added" and disables the button briefly, so a hesitant re-tap can\'t silently add a second set', async () => {
-    render(<CouponSetBuilder templates={[template()]} />)
+    render(<CouponSetBuilder templates={[template()]} region="US" />)
 
-    await userEvent.click(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('2.99') }))
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('$2.99') }))
 
     const confirmedButton = screen.getByRole('button', { name: ctaCopy.designMyGiftAddedCta })
     expect(confirmedButton).toBeDisabled()
     expect(screen.getByRole('link', { name: ctaCopy.cartLinkLabel(1) })).toBeInTheDocument()
 
     await waitFor(
-      () => expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('2.99') })).toBeInTheDocument(),
+      () => expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('$2.99') })).toBeInTheDocument(),
       { timeout: 2000 }
     )
   })
 
   it('shows no separate price label — only the price inside the Design My Gift button, scaling with quantity', async () => {
-    render(<CouponSetBuilder templates={[template()]} />)
+    render(<CouponSetBuilder templates={[template()]} region="US" />)
 
-    expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('2.99') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('$2.99') })).toBeInTheDocument()
     expect(screen.queryByText('$2.99')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel("Mom's Promise Tokens") }))
 
-    expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('5.98') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('$5.98') })).toBeInTheDocument()
   })
 
   it('shows a pending-to-personalize badge that decrements after completing a send for that template', async () => {
@@ -271,7 +271,7 @@ describe('CouponSetBuilder', () => {
         { id: 'p2', slug: 'mothers_day' },
       ])
     )
-    render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+    render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
 
     expect(screen.getByText('2 to personalize')).toBeInTheDocument()
 
@@ -289,37 +289,37 @@ describe('CouponSetBuilder', () => {
 
 describe('single-use gesture pricing', () => {
   it('shows a quantity stepper and priced Design My Gift button on a paid gesture, but not on a free one', () => {
-    render(<CouponSetBuilder templates={[template()]} />)
+    render(<CouponSetBuilder templates={[template()]} region="US" />)
 
     expect(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel('Night Out') })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: ctaCopy.designMyGiftCta('1.99') })).toHaveLength(3) // 3 paid gestures, all $1.99
+    expect(screen.getAllByRole('button', { name: ctaCopy.designMyGiftCta('$1.99') })).toHaveLength(3) // 3 paid gestures, all $1.99
     expect(screen.queryByRole('button', { name: ctaCopy.qtyIncreaseLabel('Rescue Mission') })).not.toBeInTheDocument()
   })
 
   it('shows the free CTA on a free gesture and no quantity stepper or priced button', () => {
-    render(<CouponSetBuilder templates={[template()]} />)
+    render(<CouponSetBuilder templates={[template()]} region="US" />)
 
     expect(screen.getAllByRole('button', { name: ctaCopy.singleUseFreeCta }).length).toBeGreaterThan(0)
-    expect(screen.queryByRole('button', { name: ctaCopy.designMyGiftCta('0.00') })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ctaCopy.designMyGiftCta('$0.00') })).not.toBeInTheDocument()
   })
 })
 
 describe('coming soon section', () => {
     it('renders a "Coming Soon" heading and card below the live templates', () => {
-      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} />)
+      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} region="US" />)
 
       expect(screen.getByText('Coming Soon')).toBeInTheDocument()
       expect(screen.getByText("Dad's Promise Tokens")).toBeInTheDocument()
     })
 
     it('does not render the section when there are no coming-soon templates', () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(screen.queryByText('Coming Soon')).not.toBeInTheDocument()
     })
 
     it('opens a modal with the blurb and early-access form when a coming-soon card is clicked', async () => {
-      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} />)
+      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: /Dad's Promise Tokens/ }))
 
@@ -329,7 +329,7 @@ describe('coming soon section', () => {
     })
 
     it('closes the modal on the close button', async () => {
-      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} />)
+      render(<CouponSetBuilder templates={[template()]} comingSoonTemplates={[comingSoon()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: /Dad's Promise Tokens/ }))
       await userEvent.click(screen.getByRole('button', { name: 'Close' }))
@@ -340,7 +340,7 @@ describe('coming soon section', () => {
 
   describe('feature-interest button', () => {
     it('shows the Custom Coupon Books early-access button on the template-select screen', () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(screen.getByRole('button', { name: ctaCopy.customCouponBookButton })).toBeInTheDocument()
       expect(screen.queryByText('Create Multiple Coupon Sets')).not.toBeInTheDocument()
@@ -348,7 +348,7 @@ describe('coming soon section', () => {
 
     it('opens the interest modal tagged custom_coupons on click', async () => {
       recordFeatureInterestAction.mockResolvedValue({ success: true })
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.customCouponBookButton }))
       await userEvent.type(await screen.findByLabelText('Email address'), 'jamie@example.com')
@@ -359,7 +359,7 @@ describe('coming soon section', () => {
 
     it('uses the one-click path with the account email for a giver with a known email', async () => {
       recordFeatureInterestAction.mockResolvedValue({ success: true })
-      render(<CouponSetBuilder templates={[template()]} userEmail="alex@example.com" />)
+      render(<CouponSetBuilder templates={[template()]} userEmail="alex@example.com" region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.customCouponBookButton }))
       const notifyButton = await screen.findByRole('button', { name: /Notify Me/ })
@@ -373,7 +373,7 @@ describe('coming soon section', () => {
 
   describe('age gate', () => {
     it('shows the age gate for a restricted template instead of advancing immediately', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} region="US" />)
 
       await userEvent.click(screen.getByText("Lover's Intimate Promises"))
 
@@ -382,7 +382,7 @@ describe('coming soon section', () => {
     })
 
     it('does not advance to details if the user clicks "Go Back"', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} region="US" />)
 
       await userEvent.click(screen.getByText("Lover's Intimate Promises"))
       await userEvent.click(screen.getByRole('button', { name: 'Go Back' }))
@@ -393,7 +393,7 @@ describe('coming soon section', () => {
     })
 
     it('advances to details after confirming 18+', async () => {
-      render(<CouponSetBuilder templates={[restrictedTemplate]} />)
+      render(<CouponSetBuilder templates={[restrictedTemplate]} region="US" />)
 
       await userEvent.click(screen.getByText("Lover's Intimate Promises"))
       await userEvent.click(screen.getByRole('button', { name: "I'm 18+, Continue →" }))
@@ -404,7 +404,7 @@ describe('coming soon section', () => {
 
   describe('details form', () => {
     it('blocks continuing to the editor without a recipient name or a sender name', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
 
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
@@ -415,7 +415,7 @@ describe('coming soon section', () => {
     })
 
     it('blocks continuing with a recipient name but no sender name', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
 
@@ -426,7 +426,7 @@ describe('coming soon section', () => {
     })
 
     it('advances to the editor once both names are entered, already logged in and entitled', async () => {
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -438,7 +438,7 @@ describe('coming soon section', () => {
     })
 
     it('opens the auth prompt instead of the editor when continuing while logged out — every bundle template is paid', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -453,7 +453,7 @@ describe('coming soon section', () => {
     it('redirects straight to checkout instead of opening the editor when logged in but not yet entitled', async () => {
       checkTemplateEntitlementAction.mockResolvedValue({ entitled: false })
       initiateSendCheckoutAction.mockResolvedValue({ success: true, authorizationUrl: 'https://paystack.test/pay/abc' })
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -467,7 +467,7 @@ describe('coming soon section', () => {
     it('shows the checkout error and stays on the details screen if starting checkout fails', async () => {
       checkTemplateEntitlementAction.mockResolvedValue({ entitled: false })
       initiateSendCheckoutAction.mockResolvedValue({ success: false, error: 'Something went wrong starting checkout. Please try again.' })
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -479,7 +479,7 @@ describe('coming soon section', () => {
     })
 
     it('leaves the message field empty by default, offering the template\'s smart default as a tappable suggestion instead', async () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
 
       const textarea = screen.getByPlaceholderText('Something to say before they open it…')
@@ -494,7 +494,7 @@ describe('coming soon section', () => {
 
     it('includes a sender message field, and a custom message flows through to the save payload', async () => {
       saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -509,7 +509,7 @@ describe('coming soon section', () => {
 
     it('omits sender_message from the save payload when left blank', async () => {
       saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -526,7 +526,7 @@ describe('coming soon section', () => {
   // requires it (see CouponSetBuilder's entitlement gate); pass false explicitly for the tests
   // that specifically exercise the logged-out path.
   async function goToEditor(isLoggedIn = true) {
-    render(<CouponSetBuilder templates={[template()]} isLoggedIn={isLoggedIn} />)
+    render(<CouponSetBuilder templates={[template()]} isLoggedIn={isLoggedIn} region="US" />)
     await userEvent.click(screen.getByText("Mom's Promise Tokens"))
     await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
     await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -606,7 +606,7 @@ describe('coming soon section', () => {
     })
 
     it('shows the real expiry date in the edit tile once set on the details step', async () => {
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -649,7 +649,7 @@ describe('coming soon section', () => {
 
   describe('preview overlay', () => {
     it('opens on "Preview All Coupons" showing the same intro a real recipient sees, then the coupon list, and closes on the close button', async () => {
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -669,7 +669,7 @@ describe('coming soon section', () => {
     })
 
     it('shows the sender-message step first when the smart-default suggestion is tapped to fill the message', async () => {
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -687,7 +687,7 @@ describe('coming soon section', () => {
     })
 
     it('shows the sender-message step first when a custom message was written, before the instructions and coupon list', async () => {
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -704,7 +704,7 @@ describe('coming soon section', () => {
     })
 
     it('shows every one of the sender\'s own coupons, uncapped, even with more than 3', async () => {
-      render(<CouponSetBuilder templates={[templateWithFourCoupons]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[templateWithFourCoupons]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -728,7 +728,7 @@ describe('coming soon section', () => {
     })
 
     it('shows a floating button to edit a custom message the sender wrote themselves', async () => {
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -755,7 +755,7 @@ describe('coming soon section', () => {
 
     it('discards the draft and keeps the original message when Cancel is tapped', async () => {
       saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -848,7 +848,7 @@ describe('coming soon section', () => {
       // The entitlement gate now sits on the details screen (see CouponSetBuilder's
       // handleContinueToEdit), so an auth interruption from there resumes into the editor
       // itself, not straight into a save — the sender still taps Save/Send themselves.
-      const first = render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} />)
+      const first = render(<CouponSetBuilder templates={[template()]} isLoggedIn={false} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
@@ -859,14 +859,14 @@ describe('coming soon section', () => {
       // Simulate the full-page reload that follows the auth provider's redirect: a fresh
       // mount, now logged in, with only localStorage (draft + pending-save-intent flag,
       // no React state) carrying the sender's original intent forward.
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
 
       expect(await screen.findByText('Save My Coupons')).toBeInTheDocument()
       expect(checkTemplateEntitlementAction).toHaveBeenCalledWith('mothers_day')
     })
 
     it('does not auto-save on a plain later visit to /create that never involved the auth prompt', async () => {
-      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} />)
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
 
       expect(await screen.findByText("Mom's Promise Tokens")).toBeInTheDocument()
       expect(screen.queryByText('Your gift is ready')).not.toBeInTheDocument()
@@ -882,27 +882,27 @@ describe('coming soon section', () => {
 
     it('shows a retry banner when the URL carries the auth-callback failure flag', () => {
       window.history.pushState({}, '', '/?authError=1')
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(screen.getByText(ctaCopy.authLinkFailedBannerText)).toBeInTheDocument()
     })
 
     it('strips the authError param from the URL after reading it', () => {
       window.history.pushState({}, '', '/?authError=1')
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(window.location.search).toBe('')
     })
 
     it('does not show the banner on a plain visit with no failure flag', () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
     })
 
     it('opens the auth modal when "Try signing in again" is tapped', async () => {
       window.history.pushState({}, '', '/?authError=1')
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.authLinkFailedRetryButton }))
 
@@ -912,7 +912,7 @@ describe('coming soon section', () => {
 
     it('dismisses without opening the auth modal', async () => {
       window.history.pushState({}, '', '/?authError=1')
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
 
@@ -943,27 +943,27 @@ describe('coming soon section', () => {
 
     it('shows a start-fresh affordance when a mid-progress draft is resumed', () => {
       seedDraft()
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(screen.getByRole('button', { name: ctaCopy.resumedDraftStartFreshButton })).toBeInTheDocument()
     })
 
     it('does not show the affordance for a fresh session with no stored draft', () => {
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(screen.queryByRole('button', { name: ctaCopy.resumedDraftStartFreshButton })).not.toBeInTheDocument()
     })
 
     it('does not show the affordance for a draft still on the template-select screen', () => {
       seedDraft({ screen: 'select' })
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       expect(screen.queryByRole('button', { name: ctaCopy.resumedDraftStartFreshButton })).not.toBeInTheDocument()
     })
 
     it('discards the draft and returns to template-select when "Start fresh" is clicked', async () => {
       seedDraft()
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.resumedDraftStartFreshButton }))
 
@@ -973,7 +973,7 @@ describe('coming soon section', () => {
 
     it('hides the affordance on dismiss without discarding the draft', async () => {
       seedDraft()
-      render(<CouponSetBuilder templates={[template()]} />)
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
 
@@ -1018,7 +1018,7 @@ describe('coming soon section', () => {
 
     it('warns before switching to a different template than the one in progress', async () => {
       seedInProgressDraft()
-      render(<CouponSetBuilder templates={[template(), otherTemplate]} />)
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" />)
 
       await userEvent.click(screen.getByText("Valentine's Love Passes"))
 
@@ -1029,7 +1029,7 @@ describe('coming soon section', () => {
 
     it('does not warn when re-selecting the template already in progress', async () => {
       seedInProgressDraft()
-      render(<CouponSetBuilder templates={[template(), otherTemplate]} />)
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" />)
 
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
 
@@ -1039,7 +1039,7 @@ describe('coming soon section', () => {
 
     it('"Go back to my coupons" cancels the switch and resumes straight into the customizer', async () => {
       seedInProgressDraft()
-      render(<CouponSetBuilder templates={[template(), otherTemplate]} />)
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" />)
       await userEvent.click(screen.getByText("Valentine's Love Passes"))
 
       await userEvent.click(
@@ -1053,7 +1053,7 @@ describe('coming soon section', () => {
 
     it('dismissing proceeds with the new template, discarding the in-progress customization', async () => {
       seedInProgressDraft()
-      render(<CouponSetBuilder templates={[template(), otherTemplate]} />)
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" />)
       await userEvent.click(screen.getByText("Valentine's Love Passes"))
 
       await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))

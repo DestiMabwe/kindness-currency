@@ -11,6 +11,7 @@ import { QuantityStepper } from '@/components/builder/QuantityStepper'
 import { addToCart } from '@/lib/cart'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { antiqueGold, type SingleUseGesture } from '@/lib/singleUseGestures'
+import { gesturePriceForRegion, formatPrice, type PricingRegion } from '@/lib/geoPricing'
 
 export type FilterValue = 'all' | 'focused' | 'range'
 
@@ -44,10 +45,12 @@ export function FilterPills({ value, onChange }: { value: FilterValue; onChange:
 export function SingleUseGestureSection({
   gestures,
   layout,
+  region,
   onChoose,
 }: {
   gestures: SingleUseGesture[]
   layout: 'carousel' | 'stack' | 'hidden'
+  region: PricingRegion
   onChoose: (gesture: SingleUseGesture) => void
 }) {
   if (layout === 'hidden') return null
@@ -62,20 +65,29 @@ export function SingleUseGestureSection({
       </div>
       <div className="mt-4">
         {layout === 'stack' ? (
-          <SingleUseStack gestures={gestures} onChoose={onChoose} />
+          <SingleUseStack gestures={gestures} region={region} onChoose={onChoose} />
         ) : (
-          <SingleUseCarousel gestures={gestures} onChoose={onChoose} />
+          <SingleUseCarousel gestures={gestures} region={region} onChoose={onChoose} />
         )}
       </div>
     </div>
   )
 }
 
-function GestureCard({ gesture, onChoose }: { gesture: SingleUseGesture; onChoose: (g: SingleUseGesture) => void }) {
+function GestureCard({
+  gesture,
+  region,
+  onChoose,
+}: {
+  gesture: SingleUseGesture
+  region: PricingRegion
+  onChoose: (g: SingleUseGesture) => void
+}) {
   const [qty, setQty] = useState(1)
   const [justAdded, setJustAdded] = useState(false)
   const justAddedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isPaid = gesture.price > 0
+  const unitPrice = gesturePriceForRegion(gesture, region)
 
   useEffect(() => () => {
     if (justAddedTimeout.current) clearTimeout(justAddedTimeout.current)
@@ -133,7 +145,7 @@ function GestureCard({ gesture, onChoose }: { gesture: SingleUseGesture; onChoos
               style={{ backgroundColor: justAdded ? '#2E7D6B' : '#C2185B' }}
             >
               <span aria-live="polite" className={justAdded ? 'kc-pop inline-block' : 'inline-block'}>
-                {justAdded ? ctaCopy.designMyGiftAddedCta : ctaCopy.designMyGiftCta((gesture.price * qty).toFixed(2))}
+                {justAdded ? ctaCopy.designMyGiftAddedCta : ctaCopy.designMyGiftCta(formatPrice(unitPrice * qty, region))}
               </span>
             </button>
           </div>
@@ -151,11 +163,19 @@ function GestureCard({ gesture, onChoose }: { gesture: SingleUseGesture; onChoos
   )
 }
 
-function SingleUseStack({ gestures, onChoose }: { gestures: SingleUseGesture[]; onChoose: (g: SingleUseGesture) => void }) {
+function SingleUseStack({
+  gestures,
+  region,
+  onChoose,
+}: {
+  gestures: SingleUseGesture[]
+  region: PricingRegion
+  onChoose: (g: SingleUseGesture) => void
+}) {
   return (
     <div className="flex flex-col gap-5 px-5.5 pb-2">
       {gestures.map((gesture) => (
-        <GestureCard key={gesture.slug} gesture={gesture} onChoose={onChoose} />
+        <GestureCard key={gesture.slug} gesture={gesture} region={region} onChoose={onChoose} />
       ))}
     </div>
   )
@@ -164,12 +184,20 @@ function SingleUseStack({ gestures, onChoose }: { gestures: SingleUseGesture[]; 
 // No-peek carousel: each slide fills the full viewport width, so exactly one card is ever visible
 // at a time — nothing from a neighboring card shows at the edges. Native scroll-snap handles the
 // swipe; every visible card is always "the current one," so there's no focus/dimming state to track.
-function SingleUseCarousel({ gestures, onChoose }: { gestures: SingleUseGesture[]; onChoose: (g: SingleUseGesture) => void }) {
+function SingleUseCarousel({
+  gestures,
+  region,
+  onChoose,
+}: {
+  gestures: SingleUseGesture[]
+  region: PricingRegion
+  onChoose: (g: SingleUseGesture) => void
+}) {
   return (
     <div className="flex snap-x snap-mandatory overflow-x-auto pb-2">
       {gestures.map((gesture) => (
         <div key={gesture.slug} className="w-full shrink-0 snap-center px-5.5">
-          <GestureCard gesture={gesture} onChoose={onChoose} />
+          <GestureCard gesture={gesture} region={region} onChoose={onChoose} />
         </div>
       ))}
     </div>

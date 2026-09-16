@@ -6,14 +6,6 @@
 
 export type BundleTier = 'everyday' | 'occasion' | 'romance'
 
-export const tierPrice: Record<BundleTier, number> = {
-  everyday: 2.99,
-  occasion: 4.99,
-  romance: 6.99,
-}
-
-export const flagshipPrice = 9.99
-
 // Live templates (src/lib/templateRepository.ts) + coming-soon templates
 // (src/lib/comingSoonTemplateRepository.ts), by slug — see PRICING.md's per-tier tables.
 export const bundleTierBySlug: Record<string, BundleTier> = {
@@ -36,10 +28,10 @@ export const bundleTierBySlug: Record<string, BundleTier> = {
   'long-distance-lovers': 'occasion',
 }
 
-// requested-by-him + requested-by-her are individually Romance-tier, but PRICING.md prices them
-// as a $9.99 couple's bundle when both are in the cart rather than $6.99 + $6.99 — surfaced as a
-// footnote on the pricing page, not modeled as its own tier.
-export const pairedBundlePrice = 9.99
+// requested-by-him + requested-by-her are individually Romance-tier, but are priced as a couple's
+// bundle when both are in the cart rather than full price + full price — surfaced as a footnote
+// on the pricing page, not modeled as its own tier. The actual bundle price is region-specific
+// (see geoPricing.ts's REGION_PAIRED_BUNDLE_PRICE), not a flat constant.
 
 // The other half of each paired-bundle idea, by slug — see pairedBundlePrice. Used both to show
 // "Pairs with X" on the template card/teaser and, in cart.ts, to detect when both halves are in

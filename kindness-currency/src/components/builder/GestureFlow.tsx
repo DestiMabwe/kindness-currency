@@ -36,7 +36,7 @@ import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { antiqueGold, antiqueGoldText, type SingleUseGesture, type SingleUseGestureSlug } from '@/lib/singleUseGestures'
-import { GESTURE_UNLOCK_PRICE } from '@/lib/pricing'
+import { REGION_GESTURE_UNLOCK_PRICE, gesturePriceForRegion, formatPrice, type PricingRegion } from '@/lib/geoPricing'
 import { saveDraftAction, sendCouponSetAction, initiateSendCheckoutAction, verifyCheckoutAction } from '@/app/create/actions'
 import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
 import type { BackgroundEffect } from '@/schemas/couponSchema'
@@ -95,7 +95,15 @@ function clearPersistedGestureDraft() {
 // pattern used elsewhere (e.g. CouponSetBuilder's TemplateSwitchWarningModal). Confirming here only
 // unlocks the text fields for editing; the actual GESTURE_UNLOCK_PRICE charge happens later, at
 // Send time, via the same Paystack redirect the paid-from-start gestures use (see performSave).
-function GestureUnlockConfirm({ onConfirm, onDismiss }: { onConfirm: () => void; onDismiss: () => void }) {
+function GestureUnlockConfirm({
+  formattedPrice,
+  onConfirm,
+  onDismiss,
+}: {
+  formattedPrice: string
+  onConfirm: () => void
+  onDismiss: () => void
+}) {
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onDismiss)
 
   return (
@@ -116,7 +124,7 @@ function GestureUnlockConfirm({ onConfirm, onDismiss }: { onConfirm: () => void;
           onClick={onConfirm}
           className="mt-5 w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white"
         >
-          {ctaCopy.gestureUnlockConfirmCta}
+          {ctaCopy.gestureUnlockConfirmCta(formattedPrice)}
         </button>
         <button type="button" onClick={onDismiss} className="mt-2 w-full p-1.5 text-center font-sans text-[13.5px] font-semibold text-[#2C2C2C] opacity-70">
           {ctaCopy.gestureUnlockDismiss}
@@ -130,11 +138,13 @@ export function GestureFlow({
   gesture,
   templateId,
   isLoggedIn,
+  region,
   onExit,
 }: {
   gesture: SingleUseGesture
   templateId: string | null
   isLoggedIn: boolean
+  region: PricingRegion
   onExit: () => void
 }) {
   const [step, setStep] = useState<Step>('details')
@@ -207,7 +217,7 @@ export function GestureFlow({
   const isPaid = gesture.price > 0 || unlocked
   // Same price as the gestures that are paid from the start (see ctaCopy.gestureUnlockCta) —
   // unlocking doesn't get its own separate price point.
-  const displayPrice = unlocked ? GESTURE_UNLOCK_PRICE : gesture.price
+  const displayPrice = unlocked ? REGION_GESTURE_UNLOCK_PRICE[region] : gesturePriceForRegion(gesture, region)
   const isCustomized =
     draft.backgroundColor !== '#FFF8F0' ||
     draft.backgroundEffect !== 'none' ||
@@ -230,8 +240,8 @@ export function GestureFlow({
   // 'draft' is always free. 'sent' requires payment whenever isPaid is true (a gesture that's
   // paid from the start, or an unlocked-for-customization free one) — if sendCouponSetAction comes
   // back paymentRequired, this redirects to Paystack instead of showing an error, charging
-  // GESTURE_UNLOCK_PRICE instead of the gesture's own (zero) base price when unlocked (see
-  // resolveCheckoutPrice in pricing.ts). Mirrors CouponSetBuilder's identical pattern.
+  // the region's gesture-unlock price instead of the gesture's own (zero) base price when
+  // unlocked (see resolveCheckoutPrice in pricing.ts). Mirrors CouponSetBuilder's identical pattern.
   const performSave = async (intent: 'draft' | 'sent') => {
     if (!templateId) {
       setSaveError('Something went wrong. Please try again.')
@@ -385,7 +395,7 @@ export function GestureFlow({
             </div>
             <div className="mt-0.5 text-[11.5px] text-[#2C2C2C] opacity-60">
               For {recipientName || 'them'} · from {senderName || 'you'} ·{' '}
-              <span style={{ color: antiqueGoldText, fontWeight: 700 }}>{displayPrice === 0 ? 'Free' : `$${displayPrice.toFixed(2)}`}</span>
+              <span style={{ color: antiqueGoldText, fontWeight: 700 }}>{displayPrice === 0 ? 'Free' : formatPrice(displayPrice, region)}</span>
             </div>
           </div>
         </div>
@@ -449,7 +459,7 @@ export function GestureFlow({
                   onClick={() => setUnlockConfirmOpen(true)}
                   className="w-full rounded-[10px] border-[1.5px] border-dashed border-[#D4AF37] p-2.5 text-center font-sans text-[12.5px] font-bold text-[#8B6F1F]"
                 >
-                  {ctaCopy.gestureUnlockCta}
+                  {ctaCopy.gestureUnlockCta(formatPrice(REGION_GESTURE_UNLOCK_PRICE[region], region))}
                 </button>
               )}
             </div>
@@ -534,6 +544,7 @@ export function GestureFlow({
 
       {unlockConfirmOpen && (
         <GestureUnlockConfirm
+          formattedPrice={formatPrice(REGION_GESTURE_UNLOCK_PRICE[region], region)}
           onConfirm={() => {
             setUnlocked(true)
             setUnlockConfirmOpen(false)
