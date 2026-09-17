@@ -12,7 +12,7 @@ export type RecipientCouponListProps = {
   senderName: string
   accent: string
   motif: string
-  imageSrc: string
+  imageSrc: string | null
   expiresAt: string | null
 }
 

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 import { createGiveRepository, sortCouponsForDisplay } from '@/lib/giveRepository'
-import { templateVisuals } from '@/constants/designTokens'
+import { templateVisuals, resolveGiftVisual, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { RecipientCouponList } from '@/components/coupon/RecipientCouponList'
 import { SaveToAccountBanner } from '@/components/shared/SaveToAccountBanner'
@@ -28,7 +28,13 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
     data: { user },
   } = await authClient.auth.getUser()
 
-  const visuals = templateVisuals[giveData.template_slug]
+  // resolveGiftVisual (not a direct templateVisuals lookup) since template_slug can be a
+  // single-use gesture slug ('relief', 'attention', etc.), not just a bundle template — a direct
+  // lookup returns undefined for those and crashes the page. imageSrc has no gesture equivalent
+  // (gestures have no staged cover photo), so it's looked up separately and passed through as
+  // null for a gesture — CouponCardHero already falls back to the motif icon in that case.
+  const visuals = resolveGiftVisual(giveData.template_slug)
+  const imageSrc = templateVisuals[giveData.template_slug as TemplateSlug]?.imageSrc ?? null
   const coupons = sortCouponsForDisplay(giveData.coupons)
 
   return (
@@ -76,7 +82,7 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
           senderName={giveData.sender_name}
           accent={visuals.accent}
           motif={visuals.motif}
-          imageSrc={visuals.imageSrc}
+          imageSrc={imageSrc}
           expiresAt={giveData.expiry_date}
         />
 

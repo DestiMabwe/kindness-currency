@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { CouponStatus, FontChoice, BackgroundEffect, ReminderFrequency } from '@/schemas/couponSchema'
-import type { TemplateSlug } from '@/constants/designTokens'
 
 export type GiveCoupon = {
   id: string
@@ -18,7 +17,10 @@ export type GiveCouponSet = {
   id: string
   sender_name: string
   recipient_name: string
-  template_slug: TemplateSlug
+  // A bundle template slug (e.g. 'mothers_day') or a single-use gesture slug (e.g. 'relief') —
+  // deliberately not the narrower TemplateSlug type, which only covers bundle templates and would
+  // misrepresent a gesture slug. See resolveGiftVisual in designTokens.ts, which accepts either.
+  template_slug: string
   expiry_date: string | null
   recipient_user_id: string | null
   sender_message: string | null
@@ -80,7 +82,7 @@ export function createGiveRepository(supabase: SupabaseClient) {
         sender_message: data.sender_message,
         opened_at: data.opened_at,
         reminder_frequency: data.reminder_frequency,
-        template_slug: template.slug as TemplateSlug,
+        template_slug: template.slug,
         coupons: [...data.coupons].sort((a, b) => a.sort_order - b.sort_order),
       }
     },
