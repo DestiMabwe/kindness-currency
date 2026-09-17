@@ -5,6 +5,10 @@ import { createOrderRepository } from '@/lib/orderRepository'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 import { initiateSingleCheckout, verifyAndFulfillCheckout, type InitiateCheckoutResult, type VerifyAndFulfillResult } from '@/lib/checkoutService'
+import { checkRateLimit, getCallerIp, RATE_LIMITS } from '@/lib/rateLimit'
+
+const SEND_RATE_LIMITED_ERROR = "You're sending a bit fast — please wait a moment and try again."
+const CHECKOUT_RATE_LIMITED_ERROR = "You're checking out a bit fast — please wait a moment and try again."
 
 async function getAuthedUser() {
   const authClient = await createClient()
@@ -27,7 +31,14 @@ export async function saveDraftAction(input: unknown): Promise<SaveCouponSetResu
  */
 export async function sendCouponSetAction(input: unknown): Promise<SaveCouponSetResult> {
   const user = await getAuthedUser()
-  return createCouponSetRepository(createServiceClient()).saveCouponSet(input, user?.id ?? null, 'sent')
+  const supabase = createServiceClient()
+
+  const rateLimit = user
+    ? await checkRateLimit(supabase, `send:user:${user.id}`, RATE_LIMITS.sendByUser)
+    : await checkRateLimit(supabase, `send:ip:${await getCallerIp()}`, RATE_LIMITS.sendByIp)
+  if (!rateLimit.allowed) return { success: false, error: SEND_RATE_LIMITED_ERROR }
+
+  return createCouponSetRepository(supabase).saveCouponSet(input, user?.id ?? null, 'sent')
 }
 
 /**
@@ -40,6 +51,11 @@ export async function sendCouponSetAction(input: unknown): Promise<SaveCouponSet
 export async function initiateSendCheckoutAction(slug: string, product: 'base' | 'gestureUnlock' = 'base'): Promise<InitiateCheckoutResult> {
   const user = await getAuthedUser()
   if (!user?.email) return { success: false, error: 'Not logged in' }
+
+  // Shares the checkout:user: key namespace with initiateCartCheckoutAction — one combined
+  // checkout-initiation limit per user, regardless of which entry point they use.
+  const rateLimit = await checkRateLimit(createServiceClient(), `checkout:user:${user.id}`, RATE_LIMITS.checkoutByUser)
+  if (!rateLimit.allowed) return { success: false, error: CHECKOUT_RATE_LIMITED_ERROR }
 
   return initiateSingleCheckout({
     userId: user.id,

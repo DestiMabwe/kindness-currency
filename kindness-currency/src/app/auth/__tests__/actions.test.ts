@@ -1,9 +1,17 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { devInstantLoginAction } from '../actions'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { devInstantLoginAction, checkAuthRateLimitAction } from '../actions'
 
 const generateLink = vi.fn()
 vi.mock('@/lib/supabase/service', () => ({
   createServiceClient: () => ({ auth: { admin: { generateLink: (input: unknown) => generateLink(input) } } }),
+}))
+
+const checkRateLimit = vi.fn()
+const getCallerIp = vi.fn()
+vi.mock('@/lib/rateLimit', () => ({
+  checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
+  getCallerIp: () => getCallerIp(),
+  RATE_LIMITS: { authByIp: { limit: 10, windowSeconds: 600 }, authByEmail: { limit: 3, windowSeconds: 600 } },
 }))
 
 describe('devInstantLoginAction', () => {
@@ -82,5 +90,53 @@ describe('devInstantLoginAction', () => {
 
       expect(result).toEqual({ success: false, error: 'Could not log in with that email.' })
     })
+  })
+})
+
+describe('checkAuthRateLimitAction', () => {
+  beforeEach(() => {
+    checkRateLimit.mockReset()
+    getCallerIp.mockReset().mockResolvedValue('1.2.3.4')
+  })
+
+  it('allows the request when both the IP and email counters are under their limits', async () => {
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 })
+
+    const result = await checkAuthRateLimitAction('alex@example.com')
+
+    expect(result).toEqual({ allowed: true })
+    expect(checkRateLimit).toHaveBeenCalledWith(expect.anything(), 'auth:ip:1.2.3.4', expect.anything())
+    expect(checkRateLimit).toHaveBeenCalledWith(expect.anything(), 'auth:email:alex@example.com', expect.anything())
+  })
+
+  it('blocks on the IP limit alone, without ever checking the email (none given, e.g. Google sign-in)', async () => {
+    checkRateLimit.mockResolvedValue({ allowed: false, retryAfterSeconds: 120 })
+
+    const result = await checkAuthRateLimitAction()
+
+    expect(result).toEqual({
+      allowed: false,
+      error: 'Too many attempts from this device — please wait a few minutes and try again.',
+    })
+    expect(checkRateLimit).toHaveBeenCalledTimes(1)
+  })
+
+  it('blocks on the email limit even when the IP counter is fine', async () => {
+    checkRateLimit.mockResolvedValueOnce({ allowed: true, retryAfterSeconds: 0 }).mockResolvedValueOnce({ allowed: false, retryAfterSeconds: 300 })
+
+    const result = await checkAuthRateLimitAction('alex@example.com')
+
+    expect(result).toEqual({
+      allowed: false,
+      error: "You've requested a few of these recently — please wait a few minutes before trying again.",
+    })
+  })
+
+  it('lowercases and trims the email before using it as a rate-limit key', async () => {
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 })
+
+    await checkAuthRateLimitAction('  Alex@Example.com  ')
+
+    expect(checkRateLimit).toHaveBeenCalledWith(expect.anything(), 'auth:email:alex@example.com', expect.anything())
   })
 })

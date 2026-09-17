@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { devInstantLoginAction } from '@/app/auth/actions'
+import { devInstantLoginAction, checkAuthRateLimitAction } from '@/app/auth/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { TabPills } from '@/components/shared/TabPills'
@@ -86,6 +86,12 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
       // Production: a real magic-link login, same mechanism Sign Up uses, gated to existing
       // accounts only — shouldCreateUser: false means an unrecognized email errors here instead
       // of silently creating a new account under "Log In".
+      const rateLimit = await checkAuthRateLimitAction(trimmedEmail)
+      if (!rateLimit.allowed) {
+        setSubmitting(false)
+        setError(rateLimit.error)
+        return
+      }
       const supabase = createClient()
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
@@ -107,6 +113,12 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
       return
     }
 
+    const rateLimit = await checkAuthRateLimitAction(trimmedEmail)
+    if (!rateLimit.allowed) {
+      setSubmitting(false)
+      setError(rateLimit.error)
+      return
+    }
     const supabase = createClient()
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmedEmail,
@@ -122,6 +134,12 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
 
   const handleGoogleSignIn = async () => {
     setError('')
+    // No email yet at this point (Google collects it after redirect) — IP-only check.
+    const rateLimit = await checkAuthRateLimitAction()
+    if (!rateLimit.allowed) {
+      setError(rateLimit.error)
+      return
+    }
     const supabase = createClient()
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',

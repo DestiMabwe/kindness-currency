@@ -33,6 +33,7 @@ export const ctaCopy = {
   ageGateDismiss: 'Go Back',
   pinWrongError: (senderName: string) =>
     `That PIN doesn't match. Check your message from ${senderName}.`,
+  pinLockedError: 'Too many wrong PINs — this coupon is locked for 15 minutes. Please try again later.',
   giftReadyPinInstruction: 'Share the link via WhatsApp. Send the PIN separately — or whisper it in person.',
   giftReadyShareMessage: (recipientName: string, senderName: string, shareLink: string) =>
     `${recipientName}, ${senderName} made you something special on Kindness Currency\n\nOpen it here:\n${shareLink}\n\nI'll send your PIN separately, so keep an eye out!`,

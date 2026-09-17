@@ -12,8 +12,10 @@ vi.mock('@/lib/supabase/client', () => ({
 }))
 
 const devInstantLoginAction = vi.fn()
+const checkAuthRateLimitAction = vi.fn()
 vi.mock('@/app/auth/actions', () => ({
   devInstantLoginAction: (email: string) => devInstantLoginAction(email),
+  checkAuthRateLimitAction: (email?: string) => checkAuthRateLimitAction(email),
 }))
 
 const locationAssign = vi.fn()
@@ -29,6 +31,7 @@ describe('AuthGate', () => {
     verifyOtp.mockReset()
     devInstantLoginAction.mockReset()
     locationAssign.mockReset()
+    checkAuthRateLimitAction.mockReset().mockResolvedValue({ allowed: true })
   })
 
   it('renders the exact auth modal heading and subtext', () => {
@@ -321,6 +324,44 @@ describe('AuthGate', () => {
 
       expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
       expect(signInWithOAuth).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('rate limiting', () => {
+    it('blocks a signup send and never calls Supabase once our own limit is exceeded', async () => {
+      checkAuthRateLimitAction.mockResolvedValue({ allowed: false, error: 'Too many requests. Please wait.' })
+      render(<AuthGate onClose={vi.fn()} />)
+
+      await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+      await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+
+      expect(await screen.findByText('Too many requests. Please wait.')).toBeInTheDocument()
+      expect(signInWithOtp).not.toHaveBeenCalled()
+      expect(checkAuthRateLimitAction).toHaveBeenCalledWith('alex@example.com')
+    })
+
+    it('blocks a production login send once our own limit is exceeded', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      checkAuthRateLimitAction.mockResolvedValue({ allowed: false, error: 'Too many requests. Please wait.' })
+      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+
+      await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+      await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
+
+      expect(await screen.findByText('Too many requests. Please wait.')).toBeInTheDocument()
+      expect(signInWithOtp).not.toHaveBeenCalled()
+      vi.unstubAllEnvs()
+    })
+
+    it('blocks Google sign-in once our own IP limit is exceeded, checked with no email', async () => {
+      checkAuthRateLimitAction.mockResolvedValue({ allowed: false, error: 'Too many requests. Please wait.' })
+      render(<AuthGate onClose={vi.fn()} />)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+
+      expect(await screen.findByText('Too many requests. Please wait.')).toBeInTheDocument()
+      expect(signInWithOAuth).not.toHaveBeenCalled()
+      expect(checkAuthRateLimitAction).toHaveBeenCalledWith(undefined)
     })
   })
 })

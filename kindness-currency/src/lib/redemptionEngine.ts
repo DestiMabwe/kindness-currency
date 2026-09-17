@@ -11,10 +11,22 @@ type CouponRow = {
   id: string
   status: CouponStatus
   redeemed_at: string | null
-  coupon_sets: { pin_code: string; sender_name: string } | { pin_code: string; sender_name: string }[] | null
+  coupon_sets:
+    | { id: string; pin_code: string; sender_name: string; pin_locked_until: string | null }
+    | { id: string; pin_code: string; sender_name: string; pin_locked_until: string | null }[]
+    | null
 }
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
+
+/** Records one PIN attempt's outcome via the record_pin_attempt() RPC (see
+ * supabase/migrations/20260917000001_add_rate_limits.sql) and returns the active lock time, if
+ * any. Fails open (no lock reported) on an unexpected DB error, same fail-open stance as
+ * checkRateLimit in rateLimit.ts — the lockout is defense in depth, not the only gate. */
+async function recordPinAttempt(supabase: SupabaseClient, setId: string, success: boolean): Promise<string | null> {
+  const { data, error } = await supabase.rpc('record_pin_attempt', { p_set_id: setId, p_success: success })
+  return error ? null : (data ?? null)
+}
 
 export function createRedemptionEngine(supabase: SupabaseClient) {
   return {
@@ -30,7 +42,7 @@ export function createRedemptionEngine(supabase: SupabaseClient) {
 
       const { data: coupon, error: readError } = await supabase
         .from('coupons')
-        .select('id, status, redeemed_at, coupon_sets(pin_code, sender_name)')
+        .select('id, status, redeemed_at, coupon_sets(id, pin_code, sender_name, pin_locked_until)')
         .eq('id', couponId)
         .single<CouponRow>()
 
@@ -39,7 +51,16 @@ export function createRedemptionEngine(supabase: SupabaseClient) {
       const set = Array.isArray(coupon.coupon_sets) ? coupon.coupon_sets[0] : coupon.coupon_sets
       if (!set) return { success: false, error: GENERIC_ERROR }
 
+      // Locked out ahead of the bcrypt comparison — a locked attacker gets no further timing
+      // signal or CPU cost from us, and the whole set locks (not just this one coupon), so
+      // guessing against a different coupon in the same set can't be used to route around it.
+      if (set.pin_locked_until && new Date(set.pin_locked_until) > new Date()) {
+        return { success: false, error: ctaCopy.pinLockedError }
+      }
+
       const pinMatches = await bcrypt.compare(pin, set.pin_code)
+      const lockedUntil = await recordPinAttempt(supabase, set.id, pinMatches)
+      if (lockedUntil) return { success: false, error: ctaCopy.pinLockedError }
       if (!pinMatches) return { success: false, error: ctaCopy.pinWrongError(set.sender_name) }
 
       if (coupon.status === 'redeemed') {
