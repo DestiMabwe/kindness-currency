@@ -25,3 +25,16 @@ describe('resolveGiftVisual', () => {
     expect(resolveGiftVisual(null)).toEqual({ accent: colors.secondary, motif: '✦' })
   })
 })
+
+describe('templateVisuals accent format', () => {
+  // Regression test: mothers_day's accent was 'rgb(131, 131, 228)' while every other template
+  // used hex. Several call sites build a translucent tint by string-concatenating a hex alpha
+  // suffix onto accent (CouponCardHero's soft-glow effect, CartCompleteView, ProfileCartSection)
+  // — appending hex digits onto an rgb(...) string is invalid CSS the browser silently drops, so
+  // Mom's Promise Tokens' soft-glow effect never actually rendered. Every accent must stay hex.
+  it('is a hex color for every template, never rgb()/hsl(), so `${accent}<hexAlpha>` concatenation stays valid CSS', () => {
+    for (const [slug, visual] of Object.entries(templateVisuals)) {
+      expect(visual.accent, `${slug}'s accent`).toMatch(/^#[0-9A-Fa-f]{6}$/)
+    }
+  })
+})

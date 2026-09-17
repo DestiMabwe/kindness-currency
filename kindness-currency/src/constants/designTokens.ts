@@ -32,7 +32,13 @@ export const templateVisuals: Record<
   { accent: string; tint: string; motif: string; imageSrc: string; coverImageSrc: string | null; previewMessage: string }
 > = {
   mothers_day: {
-    accent: 'rgb(131, 131, 228)',
+    // Same color as Mother's Periwinkle rgb(131, 131, 228) — hex, not rgb(), because several
+    // call sites build a translucent tint by string-concatenating a hex alpha suffix onto accent
+    // (e.g. `${accent}33`/`${accent}1F` in CouponCardHero's soft-glow effect, CartCompleteView,
+    // and ProfileCartSection) — appending hex digits onto an rgb(...) string produces invalid CSS
+    // the browser silently drops, which is exactly why Mom's Promise Tokens' soft-glow effect
+    // wasn't rendering.
+    accent: '#8383E4',
     tint: '#FBE7EE',
     motif: '❀',
     imageSrc: '/images/mothers_day.png',
