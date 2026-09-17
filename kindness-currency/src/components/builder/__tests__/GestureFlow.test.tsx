@@ -105,6 +105,15 @@ describe('GestureFlow', () => {
       expect(screen.getByLabelText('Service title')).toHaveValue('A Kinder Word')
     })
 
+    // Regression coverage: micro_copy and fine_print had no input cap at all here either — see
+    // MICRO_COPY_MAX_LENGTH/FINE_PRINT_MAX_LENGTH in couponSchema.ts.
+    it('caps the micro copy and fine print inputs to match the schema', async () => {
+      await unlockGesture(freeGesture)
+
+      expect(screen.getByLabelText('Micro copy')).toHaveAttribute('maxlength', '80')
+      expect(screen.getByLabelText('Fine print')).toHaveAttribute('maxlength', '60')
+    })
+
     it('shows the price as $1.99 in the header once unlocked, instead of Free', async () => {
       render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')

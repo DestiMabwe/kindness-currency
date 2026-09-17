@@ -320,7 +320,7 @@ describe('single-use gesture pricing', () => {
     render(<CouponSetBuilder templates={[template()]} region="US" />)
 
     expect(screen.getByText('Undivided Attention')).toBeInTheDocument()
-    expect(screen.getByText('One full hour, just us — phones off, world on pause')).toBeInTheDocument()
+    expect(screen.getByText('One hour, just us — world on pause')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel('Undivided Attention') })).toBeInTheDocument()
   })
 })
@@ -693,6 +693,17 @@ describe('coming soon section', () => {
       await userEvent.type(titleInput, 'A'.repeat(50))
 
       expect((titleInput as HTMLInputElement).value).toHaveLength(40)
+    })
+
+    // Regression coverage: micro_copy and fine_print had no input cap at all, so a sender could
+    // type a line long enough to stretch the card and shrink the decorative image out of
+    // proportion — see MICRO_COPY_MAX_LENGTH/FINE_PRINT_MAX_LENGTH in couponSchema.ts.
+    it('caps the micro copy and fine print inputs to match the schema', async () => {
+      await goToEditor()
+      await expandCoupon(/One Home-Cooked Meal/)
+
+      expect(screen.getByLabelText('Micro copy')).toHaveAttribute('maxlength', '80')
+      expect(screen.getByLabelText('Fine print')).toHaveAttribute('maxlength', '60')
     })
 
     it('applying a color to all coupons from the bulk picker updates the collapsed card swatch', async () => {

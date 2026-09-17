@@ -36,7 +36,7 @@ import { SaveToAccountBanner, pendingLinkKey } from '@/components/shared/SaveToA
 import { EarlyAccessSignupForm } from '@/components/templates/EarlyAccessSignupForm'
 import { templateVisuals, colorWheelSwatches, type TemplateSlug } from '@/constants/designTokens'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { SERVICE_TITLE_MAX_LENGTH, SENDER_MESSAGE_MAX_LENGTH } from '@/schemas/couponSchema'
+import { SERVICE_TITLE_MAX_LENGTH, SENDER_MESSAGE_MAX_LENGTH, MICRO_COPY_MAX_LENGTH, FINE_PRINT_MAX_LENGTH } from '@/schemas/couponSchema'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import type { Template, TemplateCoupon, TemplateWithCoupons } from '@/lib/templateRepository'
 import type { ComingSoonTemplate } from '@/lib/comingSoonTemplateRepository'
@@ -1538,6 +1538,7 @@ function CouponEditorCard({
               onChange={(e) => onPatch({ microCopy: e.target.value })}
               placeholder="A warm supporting line"
               aria-label="Micro copy"
+              maxLength={MICRO_COPY_MAX_LENGTH}
               className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#FFF8F0] p-2.5 text-[13px] text-[#2C2C2C] outline-none"
             />
             <input
@@ -1545,6 +1546,7 @@ function CouponEditorCard({
               onChange={(e) => onPatch({ finePrint: e.target.value })}
               placeholder="Fine print"
               aria-label="Fine print"
+              maxLength={FINE_PRINT_MAX_LENGTH}
               className="w-full rounded-[10px] border border-[#1A1A2E]/12 bg-[#FFF8F0] p-2 text-[11.5px] text-[#2C2C2C] outline-none"
             />
           </div>

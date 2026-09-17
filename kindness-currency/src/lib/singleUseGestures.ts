@@ -122,8 +122,8 @@ export const singleUseGestures: SingleUseGesture[] = [
   {
     slug: 'attention',
     serviceTitle: 'Undivided Attention',
-    microCopy: 'One full hour, just us — phones off, world on pause',
-    finePrint: 'No Tech Hour · Phones away, fully present',
+    microCopy: 'One hour, just us — world on pause',
+    finePrint: 'No Tech Hour · Phones away',
     motif: '◈',
     price: 1.99,
     messageStarter: "I want one hour where nothing else gets to compete for your attention — just you and me.",

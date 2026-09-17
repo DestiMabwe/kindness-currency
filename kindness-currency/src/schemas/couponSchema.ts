@@ -24,11 +24,18 @@ export const CouponSetMutationSchema = z.object({
 // input at 40 so CouponCardHero's fixed-height layout never has to silently overflow.
 export const SERVICE_TITLE_MAX_LENGTH = 40
 
+// Longest seeded micro_copy/fine_print (across every bundle template and single-use gesture) are
+// 58 and 48 chars respectively; these cap input with the same generous-but-bounded headroom as
+// SERVICE_TITLE_MAX_LENGTH — CouponCardHero's .subline/.finePrint also carry a matching CSS
+// line-clamp as a backstop for any already-saved content longer than these caps allow.
+export const MICRO_COPY_MAX_LENGTH = 80
+export const FINE_PRINT_MAX_LENGTH = 60
+
 // Individual coupon mutation schema
 export const CouponMutationSchema = z.object({
   service_title: z.string().min(1).max(SERVICE_TITLE_MAX_LENGTH),
-  micro_copy: z.string().optional(),
-  fine_print: z.string().optional(),
+  micro_copy: z.string().max(MICRO_COPY_MAX_LENGTH).optional(),
+  fine_print: z.string().max(FINE_PRINT_MAX_LENGTH).optional(),
   font_choice: FontChoiceSchema,
   background_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   background_effect: BackgroundEffectSchema,

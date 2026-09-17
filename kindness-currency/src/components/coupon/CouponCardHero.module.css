@@ -214,6 +214,16 @@
   color: #2c2c2c;
   opacity: 0.75;
   overflow-wrap: break-word;
+  /* Backstop for any already-saved micro_copy longer than MICRO_COPY_MAX_LENGTH allows for new
+     saves (see couponSchema.ts) — caps the card's own height growth the same way .headline's
+     line-clamp already does, so the decorative image/motif can never end up looking squeezed
+     against a card that grew far taller than intended. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .finePrint {
@@ -226,6 +236,13 @@
   text-transform: uppercase;
   opacity: 0.78;
   overflow-wrap: break-word;
+  /* Same backstop as .subline above, for fine_print. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .contentWithImage {

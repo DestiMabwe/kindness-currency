@@ -41,7 +41,7 @@ import { antiqueGold, antiqueGoldText, type SingleUseGesture, type SingleUseGest
 import { REGION_GESTURE_UNLOCK_PRICE, gesturePriceForRegion, formatPrice, type PricingRegion } from '@/lib/geoPricing'
 import { saveDraftAction, sendCouponSetAction, initiateSendCheckoutAction, verifyCheckoutAction } from '@/app/create/actions'
 import { resumePaystackCheckout } from '@/lib/paystack/inline'
-import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
+import { SERVICE_TITLE_MAX_LENGTH, MICRO_COPY_MAX_LENGTH, FINE_PRINT_MAX_LENGTH } from '@/schemas/couponSchema'
 import type { BackgroundEffect } from '@/schemas/couponSchema'
 import type { BuilderCoupon, SavedResult } from '@/hooks/useCouponSetBuilder'
 
@@ -478,6 +478,7 @@ export function GestureFlow({
                 onChange={isPaid ? (e) => setDraft((d) => ({ ...d, microCopy: e.target.value })) : undefined}
                 aria-label="Micro copy"
                 aria-describedby={isPaid ? undefined : 'gesture-text-locked-hint'}
+                maxLength={MICRO_COPY_MAX_LENGTH}
                 disabled={!isPaid}
                 readOnly={!isPaid}
                 className="w-full rounded-[10px] border border-[#1A1A2E]/12 p-2.5 text-[13px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
@@ -488,6 +489,7 @@ export function GestureFlow({
                 onChange={isPaid ? (e) => setDraft((d) => ({ ...d, finePrint: e.target.value })) : undefined}
                 aria-label="Fine print"
                 aria-describedby={isPaid ? undefined : 'gesture-text-locked-hint'}
+                maxLength={FINE_PRINT_MAX_LENGTH}
                 disabled={!isPaid}
                 readOnly={!isPaid}
                 className="w-full rounded-[10px] border border-[#1A1A2E]/12 p-2 text-[11.5px] text-[#2C2C2C] outline-none disabled:cursor-not-allowed disabled:opacity-60"
