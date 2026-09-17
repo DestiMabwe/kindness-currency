@@ -30,6 +30,17 @@ describe('CartView', () => {
     expect(screen.getByText('1 unit FREE (3-for-2) −$2.99')).toBeInTheDocument()
   })
 
+  it('does not count a one-time gesture toward 3-for-2, even though it brings total units to 3', () => {
+    addToCart('mothers_day', 1) // $2.99
+    addToCart('birthday', 1) // $2.99 — only 2 coupon-book units so far
+    addToCart('celebration', 1) // $1.99 gesture — would be "cheapest" and hit 3 total units under the old bug
+    render(<CartView isLoggedIn={true} region="US" />)
+
+    expect(screen.getByText(ctaCopy.cartAlmostThreeForTwo(1))).toBeInTheDocument()
+    expect(screen.queryByText('3-for-2 discount')).not.toBeInTheDocument()
+    expect(screen.getAllByText('$1.99').length).toBeGreaterThan(0)
+  })
+
   it('renders the same cart in Rand for a South African visitor instead of dollars', () => {
     addToCart('mothers_day', 1)
     render(<CartView isLoggedIn={true} region="ZA" />)

@@ -62,6 +62,28 @@ describe('checkoutService', () => {
       expect(initializeTransaction).toHaveBeenCalledWith(expect.objectContaining({ currency: 'ZAR', amountCents: 5499 }))
     })
 
+    it('does not apply the 3-for-2 discount when a paid gesture is what brings the cart to 3 units', async () => {
+      getRegion.mockResolvedValue('ZA')
+      const { initiateCartCheckout } = await import('../checkoutService')
+
+      // 2 coupon books (R19.99 each) + 1 paid gesture (R14.99) — 3 total units, but only 2 are
+      // coupon books, so the cheapest-unit-free discount must not fire server-side either.
+      const result = await initiateCartCheckout({
+        userId: 'user-1',
+        email: 'a@example.com',
+        items: [
+          { slug: 'mothers_day', qty: 1 },
+          { slug: 'birthday', qty: 1 },
+          { slug: 'celebration', qty: 1 },
+        ],
+        callbackPath: '/cart/complete',
+      })
+
+      expect(result.success).toBe(true)
+      expect(createPendingOrder).toHaveBeenCalledWith(expect.objectContaining({ amountCents: 5497 }))
+      expect(initializeTransaction).toHaveBeenCalledWith(expect.objectContaining({ amountCents: 5497 }))
+    })
+
     it('charges a UK visitor the same international ZAR bucket as a US visitor', async () => {
       getRegion.mockResolvedValue('UK')
       const { initiateCartCheckout } = await import('../checkoutService')

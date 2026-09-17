@@ -69,6 +69,35 @@ describe('cartTotals', () => {
     expect(total).toBeCloseTo(6.99 * 2 + 2.99 - 3.99 - 2.99)
   })
 
+  it('does not count one-time gestures toward the 3-for-2 unit threshold', () => {
+    const lines = [
+      { slug: 'mothers_day', name: "Mom's Promise Tokens", price: 2.99, qty: 1 },
+      { slug: 'birthday', name: 'Birthday Joy Tokens', price: 2.99, qty: 1 },
+      { slug: 'celebration', name: 'Night Out', price: 1.99, qty: 1 },
+    ]
+
+    const { discount, freeSlug, total } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE.US)
+
+    expect(discount).toBe(0)
+    expect(freeSlug).toBeNull()
+    expect(total).toBeCloseTo(2.99 + 2.99 + 1.99)
+  })
+
+  it('never makes a gesture the free line, even when 3+ coupon books also qualify and the gesture is cheapest', () => {
+    const lines = [
+      { slug: 'mothers_day', name: "Mom's Promise Tokens", price: 2.99, qty: 1 },
+      { slug: 'birthday', name: 'Birthday Joy Tokens', price: 2.99, qty: 1 },
+      { slug: 'besties', name: "Bestie's Surprise Passes", price: 2.99, qty: 1 },
+      { slug: 'celebration', name: 'Night Out', price: 1.99, qty: 1 },
+    ]
+
+    const { discount, freeSlug, total } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE.US)
+
+    expect(discount).toBe(2.99)
+    expect(freeSlug).not.toBe('celebration')
+    expect(total).toBeCloseTo(2.99 + 2.99 + 2.99 + 1.99 - 2.99)
+  })
+
   it('takes the paired price as an explicit argument, so the same math works for a different currency scale', () => {
     const lines = [
       { slug: 'requested-by-him', name: "Requested By Him: Lover's Wishes", price: 49.99, qty: 1 },

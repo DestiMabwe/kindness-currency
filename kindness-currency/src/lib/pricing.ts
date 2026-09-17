@@ -88,24 +88,30 @@ function pairDiscount(lines: CartLine[], pairedPrice: number): number {
   return discount
 }
 
-/** The single cheapest unit is free once the cart holds 3 or more units total (across any mix of
- * lines/quantities) — mirrors the 3-for-2 mechanic. Currency-agnostic: pass display lines +
- * REGION_PAIRED_BUNDLE_PRICE[region] for what a visitor sees, or settlement lines +
- * SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR[bucket] for what Paystack actually charges — same math. */
+/** The single cheapest unit is free once the cart holds 3 or more coupon-book units total (across
+ * any mix of lines/quantities) — mirrors the 3-for-2 mechanic. One-time gestures are priced and
+ * sold individually (see resolveCheckoutPrice's gestureUnlock case) and never count toward the
+ * threshold or qualify as the free unit — 3-for-2 is a coupon-book bulk discount, not a
+ * storewide one. Currency-agnostic: pass display lines + REGION_PAIRED_BUNDLE_PRICE[region] for
+ * what a visitor sees, or settlement lines + SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR[bucket] for what
+ * Paystack actually charges — same math. */
 export function cartTotals(lines: CartLine[], pairedPrice: number) {
   const subtotal = lines.reduce((sum, l) => sum + l.price * l.qty, 0)
   const pairSavings = pairDiscount(lines, pairedPrice)
-  const totalUnits = lines.reduce((sum, l) => sum + l.qty, 0)
-  if (totalUnits < 3) {
-    return { subtotal, pairDiscount: pairSavings, discount: 0, total: subtotal - pairSavings, freeSlug: null as string | null }
+
+  const bookLines = lines.filter((l) => !(l.slug in gestureBySlug))
+  const bookUnits = bookLines.reduce((sum, l) => sum + l.qty, 0)
+  if (bookUnits < 3) {
+    return { subtotal, pairDiscount: pairSavings, discount: 0, total: subtotal - pairSavings, freeSlug: null as string | null, bookUnits }
   }
-  const cheapest = lines.reduce((min, l) => (l.price < min.price ? l : min), lines[0])
+  const cheapest = bookLines.reduce((min, l) => (l.price < min.price ? l : min), bookLines[0])
   return {
     subtotal,
     pairDiscount: pairSavings,
     discount: cheapest.price,
     total: subtotal - pairSavings - cheapest.price,
     freeSlug: cheapest.slug,
+    bookUnits,
   }
 }
 

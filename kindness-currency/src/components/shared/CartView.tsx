@@ -35,9 +35,8 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   const [payError, setPayError] = useState('')
 
   const lines = linesForCart(cartLines, region)
-  const totalUnits = lines.reduce((sum, l) => sum + l.qty, 0)
 
-  const { subtotal, pairDiscount, discount, total, freeSlug } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE[region])
+  const { subtotal, pairDiscount, discount, total, freeSlug, bookUnits } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE[region])
 
   const handlePay = async () => {
     if (!isLoggedIn) {
@@ -111,9 +110,9 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
         </div>
       ) : (
         <>
-          {totalUnits < 3 && (
+          {bookUnits < 3 && (
             <div className="mt-3 rounded-xl bg-[#C2185B]/8 px-3.5 py-2.5 text-[12px] leading-relaxed text-[#1A1A2E]">
-              {ctaCopy.cartAlmostThreeForTwo(3 - totalUnits)}
+              {ctaCopy.cartAlmostThreeForTwo(3 - bookUnits)}
             </div>
           )}
           <div className="mt-4 flex flex-col gap-2.5">

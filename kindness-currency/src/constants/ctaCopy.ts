@@ -151,7 +151,7 @@ export const ctaCopy = {
   cartEmptyMessage: 'Nothing here yet.',
   cartBrowseLink: 'Browse templates',
   cartAlmostThreeForTwo: (remaining: number) =>
-    `Add ${remaining} more coupon ${remaining === 1 ? 'set' : 'sets'} and the cheapest one is free.`,
+    `Add ${remaining} more coupon ${remaining === 1 ? 'book' : 'books'} and the cheapest one is free.`,
   cartPairDiscountLabel: "Couple's bundle discount",
   cartRemoveLabel: (name: string) => `Remove ${name} from cart`,
   cartCheckoutCta: 'Checkout →',
