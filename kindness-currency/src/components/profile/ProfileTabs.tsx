@@ -58,7 +58,7 @@ export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
                   <Link
                     key={set.id}
                     href={`/profile/${set.id}`}
-                    className="block rounded-2xl border border-[#1A1A2E]/8 bg-white p-4"
+                    className="block rounded-2xl border border-[#1A1A2E]/8 bg-white p-4 transition-colors hover:border-[#1A1A2E]/16"
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-[15.5px] font-bold text-[#1A1A2E]">{set.recipient_name}</div>
