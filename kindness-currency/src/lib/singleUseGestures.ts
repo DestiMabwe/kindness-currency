@@ -8,6 +8,7 @@
 export type SingleUseGestureSlug =
   | 'relief'
   | 'presence'
+  | 'attention'
   | 'celebration'
   | 'repair'
   | 'restoration'
@@ -117,5 +118,14 @@ export const singleUseGestures: SingleUseGesture[] = [
     motif: '◆',
     price: 1.99,
     messageStarter: "There's something I've been wanting to say to you, and I want to say it with love.",
+  },
+  {
+    slug: 'attention',
+    serviceTitle: 'Undivided Attention',
+    microCopy: 'One full hour, just us — phones off, world on pause',
+    finePrint: 'No Tech Hour · Phones away, fully present',
+    motif: '◈',
+    price: 1.99,
+    messageStarter: "I want one hour where nothing else gets to compete for your attention — just you and me.",
   },
 ]

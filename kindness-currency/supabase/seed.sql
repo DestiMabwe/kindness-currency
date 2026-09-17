@@ -149,7 +149,8 @@ VALUES
   ('restoration', 'Recharge Session', true, true, 5),
   ('celebration', 'Night Out', true, true, 6),
   ('adventure', 'Spontaneous Escape', true, true, 7),
-  ('honest-truth', 'Hard Talk', true, true, 8);
+  ('honest-truth', 'Hard Talk', true, true, 8),
+  ('attention', 'Undivided Attention', true, true, 9);
 
 -- ============================================================
 -- Campaign banner — Mother's Day launch

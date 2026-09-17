@@ -292,7 +292,7 @@ describe('single-use gesture pricing', () => {
     render(<CouponSetBuilder templates={[template()]} region="US" />)
 
     expect(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel('Night Out') })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: ctaCopy.designMyGiftCta('$1.99') })).toHaveLength(3) // 3 paid gestures, all $1.99
+    expect(screen.getAllByRole('button', { name: ctaCopy.designMyGiftCta('$1.99') })).toHaveLength(4) // 4 paid gestures, all $1.99
     expect(screen.queryByRole('button', { name: ctaCopy.qtyIncreaseLabel('Rescue Mission') })).not.toBeInTheDocument()
   })
 
@@ -301,6 +301,14 @@ describe('single-use gesture pricing', () => {
 
     expect(screen.getAllByRole('button', { name: ctaCopy.singleUseFreeCta }).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: ctaCopy.designMyGiftCta('$0.00') })).not.toBeInTheDocument()
+  })
+
+  it('includes the paid "Undivided Attention" gesture in the gallery, priced like the other paid gestures', () => {
+    render(<CouponSetBuilder templates={[template()]} region="US" />)
+
+    expect(screen.getByText('Undivided Attention')).toBeInTheDocument()
+    expect(screen.getByText('One full hour, just us — phones off, world on pause')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel('Undivided Attention') })).toBeInTheDocument()
   })
 })
 
