@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GestureFlow } from '../GestureFlow'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -14,6 +14,11 @@ vi.mock('@/app/create/actions', () => ({
   sendCouponSetAction: (input: unknown) => sendCouponSetAction(input),
   initiateSendCheckoutAction: (slug: string, product?: string) => initiateSendCheckoutAction(slug, product),
   verifyCheckoutAction: (reference: string) => verifyCheckoutAction(reference),
+}))
+
+const resumePaystackCheckout = vi.fn()
+vi.mock('@/lib/paystack/inline', () => ({
+  resumePaystackCheckout: (accessCode: string, handlers: unknown) => resumePaystackCheckout(accessCode, handlers),
 }))
 
 const freeGesture: SingleUseGesture = {
@@ -55,6 +60,7 @@ async function unlockGesture(gesture: SingleUseGesture) {
 describe('GestureFlow', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
   })
 
   describe('free gesture upsell', () => {
@@ -184,6 +190,74 @@ describe('GestureFlow', () => {
       expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
       expect(initiateSendCheckoutAction).not.toHaveBeenCalled()
       expect(sendCouponSetAction).toHaveBeenCalledWith(expect.objectContaining({ gesture_unlocked: true }))
+    })
+  })
+
+  describe('Save/Send with an account, paid unlock', () => {
+    async function goToPersonalizeLoggedIn(gesture: SingleUseGesture) {
+      render(<GestureFlow gesture={gesture} templateId="template-1" isLoggedIn={true} region="US" onExit={vi.fn()} />)
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+    }
+
+    it('opens the Paystack popup with the server-issued access code instead of navigating away', async () => {
+      sendCouponSetAction.mockReset().mockResolvedValue({ success: false, error: 'Payment required.', paymentRequired: true })
+      initiateSendCheckoutAction.mockReset().mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      await goToPersonalizeLoggedIn(paidGesture)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+
+      await waitFor(() => expect(resumePaystackCheckout).toHaveBeenCalled())
+      expect(resumePaystackCheckout).toHaveBeenCalledWith('access-code-1', expect.objectContaining({ onSuccess: expect.any(Function) }))
+    })
+
+    it('verifies the payment then resends once the popup reports success', async () => {
+      sendCouponSetAction
+        .mockReset()
+        .mockResolvedValueOnce({ success: false, error: 'Payment required.', paymentRequired: true })
+        .mockResolvedValueOnce({ success: true, id: 'set-1', pin: '1234' })
+      initiateSendCheckoutAction.mockReset().mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      verifyCheckoutAction.mockReset().mockResolvedValue({ paid: true, cartSnapshot: [], amountCents: 199 })
+      await goToPersonalizeLoggedIn(paidGesture)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+      await waitFor(() => expect(resumePaystackCheckout).toHaveBeenCalled())
+      const handlers = resumePaystackCheckout.mock.calls[0][1] as { onSuccess: (r: { reference: string }) => void }
+      handlers.onSuccess({ reference: 'kc_ref_1' })
+
+      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
+      expect(verifyCheckoutAction).toHaveBeenCalledWith('kc_ref_1')
+      expect(sendCouponSetAction).toHaveBeenCalledTimes(2)
+    })
+
+    it('shows a payment-incomplete error instead of resending when the popup reports success but verification says unpaid', async () => {
+      sendCouponSetAction.mockReset().mockResolvedValue({ success: false, error: 'Payment required.', paymentRequired: true })
+      initiateSendCheckoutAction.mockReset().mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      verifyCheckoutAction.mockReset().mockResolvedValue({ paid: false })
+      await goToPersonalizeLoggedIn(paidGesture)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+      await waitFor(() => expect(resumePaystackCheckout).toHaveBeenCalled())
+      const handlers = resumePaystackCheckout.mock.calls[0][1] as { onSuccess: (r: { reference: string }) => void }
+      handlers.onSuccess({ reference: 'kc_ref_1' })
+
+      expect(await screen.findByText("Your payment wasn't completed, so this wasn't sent. Feel free to try again.")).toBeInTheDocument()
+      expect(sendCouponSetAction).toHaveBeenCalledTimes(1)
+    })
+
+    it('stops without an error when the visitor closes the popup', async () => {
+      sendCouponSetAction.mockReset().mockResolvedValue({ success: false, error: 'Payment required.', paymentRequired: true })
+      initiateSendCheckoutAction.mockReset().mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      await goToPersonalizeLoggedIn(paidGesture)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+      await waitFor(() => expect(resumePaystackCheckout).toHaveBeenCalled())
+      const handlers = resumePaystackCheckout.mock.calls[0][1] as { onCancel: () => void }
+      handlers.onCancel()
+
+      expect(await screen.findByRole('button', { name: ctaCopy.sendWithLove })).toBeInTheDocument()
+      expect(sendCouponSetAction).toHaveBeenCalledTimes(1)
     })
   })
 })

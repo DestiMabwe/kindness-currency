@@ -40,6 +40,7 @@ import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { antiqueGold, antiqueGoldText, type SingleUseGesture, type SingleUseGestureSlug } from '@/lib/singleUseGestures'
 import { REGION_GESTURE_UNLOCK_PRICE, gesturePriceForRegion, formatPrice, type PricingRegion } from '@/lib/geoPricing'
 import { saveDraftAction, sendCouponSetAction, initiateSendCheckoutAction, verifyCheckoutAction } from '@/app/create/actions'
+import { resumePaystackCheckout } from '@/lib/paystack/inline'
 import { SERVICE_TITLE_MAX_LENGTH } from '@/schemas/couponSchema'
 import type { BackgroundEffect } from '@/schemas/couponSchema'
 import type { BuilderCoupon, SavedResult } from '@/hooks/useCouponSetBuilder'
@@ -72,6 +73,7 @@ const GESTURE_DRAFT_KEY = 'kindness-currency:gesture-draft'
 // the save automatically once the sender is logged in — mirrors CouponSetBuilder's own
 // PENDING_SAVE_INTENT_KEY for the bundle flow.
 const GESTURE_PENDING_SAVE_INTENT_KEY = 'kindness-currency:gesture-pending-save-intent'
+const CHECKOUT_POPUP_ERROR = 'Could not open the payment window. Please try again.'
 
 function readPersistedGestureDraft(): PersistedGestureDraft | null {
   if (typeof window === 'undefined') return null
@@ -290,7 +292,37 @@ export function GestureFlow({
         setSaveError(checkout.error)
         return
       }
-      window.location.href = checkout.authorizationUrl
+      // The pending-intent flag set above stays untouched until the popup actually resolves — it's
+      // the fallback the mount-effect resume below relies on if Paystack ever has to fall back to a
+      // real page redirect (some cards can't complete inside the iframe, e.g. certain 3D Secure
+      // flows) instead of resolving inline via onSuccess/onCancel/onError here.
+      try {
+        await resumePaystackCheckout(checkout.accessCode, {
+          onSuccess: async (response) => {
+            if (typeof window !== 'undefined') window.localStorage.removeItem(GESTURE_PENDING_SAVE_INTENT_KEY)
+            const verified = await verifyCheckoutAction(response.reference)
+            if (!verified.paid) {
+              setSaving(false)
+              setSaveError("Your payment wasn't completed, so this wasn't sent. Feel free to try again.")
+              return
+            }
+            void performSave(intent)
+          },
+          onCancel: () => {
+            if (typeof window !== 'undefined') window.localStorage.removeItem(GESTURE_PENDING_SAVE_INTENT_KEY)
+            setSaving(false)
+          },
+          onError: (error) => {
+            if (typeof window !== 'undefined') window.localStorage.removeItem(GESTURE_PENDING_SAVE_INTENT_KEY)
+            setSaving(false)
+            setSaveError(error.message || CHECKOUT_POPUP_ERROR)
+          },
+        })
+      } catch {
+        if (typeof window !== 'undefined') window.localStorage.removeItem(GESTURE_PENDING_SAVE_INTENT_KEY)
+        setSaving(false)
+        setSaveError(CHECKOUT_POPUP_ERROR)
+      }
       return
     }
 

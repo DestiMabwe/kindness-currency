@@ -8,7 +8,7 @@ import { CartCheckoutInputSchema } from '@/schemas/checkoutSchema'
 import { cartTotals, settlementLinesForCart, resolveSettlementPrice, type CartLineItem } from '@/lib/pricing'
 import { settlementBucketForRegion, SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR } from '@/lib/geoPricing'
 
-export type InitiateCheckoutResult = { success: true; authorizationUrl: string } | { success: false; error: string }
+export type InitiateCheckoutResult = { success: true; accessCode: string } | { success: false; error: string }
 
 const GENERIC_ERROR = 'Something went wrong starting checkout. Please try again.'
 
@@ -56,7 +56,7 @@ async function createOrderAndInitialize(params: {
   })
 
   if (!initialized.success) return { success: false, error: GENERIC_ERROR }
-  return { success: true, authorizationUrl: initialized.authorizationUrl }
+  return { success: true, accessCode: initialized.accessCode }
 }
 
 /**

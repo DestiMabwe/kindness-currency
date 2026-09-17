@@ -23,6 +23,7 @@ import {
   linkSenderAction,
   checkTemplateEntitlementAction,
 } from '@/app/create/actions'
+import { resumePaystackCheckout } from '@/lib/paystack/inline'
 import { GestureFlow, peekPersistedGestureSlug } from '@/components/builder/GestureFlow'
 import { AgeGate } from '@/components/modals/AgeGate'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
@@ -73,6 +74,7 @@ const PENDING_SENDER_READY_KEY = 'kindness-currency:pending-sender-ready'
 // intent needs to be remembered separately. 'edit' means "unlock the coupon editor" (see the
 // entitlement gate below) rather than save or send.
 const PENDING_SAVE_INTENT_KEY = 'kindness-currency:pending-save-intent'
+const CHECKOUT_POPUP_ERROR = 'Could not open the payment window. Please try again.'
 
 export function CouponSetBuilder({
   templates,
@@ -153,7 +155,36 @@ export function CouponSetBuilder({
         setSaveError(checkout.error)
         return
       }
-      window.location.href = checkout.authorizationUrl
+      // The pending-intent flag set above stays untouched until the popup actually resolves — it's
+      // the fallback the checkout-return resume effect below relies on if Paystack ever has to fall
+      // back to a real page redirect instead of resolving inline via onSuccess/onCancel/onError here.
+      try {
+        await resumePaystackCheckout(checkout.accessCode, {
+          onSuccess: async (response) => {
+            if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+            const verified = await verifyCheckoutAction(response.reference)
+            if (!verified.paid) {
+              setSaving(false)
+              setSaveError("Your payment wasn't completed, so this wasn't sent. Feel free to try again.")
+              return
+            }
+            void performSave(intent)
+          },
+          onCancel: () => {
+            if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+            setSaving(false)
+          },
+          onError: (error) => {
+            if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+            setSaving(false)
+            setSaveError(error.message || CHECKOUT_POPUP_ERROR)
+          },
+        })
+      } catch {
+        if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+        setSaving(false)
+        setSaveError(CHECKOUT_POPUP_ERROR)
+      }
       return
     }
 
@@ -195,7 +226,36 @@ export function CouponSetBuilder({
       setDetailsError(checkout.error)
       return
     }
-    window.location.href = checkout.authorizationUrl
+    // Same belt-and-suspenders pattern as performSave above: the pending-intent flag stays set as
+    // a fallback for a real Paystack page redirect, while onSuccess/onCancel/onError handle the
+    // common case of the popup resolving without ever leaving this page.
+    try {
+      await resumePaystackCheckout(checkout.accessCode, {
+        onSuccess: async (response) => {
+          if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+          const verified = await verifyCheckoutAction(response.reference)
+          if (!verified.paid) {
+            setCheckingEntitlement(false)
+            setDetailsError("Your payment wasn't completed, so the coupon editor isn't unlocked yet. Feel free to try again.")
+            return
+          }
+          builder.startEditing()
+        },
+        onCancel: () => {
+          if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+          setCheckingEntitlement(false)
+        },
+        onError: (error) => {
+          if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+          setCheckingEntitlement(false)
+          setDetailsError(error.message || CHECKOUT_POPUP_ERROR)
+        },
+      })
+    } catch {
+      if (typeof window !== 'undefined') window.localStorage.removeItem(PENDING_SAVE_INTENT_KEY)
+      setCheckingEntitlement(false)
+      setDetailsError(CHECKOUT_POPUP_ERROR)
+    }
   }
 
   const handleContinueToEdit = () => {

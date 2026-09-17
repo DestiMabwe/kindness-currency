@@ -21,7 +21,7 @@ vi.mock('@/lib/rateLimit', () => ({
 describe('initiateCartCheckoutAction', () => {
   beforeEach(() => {
     getUser.mockReset().mockResolvedValue({ data: { user: { id: 'user-1', email: 'alex@example.com' } } })
-    initiateCartCheckout.mockReset().mockResolvedValue({ success: true, authorizationUrl: 'https://paystack.test/pay' })
+    initiateCartCheckout.mockReset().mockResolvedValue({ success: true, accessCode: 'access-code-1' })
     checkRateLimit.mockReset().mockResolvedValue({ allowed: true, retryAfterSeconds: 0 })
   })
 
@@ -30,7 +30,7 @@ describe('initiateCartCheckoutAction', () => {
 
     const result = await initiateCartCheckoutAction(items)
 
-    expect(result).toEqual({ success: true, authorizationUrl: 'https://paystack.test/pay' })
+    expect(result).toEqual({ success: true, accessCode: 'access-code-1' })
     expect(checkRateLimit).toHaveBeenCalledWith(expect.anything(), 'checkout:user:user-1', expect.anything())
     expect(initiateCartCheckout).toHaveBeenCalledWith({
       userId: 'user-1',

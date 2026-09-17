@@ -1,16 +1,21 @@
 'use client'
 
 // Cart contents, 3-for-2 math, and checkout — real Paystack payment via initiateCartCheckoutAction.
-// "Pay" redirects to Paystack's hosted checkout; the buyer lands back on /cart/complete once done.
+// "Pay" opens Paystack's inline popup right on this page; the buyer lands on /cart/complete once
+// the popup reports success, without ever navigating away to pay.
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { QuantityStepper } from '@/components/builder/QuantityStepper'
 import { useCartLines, setCartQty, removeFromCart, linesForCart, cartTotals, type CartLine } from '@/lib/cart'
 import { initiateCartCheckoutAction } from '@/app/cart/actions'
+import { resumePaystackCheckout } from '@/lib/paystack/inline'
 import { formatPrice, REGION_PAIRED_BUNDLE_PRICE, type PricingRegion } from '@/lib/geoPricing'
+
+const CHECKOUT_POPUP_ERROR = 'Could not open the payment window. Please try again.'
 
 const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
 
@@ -28,6 +33,7 @@ function LineDiscountNote({ line, isFreeLine, region }: { line: CartLine; isFree
 }
 
 export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: PricingRegion }) {
+  const router = useRouter()
   const cartLines = useCartLines()
   const [step, setStep] = useState<Step>('cart')
   const [authOpen, setAuthOpen] = useState(false)
@@ -51,7 +57,21 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
       setPayError(result.error)
       return
     }
-    window.location.href = result.authorizationUrl
+    try {
+      await resumePaystackCheckout(result.accessCode, {
+        onSuccess: (response) => {
+          router.push(`/cart/complete?reference=${encodeURIComponent(response.reference)}`)
+        },
+        onCancel: () => setPaying(false),
+        onError: (error) => {
+          setPaying(false)
+          setPayError(error.message || CHECKOUT_POPUP_ERROR)
+        },
+      })
+    } catch {
+      setPaying(false)
+      setPayError(CHECKOUT_POPUP_ERROR)
+    }
   }
 
   if (step === 'checkout') {

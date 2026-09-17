@@ -20,6 +20,11 @@ vi.mock('@/app/create/actions', () => ({
   checkTemplateEntitlementAction: (slug: string) => checkTemplateEntitlementAction(slug),
 }))
 
+const resumePaystackCheckout = vi.fn()
+vi.mock('@/lib/paystack/inline', () => ({
+  resumePaystackCheckout: (accessCode: string, handlers: unknown) => resumePaystackCheckout(accessCode, handlers),
+}))
+
 vi.mock('@/app/early-access/actions', () => ({
   signUpForEarlyAccessAction: vi.fn(),
 }))
@@ -95,6 +100,7 @@ describe('CouponSetBuilder', () => {
     linkSenderAction.mockReset()
     recordFeatureInterestAction.mockReset()
     checkTemplateEntitlementAction.mockReset()
+    resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
     // Every bundle template is paid, so continuing past the details screen always checks
     // entitlement first (see CouponSetBuilder's unlockEditorIfEntitled) — default to "already
     // entitled" so tests unrelated to the paywall gate can reach the editor without each one
@@ -458,9 +464,9 @@ describe('coming soon section', () => {
       expect(checkTemplateEntitlementAction).not.toHaveBeenCalled()
     })
 
-    it('redirects straight to checkout instead of opening the editor when logged in but not yet entitled', async () => {
+    it('opens the Paystack popup instead of the editor when logged in but not yet entitled', async () => {
       checkTemplateEntitlementAction.mockResolvedValue({ entitled: false })
-      initiateSendCheckoutAction.mockResolvedValue({ success: true, authorizationUrl: 'https://paystack.test/pay/abc' })
+      initiateSendCheckoutAction.mockResolvedValue({ success: true, accessCode: 'access-code-1' })
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -469,6 +475,43 @@ describe('coming soon section', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
       await waitFor(() => expect(initiateSendCheckoutAction).toHaveBeenCalledWith('mothers_day', undefined))
+      expect(resumePaystackCheckout).toHaveBeenCalledWith('access-code-1', expect.objectContaining({ onSuccess: expect.any(Function) }))
+      expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
+    })
+
+    it('unlocks the editor once the popup reports success and payment verifies', async () => {
+      checkTemplateEntitlementAction.mockResolvedValue({ entitled: false })
+      initiateSendCheckoutAction.mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      verifyCheckoutAction.mockResolvedValue({ paid: true, cartSnapshot: [], amountCents: 299 })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await waitFor(() => expect(resumePaystackCheckout).toHaveBeenCalled())
+
+      const handlers = resumePaystackCheckout.mock.calls[0][1] as { onSuccess: (r: { reference: string }) => void }
+      handlers.onSuccess({ reference: 'kc_ref_1' })
+
+      expect(await screen.findByText('Save My Coupons')).toBeInTheDocument()
+      expect(verifyCheckoutAction).toHaveBeenCalledWith('kc_ref_1')
+    })
+
+    it('shows a payment-incomplete error instead of unlocking when the popup succeeds but verification says unpaid', async () => {
+      checkTemplateEntitlementAction.mockResolvedValue({ entitled: false })
+      initiateSendCheckoutAction.mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      verifyCheckoutAction.mockResolvedValue({ paid: false })
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await waitFor(() => expect(resumePaystackCheckout).toHaveBeenCalled())
+
+      const handlers = resumePaystackCheckout.mock.calls[0][1] as { onSuccess: (r: { reference: string }) => void }
+      handlers.onSuccess({ reference: 'kc_ref_1' })
+
+      expect(await screen.findByText("Your payment wasn't completed, so the coupon editor isn't unlocked yet. Feel free to try again.")).toBeInTheDocument()
       expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
     })
 

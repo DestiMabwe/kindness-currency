@@ -35,7 +35,7 @@ vi.mock('@/lib/rateLimit', () => ({
 describe('initiateSendCheckoutAction', () => {
   beforeEach(() => {
     getUser.mockReset().mockResolvedValue({ data: { user: { id: 'user-1', email: 'alex@example.com' } } })
-    initiateSingleCheckout.mockReset().mockResolvedValue({ success: true, authorizationUrl: 'https://paystack.test/pay' })
+    initiateSingleCheckout.mockReset().mockResolvedValue({ success: true, accessCode: 'access-code-1' })
     checkRateLimit.mockReset().mockResolvedValue({ allowed: true, retryAfterSeconds: 0 })
   })
 

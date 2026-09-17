@@ -1,13 +1,31 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CartView } from '../CartView'
 import { addToCart } from '@/lib/cart'
 import { ctaCopy } from '@/constants/ctaCopy'
 
+const push = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}))
+
+const initiateCartCheckoutAction = vi.fn()
+vi.mock('@/app/cart/actions', () => ({
+  initiateCartCheckoutAction: (items: unknown) => initiateCartCheckoutAction(items),
+}))
+
+const resumePaystackCheckout = vi.fn()
+vi.mock('@/lib/paystack/inline', () => ({
+  resumePaystackCheckout: (accessCode: string, handlers: unknown) => resumePaystackCheckout(accessCode, handlers),
+}))
+
 describe('CartView', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    push.mockReset()
+    initiateCartCheckoutAction.mockReset()
+    resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
   })
 
   it("decrements a line's quantity via its stepper, and removes the line entirely once it reaches 0", async () => {
@@ -47,5 +65,48 @@ describe('CartView', () => {
 
     expect(screen.getAllByText('R19.99').length).toBeGreaterThan(0)
     expect(screen.queryByText('$2.99')).not.toBeInTheDocument()
+  })
+
+  describe('checkout', () => {
+    beforeEach(() => {
+      addToCart('mothers_day', 1)
+    })
+
+    it('opens the Paystack popup with the server-issued access code instead of navigating away', async () => {
+      initiateCartCheckoutAction.mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      render(<CartView isLoggedIn={true} region="US" />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('$2.99') }))
+
+      expect(resumePaystackCheckout).toHaveBeenCalledWith('access-code-1', expect.objectContaining({ onSuccess: expect.any(Function) }))
+    })
+
+    it('navigates to /cart/complete with the reference once the popup reports success', async () => {
+      initiateCartCheckoutAction.mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      render(<CartView isLoggedIn={true} region="US" />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('$2.99') }))
+
+      const handlers = resumePaystackCheckout.mock.calls[0][1] as { onSuccess: (r: { reference: string }) => void }
+      handlers.onSuccess({ reference: 'kc_ref_1' })
+
+      expect(push).toHaveBeenCalledWith('/cart/complete?reference=kc_ref_1')
+    })
+
+    it('stops paying without an error when the visitor closes the popup', async () => {
+      initiateCartCheckoutAction.mockResolvedValue({ success: true, accessCode: 'access-code-1' })
+      render(<CartView isLoggedIn={true} region="US" />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('$2.99') }))
+
+      const handlers = resumePaystackCheckout.mock.calls[0][1] as { onCancel: () => void }
+      handlers.onCancel()
+
+      expect(push).not.toHaveBeenCalled()
+      await waitFor(() => expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('$2.99') })).not.toBeDisabled())
+    })
   })
 })
