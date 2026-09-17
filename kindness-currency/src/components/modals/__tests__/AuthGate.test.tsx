@@ -89,6 +89,19 @@ describe('AuthGate', () => {
     expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
   })
 
+  // Regression coverage: magic links from this app's shared transactional-email sender have
+  // landed in spam for real senders (see the session's own email-deliverability investigation) —
+  // the "check your inbox" step must make checking spam/junk unmissable, not a buried aside.
+  it('makes checking spam/junk unmissable on the "check your inbox" step', async () => {
+    signInWithOtp.mockResolvedValue({ error: null })
+    render(<AuthGate onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+
+    expect(await screen.findByText(/Check your spam or junk folder/)).toBeInTheDocument()
+  })
+
   it('shows a generic error and stays on the form for an unrecognized failure', async () => {
     signInWithOtp.mockResolvedValue({ error: { message: 'internal server error', code: 'unexpected_failure' } })
     render(<AuthGate onClose={vi.fn()} />)

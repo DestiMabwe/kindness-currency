@@ -247,6 +247,11 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
             <div className="mt-2 text-[13px] leading-relaxed text-[#2C2C2C] opacity-72">
               We sent a magic link to <b>{email}</b>. Tap it to verify — no password needed.
             </div>
+            <div className="mt-4 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-left text-[12.5px] leading-relaxed text-[#1A1A2E]">
+              <b>Don't see it? Check your spam or junk folder.</b> These emails sometimes land there
+              instead of your main inbox — search for &quot;Kindness Currency&quot; if it's hard to
+              spot.
+            </div>
             <button type="button" onClick={onClose} className="mt-5 w-full p-1.5 text-[13.5px] font-semibold text-[#2C2C2C] opacity-70">
               Close
             </button>
