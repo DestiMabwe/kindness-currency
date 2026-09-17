@@ -18,9 +18,11 @@
 // for a paid gesture or an unlocked-for-customization free one, requires real payment via Paystack
 // first (see performSave's paymentRequired branch) — both go through the same saveDraftAction/
 // sendCouponSetAction the bundle flow uses (templateId comes from the real single-use `templates`
-// row seeded for this gesture's slug — see CouponSetBuilder's singleUseTemplateIdBySlug). Auth
-// gating mirrors the bundle flow's handleSaveOrSend exactly (login required before a save is
-// attempted, since every real auth path here is a full page redirect, not an inline verification).
+// row seeded for this gesture's slug — see CouponSetBuilder's singleUseTemplateIdBySlug). No
+// upfront login check, mirroring the bundle flow: a free draft or an unmodified free gesture needs
+// no account at all, same as an anonymous /give/[id] recipient. AuthGate only opens if performSave
+// comes back paymentRequired — the one point that genuinely needs a userId/email for Paystack —
+// since every real auth path here is a full page redirect, not an inline verification.
 // The in-progress draft persists to localStorage — keyed by gesture slug, hydrated in an effect
 // (never a lazy useState initializer, which would desync the client's first render from the
 // server-rendered HTML and break hydration) — and a pending-save-intent flag lets the save resume
@@ -255,6 +257,7 @@ export function GestureFlow({
       recipient_name: recipientName,
       ...(expiryDate ? { expiry_date: expiryDate } : {}),
       ...(senderMessage.trim() ? { sender_message: senderMessage.trim() } : {}),
+      gesture_unlocked: unlocked,
       coupons: [
         {
           service_title: draft.serviceTitle,
@@ -271,6 +274,15 @@ export function GestureFlow({
 
     if (!result.success && result.paymentRequired) {
       if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, intent)
+      // Payment is the one thing that genuinely requires an account (Paystack checkout needs a
+      // userId/email to attribute the order to) — this is the only point in the flow that should
+      // ever interrupt with AuthGate, not Save/Send generally (a free draft or an unmodified free
+      // gesture needs no account at all, same as an anonymous /give/[id] recipient).
+      if (!isLoggedIn) {
+        setSaving(false)
+        setAuthOpen(true)
+        return
+      }
       const checkout = await initiateSendCheckoutAction(gesture.slug, unlocked ? 'gestureUnlock' : 'base')
       if (!checkout.success) {
         setSaving(false)
@@ -292,12 +304,9 @@ export function GestureFlow({
     setStep('done')
   }
 
+  // No upfront login check — a free draft or an unmodified free gesture needs no account at all;
+  // performSave only opens AuthGate if the save actually comes back paymentRequired.
   const handleSaveOrSend = (intent: 'draft' | 'sent') => {
-    if (!isLoggedIn) {
-      if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, intent)
-      setAuthOpen(true)
-      return
-    }
     void performSave(intent)
   }
 

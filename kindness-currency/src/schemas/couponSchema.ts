@@ -47,6 +47,10 @@ export const RedeemInputSchema = z.object({
 // Bundle sets always send exactly 8; a single-use gesture set sends exactly 1 — both are valid.
 export const SaveCouponSetInputSchema = CouponSetMutationSchema.extend({
   coupons: z.array(CouponMutationSchema.extend({ sort_order: z.number().int().min(1) })).min(1).max(8),
+  // Set only by GestureFlow, true iff the sender went through the "Make This Gift Yours" paid
+  // unlock for an otherwise-free gesture — see requiresPaymentForSend in couponSetRepository.ts.
+  // Irrelevant for bundle templates (always paid) and gestures that are paid from the start.
+  gesture_unlocked: z.boolean().optional(),
 })
 
 // Derived types — never write parallel interfaces

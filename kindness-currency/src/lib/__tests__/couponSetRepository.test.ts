@@ -181,38 +181,41 @@ describe('CouponSetRepository', () => {
         expect(rpc.mock.calls[0][1].p_requires_payment).toBe(true)
       })
 
-      it('does not require payment for a free gesture sent with its unmodified default text', async () => {
+      it('does not require payment for a free gesture sent with no unlock flag', async () => {
         const { supabase, rpc } = makeSupabase({ template: { slug: 'relief', is_single_use: true } })
         const repo = createCouponSetRepository(supabase as never)
-        const coupon = {
-          service_title: 'Rescue Mission',
-          micro_copy: 'Let me take over something for you — you choose what',
-          fine_print: "Redeemable whenever it's heavy",
-          font_choice: 'playfair' as const,
-          background_effect: 'none' as const,
-          sort_order: 1,
-        }
 
-        await repo.saveCouponSet({ ...validInput(), coupons: [coupon] }, 'user-1', 'sent')
+        await repo.saveCouponSet({ ...validInput(), coupons: validInput().coupons.slice(0, 1) }, 'user-1', 'sent')
 
         expect(rpc.mock.calls[0][1].p_requires_payment).toBe(false)
       })
 
-      it('requires payment for a free gesture sent with customized text (the unlock)', async () => {
+      it('requires payment for a free gesture sent with gesture_unlocked: true (the paid unlock)', async () => {
         const { supabase, rpc } = makeSupabase({ template: { slug: 'relief', is_single_use: true } })
         const repo = createCouponSetRepository(supabase as never)
-        const coupon = {
-          service_title: 'My Own Title',
-          micro_copy: 'Let me take over something for you — you choose what',
-          fine_print: "Redeemable whenever it's heavy",
-          font_choice: 'playfair' as const,
-          background_effect: 'none' as const,
-          sort_order: 1,
-        }
 
-        await repo.saveCouponSet({ ...validInput(), coupons: [coupon] }, 'user-1', 'sent')
+        await repo.saveCouponSet(
+          { ...validInput(), coupons: validInput().coupons.slice(0, 1), gesture_unlocked: true },
+          'user-1',
+          'sent'
+        )
 
         expect(rpc.mock.calls[0][1].p_requires_payment).toBe(true)
+      })
+
+      // Regression test for the actual bug this replaced: payment used to be inferred by diffing
+      // the submitted text against the gesture's default wording, so a sender who unlocked but kept
+      // (or reverted to) the original wording — or only changed the background color/effect, always
+      // editable regardless of paid status — got the paid unlock for free. Customized text alone
+      // must never imply payment now; only the explicit gesture_unlocked flag does.
+      it('does NOT require payment for customized text alone, without gesture_unlocked — the bypass this replaced', async () => {
+        const { supabase, rpc } = makeSupabase({ template: { slug: 'relief', is_single_use: true } })
+        const repo = createCouponSetRepository(supabase as never)
+        const customizedCoupon = { ...validInput().coupons[0], service_title: 'My Own Title' }
+
+        await repo.saveCouponSet({ ...validInput(), coupons: [customizedCoupon] }, 'user-1', 'sent')
+
+        expect(rpc.mock.calls[0][1].p_requires_payment).toBe(false)
       })
     })
   })

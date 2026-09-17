@@ -136,6 +136,16 @@ export function CouponSetBuilder({
         return
       }
       if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, intent)
+      // Payment is the one thing that genuinely requires an account — a free draft needs none at
+      // all. In practice a bundle template's editor is already gated behind login+entitlement
+      // (see unlockEditorIfEntitled below), so isLoggedIn is normally already true by the time
+      // 'sent' gets here; this check exists for 'draft' and as a defensive backstop, not because
+      // the bundle flow is expected to hit it.
+      if (!isLoggedIn) {
+        setSaving(false)
+        setAuthOpen(true)
+        return
+      }
       const checkout = await initiateSendCheckoutAction(slug)
       if (!checkout.success) {
         setSaving(false)
@@ -158,12 +168,9 @@ export function CouponSetBuilder({
     if (intent === 'sent' && builder.state.selectedTemplateSlug) consumePendingInstance(builder.state.selectedTemplateSlug)
   }
 
+  // No upfront login check — a free draft needs no account at all; performSave only opens
+  // AuthGate if the save actually comes back paymentRequired.
   const handleSaveOrSend = (intent: 'draft' | 'sent') => {
-    if (!isLoggedIn) {
-      if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, intent)
-      setAuthOpen(true)
-      return
-    }
     void performSave(intent)
   }
 

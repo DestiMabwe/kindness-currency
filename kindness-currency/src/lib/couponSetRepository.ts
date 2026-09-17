@@ -51,27 +51,24 @@ const GENERIC_ERROR = 'Something went wrong. Please try again.'
 
 /**
  * Whether sending this coupon set needs a consumed purchased_instances row. Every bundle template
- * is always paid. A single-use gesture only needs one when its base price is nonzero, or — for an
- * otherwise-free gesture — when the submitted coupon's text has actually been customized off the
- * curated defaults (the "Make This Gift Yours" unlock is what's paid for, not the gesture itself;
- * sending a free gesture unmodified must stay free). Compares against the same singleUseGestures
- * fixture GestureFlow.tsx renders from, so this can't be fooled by client-side state — it's judged
- * purely from what was actually submitted.
+ * is always paid. A single-use gesture only needs one when its base price is nonzero, or when the
+ * sender went through the "Make This Gift Yours" paid unlock (gestureUnlocked) — the unlock is
+ * what's paid for, not the gesture itself, so sending a free gesture unmodified must stay free.
+ *
+ * This used to infer "was it unlocked" by diffing the submitted text against the gesture's default
+ * wording — broken, because a sender who unlocked but kept the original wording (or only changed
+ * the background color/effect, always editable regardless of paid status) submitted content
+ * identical to the default, so the diff reported "not customized" and skipped payment entirely.
+ * gestureUnlocked is set explicitly by GestureFlow instead, straight from the same confirm action
+ * that triggers checkout — see create_coupon_set()'s PAYMENT_REQUIRED path, which is the actual,
+ * unspoofable gate (an unconsumed purchased_instances row must exist); this function only decides
+ * whether that gate applies, same as it always has for bundle templates.
  */
-function requiresPaymentForSend(
-  template: { slug: string; is_single_use: boolean },
-  firstCoupon: { service_title: string; micro_copy?: string; fine_print?: string } | undefined
-): boolean {
+function requiresPaymentForSend(template: { slug: string; is_single_use: boolean }, gestureUnlocked: boolean | undefined): boolean {
   if (!template.is_single_use) return true
   const gesture = gestureBySlug[template.slug]
   if (!gesture) return true
-  if (gesture.price > 0) return true
-  if (!firstCoupon) return false
-  return (
-    firstCoupon.service_title !== gesture.serviceTitle ||
-    (firstCoupon.micro_copy ?? '') !== gesture.microCopy ||
-    (firstCoupon.fine_print ?? '') !== gesture.finePrint
-  )
+  return gesture.price > 0 || gestureUnlocked === true
 }
 
 export function createCouponSetRepository(supabase: SupabaseClient) {
@@ -88,7 +85,7 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
      * status is decided by the caller's own server action (saveDraftAction vs
      * sendCouponSetAction), never taken from the client's payload — a 'draft' save is always free;
      * a 'sent' save requires payment for every bundle template, and for a single-use gesture only
-     * once its price is nonzero or its text has actually been customized off the free defaults
+     * once its price is nonzero or the sender went through the paid "Make This Gift Yours" unlock
      * (see requiresPaymentForSend below). When payment is required and no unconsumed
      * purchased_instances row exists for (userId, template_id), the function raises
      * 'PAYMENT_REQUIRED' and nothing is written — surfaced here as `paymentRequired: true` so the
@@ -97,7 +94,7 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
     async saveCouponSet(input: unknown, userId: string | null, status: CouponSetStatus): Promise<SaveCouponSetResult> {
       const parsed = SaveCouponSetInputSchema.safeParse(input)
       if (!parsed.success) return { success: false, error: GENERIC_ERROR }
-      const { coupons, expiry_date, sender_message, ...setFields } = parsed.data
+      const { coupons, expiry_date, sender_message, gesture_unlocked, ...setFields } = parsed.data
 
       const { data: template, error: templateError } = await supabase
         .from('templates')
@@ -106,7 +103,7 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
         .single<{ slug: string; is_single_use: boolean }>()
       if (templateError || !template) return { success: false, error: GENERIC_ERROR }
 
-      const requiresPayment = status === 'sent' && requiresPaymentForSend(template, coupons[0])
+      const requiresPayment = status === 'sent' && requiresPaymentForSend(template, gesture_unlocked)
 
       const pin = String(randomInt(1000, 10000))
       const pinHash = await bcrypt.hash(pin, 10)

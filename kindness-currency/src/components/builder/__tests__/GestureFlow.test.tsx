@@ -150,4 +150,40 @@ describe('GestureFlow', () => {
       expect(screen.getByText('$1.99')).toBeInTheDocument()
     })
   })
+
+  describe('Save/Send without an account', () => {
+    it('saves a draft while logged out, with no AuthGate interruption at all', async () => {
+      saveDraftAction.mockReset().mockResolvedValue({ success: true, id: 'set-1', pin: '1234' })
+      await goToPersonalize(freeGesture)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
+
+      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
+      expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
+      expect(saveDraftAction).toHaveBeenCalledWith(expect.objectContaining({ gesture_unlocked: false }))
+    })
+
+    it('sends an unmodified free gesture while logged out, with no AuthGate interruption at all', async () => {
+      sendCouponSetAction.mockReset().mockResolvedValue({ success: true, id: 'set-1', pin: '1234' })
+      await goToPersonalize(freeGesture)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+
+      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
+      expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
+      expect(sendCouponSetAction).toHaveBeenCalledWith(expect.objectContaining({ gesture_unlocked: false }))
+    })
+
+    it('opens AuthGate — not checkout directly — when sending a paid unlock while logged out', async () => {
+      sendCouponSetAction.mockReset().mockResolvedValue({ success: false, error: 'Payment required.', paymentRequired: true })
+      await unlockGesture(freeGesture)
+      await userEvent.type(screen.getByLabelText('Service title'), ' (mine)')
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+
+      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+      expect(initiateSendCheckoutAction).not.toHaveBeenCalled()
+      expect(sendCouponSetAction).toHaveBeenCalledWith(expect.objectContaining({ gesture_unlocked: true }))
+    })
+  })
 })
