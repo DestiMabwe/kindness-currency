@@ -68,6 +68,7 @@ export function createGiveRepository(supabase: SupabaseClient) {
         .eq('id', id)
         .single<CouponSetRow>()
 
+      if (error) console.error('getCouponSetForRecipient failed', id, error)
       if (error || !data) return null
 
       const template = Array.isArray(data.templates) ? data.templates[0] : data.templates
