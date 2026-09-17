@@ -72,7 +72,10 @@ export function createGiveRepository(supabase: SupabaseClient) {
       if (error || !data) return null
 
       const template = Array.isArray(data.templates) ? data.templates[0] : data.templates
-      if (!template) return null
+      if (!template) {
+        console.error('getCouponSetForRecipient: row loaded but templates embed was empty', id, JSON.stringify(data))
+        return null
+      }
 
       return {
         id: data.id,
