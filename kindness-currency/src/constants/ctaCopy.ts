@@ -160,7 +160,7 @@ export const ctaCopy = {
   cartPayCta: (formattedTotal: string) => `Pay ${formattedTotal}`,
   cartDoneHeading: "You're all set ♥",
   cartDoneBody: "Payment's confirmed — these are yours now. Personalize each one whenever you're ready.",
-  cartPersonalizeCta: 'Personalize My Coupons →',
+  cartSeeMyGiftsCta: 'See My Gifts →',
   cartPaymentFailedHeading: "That didn't go through",
   cartPaymentFailedBody: "Your payment wasn't completed, so nothing was charged and nothing was added to your account. Your cart is still waiting for you.",
   cartPaymentFailedCta: 'Back to Cart',

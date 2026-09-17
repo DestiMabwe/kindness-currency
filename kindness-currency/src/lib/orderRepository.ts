@@ -12,6 +12,23 @@ export type CreatePendingOrderInput = {
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
 
+export type PendingPersonalization = { slug: string; count: number }
+
+/** Groups unconsumed instances by template — a sender who bought 3 of the same coupon book sees
+ * one row with a count, not 3 identical-looking rows, since consuming one is always just "the
+ * oldest remaining one" (see create_coupon_set()'s FIFO pick) with no meaningful distinction
+ * between copies until personalized. Order follows first appearance in the input (already
+ * newest-first from getUnconsumedInstancesForUser). */
+export function groupUnconsumedInstances(instances: { id: string; slug: string }[]): PendingPersonalization[] {
+  const order: string[] = []
+  const counts = new Map<string, number>()
+  for (const { slug } of instances) {
+    if (!counts.has(slug)) order.push(slug)
+    counts.set(slug, (counts.get(slug) ?? 0) + 1)
+  }
+  return order.map((slug) => ({ slug, count: counts.get(slug)! }))
+}
+
 export function createOrderRepository(supabase: SupabaseClient) {
   return {
     async createPendingOrder(input: CreatePendingOrderInput): Promise<{ success: true; orderId: string } | { success: false; error: string }> {
@@ -91,9 +108,10 @@ export function createOrderRepository(supabase: SupabaseClient) {
       return { success: !error }
     },
 
-    /** The sender's currently unconsumed, paid-for-later instances, newest first — purely a
-     * display cache source (see cart.ts's syncPurchasedInstancesFromServer); enforcement of who
-     * gets to create a coupon set happens in the create_coupon_set() Postgres function, not here. */
+    /** The sender's currently unconsumed, paid-for-later instances, newest first — the real
+     * source of truth for /profile's "Ready to personalize" list and /create's gallery badges
+     * (see groupUnconsumedInstances above). Enforcement of who actually gets to create a coupon
+     * set happens in the create_coupon_set() Postgres function, not here. */
     async getUnconsumedInstancesForUser(userId: string): Promise<{ id: string; slug: string }[]> {
       const { data, error } = await supabase
         .from('purchased_instances')

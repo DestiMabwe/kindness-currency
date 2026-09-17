@@ -2,6 +2,7 @@ import { SiteHeader } from '@/components/shared/SiteHeader'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createCouponSetRepository } from '@/lib/couponSetRepository'
+import { createOrderRepository, groupUnconsumedInstances } from '@/lib/orderRepository'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { ProfileCartSection } from '@/components/shared/ProfileCartSection'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -32,12 +33,15 @@ export default async function ProfilePage() {
     )
   }
 
-  const repo = createCouponSetRepository(createServiceClient())
-  const [sentSets, receivedSets, region] = await Promise.all([
+  const supabaseService = createServiceClient()
+  const repo = createCouponSetRepository(supabaseService)
+  const [sentSets, receivedSets, region, unconsumedInstances] = await Promise.all([
     repo.getCouponSetsForUser(user.id),
     repo.getCouponSetsForRecipient(user.id),
     getRegion(),
+    createOrderRepository(supabaseService).getUnconsumedInstancesForUser(user.id),
   ])
+  const pendingPersonalizations = groupUnconsumedInstances(unconsumedInstances)
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FFF8F0]">
@@ -50,7 +54,7 @@ export default async function ProfilePage() {
           {ctaCopy.profileHeading}
         </h1>
         <div className="mt-5">
-          <ProfileCartSection region={region} />
+          <ProfileCartSection region={region} pendingPersonalizations={pendingPersonalizations} />
           <ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />
         </div>
       </div>

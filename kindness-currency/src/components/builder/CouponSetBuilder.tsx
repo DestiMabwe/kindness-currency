@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import { useCouponSetBuilder, type BuilderCoupon } from '@/hooks/useCouponSetBuilder'
 import { SingleUseGestureSection, FilterPills, type FilterValue } from '@/components/builder/SingleUseGestureSection'
 import { QuantityStepper } from '@/components/builder/QuantityStepper'
@@ -14,7 +15,8 @@ import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
 import { bundleTierBySlug, pairedSlugBySlug, type BundleTier } from '@/lib/bundleTiers'
 import { REGION_TIER_PRICE, REGION_PAIRED_BUNDLE_PRICE, formatPrice, type PricingRegion } from '@/lib/geoPricing'
-import { usePendingInstances, addToCart, consumePendingInstance } from '@/lib/cart'
+import { addToCart } from '@/lib/cart'
+import type { PendingPersonalization } from '@/lib/orderRepository'
 import {
   saveDraftAction,
   sendCouponSetAction,
@@ -57,6 +59,13 @@ export type CouponSetBuilderProps = {
   isLoggedIn?: boolean
   userEmail?: string | null
   region: PricingRegion
+  /** Real, server-fetched unconsumed-instance counts (see orderRepository.groupUnconsumedInstances)
+   * — powers both the Step 1 gallery's "N waiting" badges and the deep-link jump below. */
+  pendingPersonalizations?: PendingPersonalization[]
+  /** Set from /create?template=<slug> when arriving via a "Personalize" link on Your Gifts —
+   * jumps straight past Step 1 into that template instead of leaving the sender to re-find it in
+   * the gallery themselves. */
+  initialTemplateSlug?: string | null
 }
 
 type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
@@ -83,11 +92,16 @@ export function CouponSetBuilder({
   isLoggedIn = false,
   userEmail = null,
   region,
+  pendingPersonalizations = [],
+  initialTemplateSlug = null,
 }: CouponSetBuilderProps) {
+  const router = useRouter()
   const builder = useCouponSetBuilder(templates)
   // Maps a gesture's fixture slug (src/lib/singleUseGestures.ts) to its real DB template id, so
   // GestureFlow has something valid to save coupon_sets.template_id with.
   const singleUseTemplateIdBySlug = Object.fromEntries(singleUseTemplates.map((t) => [t.slug, t.id]))
+  const pendingCountBySlug = Object.fromEntries(pendingPersonalizations.map((p) => [p.slug, p.count]))
+  const attemptedInitialTemplate = useRef(false)
   const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
   const [pendingTemplateSwitch, setPendingTemplateSwitch] = useState<TemplateWithCoupons | null>(null)
   const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
@@ -194,9 +208,10 @@ export function CouponSetBuilder({
       return
     }
     builder.completeSave({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
-    // Clears the "purchased, not yet personalized" flag once this template's coupons are
-    // actually saved/sent — otherwise it would show as pending forever on /create and Profile.
-    if (intent === 'sent' && builder.state.selectedTemplateSlug) consumePendingInstance(builder.state.selectedTemplateSlug)
+    // Re-fetches this page's server props so the just-consumed instance's count drops immediately
+    // (pendingPersonalizations is fetched once at page load, not reactive on its own) — otherwise
+    // the gallery badge would keep showing it as still waiting until the next full page load.
+    if (intent === 'sent') router.refresh()
   }
 
   // No upfront login check — a free draft needs no account at all; performSave only opens
@@ -384,6 +399,20 @@ export function CouponSetBuilder({
     proceedToTemplate(template)
   }
 
+  // Arriving via a "Personalize" link from Your Gifts (?template=slug): jump straight into that
+  // template instead of leaving the sender on Step 1 to re-find what they already bought. Reuses
+  // handleSelectTemplate exactly as a manual tap would, so an age gate or an unrelated in-progress
+  // draft for a different template still gets its normal warning — this never bypasses either.
+  // Gated on builder.hydrated (not just mount) so any real local draft has already loaded first;
+  // firing before that would risk jumping straight in before there was anything to compare against.
+  useEffect(() => {
+    if (attemptedInitialTemplate.current || !builder.hydrated || !initialTemplateSlug) return
+    attemptedInitialTemplate.current = true
+    const match = templates.find((t) => t.slug === initialTemplateSlug)
+    if (match) handleSelectTemplate(match)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSelectTemplate is stable per render and would cause an infinite loop if included
+  }, [builder.hydrated, initialTemplateSlug, templates])
+
   const handlePreviewSample = (template: TemplateWithCoupons) => {
     if (template.is_age_restricted) {
       setPendingAgeGate({ template, action: 'preview' })
@@ -454,6 +483,7 @@ export function CouponSetBuilder({
           currentTemplateId={builder.state.selectedTemplateId}
           isLoggedIn={isLoggedIn}
           region={region}
+          pendingCountBySlug={pendingCountBySlug}
           onSelect={handleSelectTemplate}
           onPreviewSample={handlePreviewSample}
           onFeatureInterest={setFeatureInterestModal}
@@ -728,6 +758,7 @@ function TemplateSelectScreen({
   currentTemplateId,
   isLoggedIn,
   region,
+  pendingCountBySlug,
   onSelect,
   onPreviewSample,
   onFeatureInterest,
@@ -738,6 +769,7 @@ function TemplateSelectScreen({
   currentTemplateId: string | null
   isLoggedIn: boolean
   region: PricingRegion
+  pendingCountBySlug: Record<string, number>
   onSelect: (template: TemplateWithCoupons) => void
   onPreviewSample: (template: TemplateWithCoupons) => void
   onFeatureInterest: (feature: FeatureInterestSlug) => void
@@ -749,7 +781,6 @@ function TemplateSelectScreen({
   const singleUseLayout = filter === 'range' ? 'hidden' : filter === 'focused' ? 'stack' : 'carousel'
   const showBundleList = filter !== 'focused'
   const bundleTemplates = bundleTier ? templates.filter((t) => bundleTierBySlug[t.slug] === bundleTier) : templates
-  const pendingInstances = usePendingInstances()
   const promoPopupRef = useRef<PromoScrollPopupHandle>(null)
   const attemptedGestureResume = useRef(false)
 
@@ -830,7 +861,7 @@ function TemplateSelectScreen({
             key={template.id}
             template={template}
             isCurrent={template.id === currentTemplateId}
-            pendingCount={pendingInstances.filter((i) => i.slug === template.slug).length}
+            pendingCount={pendingCountBySlug[template.slug] ?? 0}
             region={region}
             onSelect={onSelect}
             onPreviewSample={onPreviewSample}

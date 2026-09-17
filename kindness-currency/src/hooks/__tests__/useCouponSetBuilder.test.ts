@@ -112,6 +112,14 @@ describe('useCouponSetBuilder', () => {
     })
   })
 
+  describe('hydrated', () => {
+    it('becomes true once the one-time localStorage rehydration has run, whether or not a draft existed', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+
+      expect(result.current.hydrated).toBe(true)
+    })
+  })
+
   describe('template selection', () => {
     it('seeds coupons from the template defaults and advances to the details screen', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))

@@ -1,7 +1,7 @@
 // Paystack redirects here after checkout. Verifies + fulfills as a fast-path fallback in case the
 // webhook (the real source of truth) hasn't landed yet — see checkoutService.verifyAndFulfillCheckout,
-// safe to race. CartCompleteView (client) clears the local cart and records the real order/instances
-// into the local display caches ProfileCartSection/CouponSetBuilder already read.
+// safe to race. CartCompleteView (client) clears the local cart and records the purchase-history
+// receipt log; instances just names what to show on this one confirmation screen.
 
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { verifyAndFulfillCheckout } from '@/lib/checkoutService'

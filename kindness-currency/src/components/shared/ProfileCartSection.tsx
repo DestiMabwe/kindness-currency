@@ -5,15 +5,24 @@
 // genuinely nothing to show (no clutter for senders who haven't used the cart flow).
 
 import Link from 'next/link'
-import { useCartSlugs, usePendingInstances, useOrderHistory, linesForSlugs, cartTotals } from '@/lib/cart'
+import { useCartSlugs, useOrderHistory, linesForSlugs, cartTotals } from '@/lib/cart'
 import { formatPrice, REGION_PAIRED_BUNDLE_PRICE, type PricingRegion } from '@/lib/geoPricing'
+import type { PendingPersonalization } from '@/lib/orderRepository'
 
-export function ProfileCartSection({ region }: { region: PricingRegion }) {
+export function ProfileCartSection({
+  region,
+  pendingPersonalizations,
+}: {
+  region: PricingRegion
+  pendingPersonalizations: PendingPersonalization[]
+}) {
   const cartSlugs = useCartSlugs()
-  const purchasedSlugs = usePendingInstances().map((i) => i.slug)
   const orders = useOrderHistory()
   const cartLines = linesForSlugs(cartSlugs, region)
-  const purchasedLines = linesForSlugs(purchasedSlugs, region)
+  const purchasedLines = linesForSlugs(
+    pendingPersonalizations.map((p) => p.slug),
+    region
+  ).map((line) => ({ ...line, count: pendingPersonalizations.find((p) => p.slug === line.slug)?.count ?? 1 }))
 
   if (cartLines.length === 0 && purchasedLines.length === 0 && orders.length === 0) return null
 
@@ -46,11 +55,12 @@ export function ProfileCartSection({ region }: { region: PricingRegion }) {
             {purchasedLines.map((line) => (
               <Link
                 key={line.slug}
-                href="/create"
+                href={`/create?template=${encodeURIComponent(line.slug)}`}
                 className="flex items-center justify-between rounded-xl bg-[#F0ECE4] px-3 py-2.5 text-[13px] font-semibold text-[#1A1A2E]"
               >
                 {line.name}
-                <span className="text-[#2E7D6B]">Personalize →</span>
+                {line.count > 1 && <span className="ml-1.5 font-normal opacity-60">× {line.count}</span>}
+                <span className="ml-auto pl-3 text-[#2E7D6B]">Personalize →</span>
               </Link>
             ))}
           </div>

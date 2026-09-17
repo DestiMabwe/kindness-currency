@@ -5,6 +5,11 @@ import { CouponSetBuilder } from '../CouponSetBuilder'
 import { ctaCopy } from '@/constants/ctaCopy'
 import type { TemplateWithCoupons } from '@/lib/templateRepository'
 
+const routerRefresh = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: routerRefresh }),
+}))
+
 const saveDraftAction = vi.fn()
 const sendCouponSetAction = vi.fn()
 const initiateSendCheckoutAction = vi.fn()
@@ -101,6 +106,7 @@ describe('CouponSetBuilder', () => {
     recordFeatureInterestAction.mockReset()
     checkTemplateEntitlementAction.mockReset()
     resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
+    routerRefresh.mockReset()
     // Every bundle template is paid, so continuing past the details screen always checks
     // entitlement first (see CouponSetBuilder's unlockEditorIfEntitled) — default to "already
     // entitled" so tests unrelated to the paywall gate can reach the editor without each one
@@ -266,18 +272,18 @@ describe('CouponSetBuilder', () => {
     expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('$5.98') })).toBeInTheDocument()
   })
 
-  it('shows a pending-to-personalize badge that decrements after completing a send for that template', async () => {
+  it('shows a real, server-fetched pending-to-personalize badge, and refreshes the page after completing a send so it reflects the just-consumed instance', async () => {
     // Consuming a purchased instance only happens on an actual Send (paid), never a free draft
     // save — see couponSetRepository's requiresPaymentForSend / CouponSetBuilder's performSave.
     sendCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
-    window.localStorage.setItem(
-      'kindness-currency:purchased',
-      JSON.stringify([
-        { id: 'p1', slug: 'mothers_day' },
-        { id: 'p2', slug: 'mothers_day' },
-      ])
+    render(
+      <CouponSetBuilder
+        templates={[template()]}
+        isLoggedIn={true}
+        region="US"
+        pendingPersonalizations={[{ slug: 'mothers_day', count: 2 }]}
+      />
     )
-    render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
 
     expect(screen.getByText('2 to personalize')).toBeInTheDocument()
 
@@ -287,9 +293,10 @@ describe('CouponSetBuilder', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
     await userEvent.click(await screen.findByRole('button', { name: ctaCopy.sendWithLove }))
     await screen.findByText('Your gift is ready')
-    await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftReadyStartOver }))
 
-    expect(screen.getByText('1 to personalize')).toBeInTheDocument()
+    // pendingPersonalizations is a page-level server prop, not component state — the component's
+    // job is only to ask the page to refetch it, not to locally decrement its own copy.
+    expect(routerRefresh).toHaveBeenCalled()
   })
 })
 
@@ -1111,6 +1118,68 @@ describe('coming soon section', () => {
 
       expect(screen.getByText(/Valentine's Love Passes/)).toBeInTheDocument()
       expect(screen.getByText("Who's it for?")).toBeInTheDocument()
+    })
+  })
+
+  describe('deep-link from Your Gifts (initialTemplateSlug)', () => {
+    const DRAFT_KEY = 'kindness-currency:coupon-set-draft'
+
+    function seedInProgressDraft() {
+      window.localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          screen: 'select',
+          selectedTemplateId: template().id,
+          selectedTemplateSlug: 'mothers_day',
+          senderName: 'Alex',
+          recipientName: 'Mom',
+          expiryDate: '',
+          coupons: [
+            {
+              id: 'c1',
+              sortOrder: 1,
+              serviceTitle: 'A Custom Title',
+              microCopy: '',
+              finePrint: '',
+              fontChoice: 'playfair',
+              backgroundColor: '#FFF8F0',
+              backgroundEffect: 'none',
+            },
+          ],
+          savedResult: null,
+          editorUnlockedTemplateId: template().id,
+        })
+      )
+    }
+
+    it('jumps straight to the details form for a fresh session, skipping the template gallery entirely', async () => {
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" initialTemplateSlug="mothers_day" />)
+
+      expect(await screen.findByText("Who's it for?")).toBeInTheDocument()
+      expect(screen.queryByText('Pick a template')).not.toBeInTheDocument()
+    })
+
+    it('does nothing and stays on the gallery when the slug does not match any real template', async () => {
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" initialTemplateSlug="not-a-real-slug" />)
+
+      expect(await screen.findByText('Pick a template')).toBeInTheDocument()
+      expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
+    })
+
+    it('resumes straight into the unlocked editor when deep-linking into the same template already in progress', async () => {
+      seedInProgressDraft()
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" initialTemplateSlug="mothers_day" />)
+
+      expect(await screen.findByText('Save My Coupons')).toBeInTheDocument()
+      expect(screen.getByText('A Custom Title')).toBeInTheDocument()
+    })
+
+    it('shows the template-switch warning instead of silently discarding unrelated in-progress work', async () => {
+      seedInProgressDraft()
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" initialTemplateSlug="valentines" />)
+
+      expect(await screen.findByText(ctaCopy.templateSwitchWarningHeading)).toBeInTheDocument()
+      expect(screen.getByText(ctaCopy.templateSwitchWarningBody("Mom's Promise Tokens"))).toBeInTheDocument()
     })
   })
 })

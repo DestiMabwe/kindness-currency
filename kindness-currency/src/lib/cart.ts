@@ -12,11 +12,6 @@ export { linesForCart, linesForSlugs, cartTotals, priceForSlug }
 export type { CartLineItem, CartLine }
 
 const CART_KEY = 'kindness-currency:cart-v2'
-// "Purchased, not yet personalized" — a display cache only, synced from the server's real
-// purchased_instances after a checkout return confirms payment (see
-// syncPurchasedInstancesFromServer). Enforcement of who's actually entitled to send happens
-// server-side in create_coupon_set(); this can never be trusted for that.
-const PURCHASED_KEY = 'kindness-currency:purchased'
 // The lasting receipt log — appended to once per real, paid checkout (see
 // recordCompletedCheckout), never removed from, independent of whether the coupons inside have
 // since been personalized.
@@ -83,45 +78,10 @@ export function clearCart() {
   writeCartLines([])
 }
 
-export type PurchasedInstance = { id: string; slug: string }
 export type OrderRecord = { id: string; date: string; lines: CartLine[]; total: number }
 
 function newId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
-}
-
-function readPendingInstances(): PurchasedInstance[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(PURCHASED_KEY)
-    return raw ? (JSON.parse(raw) as PurchasedInstance[]) : []
-  } catch {
-    return []
-  }
-}
-
-function writePendingInstances(instances: PurchasedInstance[]) {
-  window.localStorage.setItem(PURCHASED_KEY, JSON.stringify(instances))
-  window.dispatchEvent(new Event('kc-cart-updated'))
-}
-
-/** One entry per purchased-but-not-yet-personalized unit — a buyer of qty 2 of the same template
- * gets 2 independent instances here, each consumed separately as they personalize and send each
- * one (see consumePendingInstance). Only ever populated for real bundle templates: gestures are
- * never sold through the cart (see singleUseGestures/GestureFlow's own direct-checkout path). */
-export function usePendingInstances(): PurchasedInstance[] {
-  const [instances, setInstances] = useState<PurchasedInstance[]>([])
-  useEffect(() => {
-    const sync = () => setInstances(readPendingInstances())
-    sync()
-    window.addEventListener('kc-cart-updated', sync)
-    window.addEventListener('storage', sync)
-    return () => {
-      window.removeEventListener('kc-cart-updated', sync)
-      window.removeEventListener('storage', sync)
-    }
-  }, [])
-  return instances
 }
 
 export function useOrderHistory(): OrderRecord[] {
@@ -147,14 +107,6 @@ export function useOrderHistory(): OrderRecord[] {
   return orders
 }
 
-/** Overwrites the local "paid, not yet personalized" cache with the server's real, authoritative
- * list of unconsumed purchased_instances — called right after a checkout return confirms payment
- * landed (see CartCompleteView). Purely a display cache: enforcement of who's actually entitled to
- * send lives entirely server-side in the create_coupon_set() Postgres function, never here. */
-export function syncPurchasedInstancesFromServer(instances: PurchasedInstance[]) {
-  writePendingInstances(instances)
-}
-
 /** Records a real, paid order into the permanent purchase-history cache and clears the cart —
  * called right after a checkout return confirms payment landed, with the real line items/total
  * from the server order rather than re-derived from whatever's currently in the cart (which may
@@ -166,14 +118,4 @@ export function recordCompletedCheckout(lines: CartLine[], total: number) {
   const order: OrderRecord = { id: newId(), date: new Date().toISOString(), lines, total }
   window.localStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify([...existing, order]))
   writeCartLines([])
-}
-
-/** Consumes exactly one pending instance for this slug (the buyer just personalized and sent
- * one of possibly several purchased copies) — the rest stay pending. Purely a display-cache
- * update; the real consumption already happened server-side inside create_coupon_set(). */
-export function consumePendingInstance(slug: string) {
-  const current = readPendingInstances()
-  const idx = current.findIndex((i) => i.slug === slug)
-  if (idx === -1) return
-  writePendingInstances([...current.slice(0, idx), ...current.slice(idx + 1)])
 }

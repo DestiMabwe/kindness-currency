@@ -1,17 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import {
-  addToCart,
-  useCartLines,
-  cartTotals,
-  syncPurchasedInstancesFromServer,
-  recordCompletedCheckout,
-  usePendingInstances,
-  useOrderHistory,
-  consumePendingInstance,
-  linesForCart,
-  setCartQty,
-} from '../cart'
+import { addToCart, useCartLines, cartTotals, recordCompletedCheckout, useOrderHistory, linesForCart, setCartQty } from '../cart'
 import { REGION_PAIRED_BUNDLE_PRICE } from '../geoPricing'
 
 beforeEach(() => {
@@ -29,16 +18,6 @@ describe('cart quantities', () => {
   })
 })
 
-describe('syncPurchasedInstancesFromServer', () => {
-  it('overwrites the local display cache with the server-provided list', () => {
-    const { result } = renderHook(() => usePendingInstances())
-
-    act(() => syncPurchasedInstancesFromServer([{ id: '1', slug: 'mothers_day' }, { id: '2', slug: 'mothers_day' }]))
-
-    expect(result.current.filter((i) => i.slug === 'mothers_day')).toHaveLength(2)
-  })
-})
-
 describe('recordCompletedCheckout', () => {
   it('appends an order to history and clears the cart', () => {
     const cartResult = renderHook(() => useCartLines())
@@ -50,17 +29,6 @@ describe('recordCompletedCheckout', () => {
     expect(cartResult.result.current).toEqual([])
     expect(orderResult.result.current).toHaveLength(1)
     expect(orderResult.result.current[0].total).toBe(5.98)
-  })
-})
-
-describe('consumePendingInstance', () => {
-  it('removes exactly one pending instance for the slug, leaving the rest', () => {
-    const { result } = renderHook(() => usePendingInstances())
-    act(() => syncPurchasedInstancesFromServer([{ id: '1', slug: 'mothers_day' }, { id: '2', slug: 'mothers_day' }]))
-
-    act(() => consumePendingInstance('mothers_day'))
-
-    expect(result.current.filter((i) => i.slug === 'mothers_day')).toHaveLength(1)
   })
 })
 

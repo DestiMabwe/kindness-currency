@@ -1,14 +1,15 @@
 'use client'
 
-// Client half of /cart/complete: takes the already-verified server result and syncs it into the
-// local display caches (purchased instances + purchase history) that ProfileCartSection and
-// CouponSetBuilder read, then clears the cart. All of that is local bookkeeping only — the actual
-// payment/entitlement truth was already established server-side before this ever rendered.
+// Client half of /cart/complete: takes the already-verified server result, records it into the
+// local purchase-history cache Profile's receipt log reads, then clears the cart. The "what have
+// you not personalized yet" list itself is no longer a client cache — Profile and /create both
+// fetch that live from the server (see orderRepository.getUnconsumedInstancesForUser) — this view
+// only ever needed `instances` to name what to show on this one confirmation screen.
 
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { linesForSlugs, syncPurchasedInstancesFromServer, recordCompletedCheckout, type PurchasedInstance } from '@/lib/cart'
+import { linesForSlugs, recordCompletedCheckout } from '@/lib/cart'
 import type { VerifyAndFulfillResult } from '@/lib/checkoutService'
 import type { PricingRegion } from '@/lib/geoPricing'
 
@@ -18,7 +19,7 @@ export function CartCompleteView({
   region,
 }: {
   result: VerifyAndFulfillResult
-  instances: PurchasedInstance[]
+  instances: { id: string; slug: string }[]
   region: PricingRegion
 }) {
   const recorded = useRef(false)
@@ -26,7 +27,6 @@ export function CartCompleteView({
   useEffect(() => {
     if (recorded.current || !result.paid) return
     recorded.current = true
-    syncPurchasedInstancesFromServer(instances)
     // Only .name is used from these lines (recordCompletedCheckout's total comes from
     // result.amountCents — the real ZAR settlement amount — not from these per-line display
     // prices), so `region` here only affects a value nothing ever reads.
@@ -35,7 +35,7 @@ export function CartCompleteView({
       region
     )
     recordCompletedCheckout(lines, result.amountCents / 100)
-  }, [result, instances, region])
+  }, [result, region])
 
   if (!result.paid) {
     return (
@@ -67,10 +67,10 @@ export function CartCompleteView({
         ))}
       </div>
       <Link
-        href="/create"
+        href="/profile"
         className="mt-6 block w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white"
       >
-        {ctaCopy.cartPersonalizeCta}
+        {ctaCopy.cartSeeMyGiftsCta}
       </Link>
     </div>
   )

@@ -89,24 +89,30 @@ function loadDraft(): BuilderState | null {
 export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   const [state, setState] = useState<BuilderState>(initialState)
   const [resumedDraft, setResumedDraft] = useState(false)
-  const hydrated = useRef(false)
+  // Distinct from the hydratedRef guard below: this is state (not a ref) specifically so a caller
+  // like CouponSetBuilder's deep-link-from-Your-Gifts effect can wait for it as a dependency — it
+  // needs any real in-progress draft to already be loaded before deciding whether jumping straight
+  // to a purchased template would silently clobber unrelated unsaved work.
+  const [hydrated, setHydrated] = useState(false)
+  const hydratedRef = useRef(false)
 
   // Rehydrate from localStorage once, after mount. Reading in render (e.g. a lazy
   // useState initializer) would make the client's first render diverge from the
   // server-rendered HTML and break hydration, so this has to happen in an effect.
   useEffect(() => {
-    if (hydrated.current) return
-    hydrated.current = true
+    if (hydratedRef.current) return
+    hydratedRef.current = true
     const draft = loadDraft()
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-hydration sync from localStorage, not a render-time update
     if (draft) setState(draft)
     // A draft still on the select screen (nothing chosen yet) isn't "mid-progress" —
     // only flag drafts a "start fresh" affordance would actually need to discard.
     if (draft && draft.screen !== 'select') setResumedDraft(true)
+    setHydrated(true)
   }, [])
 
   useEffect(() => {
-    if (!hydrated.current || typeof window === 'undefined' || state.screen === 'giftReady') return
+    if (!hydratedRef.current || typeof window === 'undefined' || state.screen === 'giftReady') return
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
@@ -201,6 +207,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   return {
     state,
     resumedDraft,
+    hydrated,
     templateBySlug,
     loadTemplate,
     backToSelect,

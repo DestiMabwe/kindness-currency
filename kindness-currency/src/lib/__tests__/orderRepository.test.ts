@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createOrderRepository } from '../orderRepository'
+import { createOrderRepository, groupUnconsumedInstances } from '../orderRepository'
 
 describe('OrderRepository', () => {
   describe('createPendingOrder', () => {
@@ -113,6 +113,35 @@ describe('OrderRepository', () => {
 
       expect(result.success).toBe(false)
       expect(instancesInsert).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('groupUnconsumedInstances', () => {
+    it('groups repeated slugs into one row with a count, buying 3 of the same coupon book never limits sending all 3', () => {
+      const instances = [
+        { id: 'i1', slug: 'birthday' },
+        { id: 'i2', slug: 'birthday' },
+        { id: 'i3', slug: 'birthday' },
+      ]
+
+      expect(groupUnconsumedInstances(instances)).toEqual([{ slug: 'birthday', count: 3 }])
+    })
+
+    it('keeps distinct slugs as separate rows, in order of first appearance', () => {
+      const instances = [
+        { id: 'i1', slug: 'mothers_day' },
+        { id: 'i2', slug: 'birthday' },
+        { id: 'i3', slug: 'mothers_day' },
+      ]
+
+      expect(groupUnconsumedInstances(instances)).toEqual([
+        { slug: 'mothers_day', count: 2 },
+        { slug: 'birthday', count: 1 },
+      ])
+    })
+
+    it('returns an empty array for no unconsumed instances', () => {
+      expect(groupUnconsumedInstances([])).toEqual([])
     })
   })
 })
