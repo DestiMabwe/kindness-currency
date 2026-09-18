@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -13,7 +13,9 @@ export default async function GiftTrackingPage({ params }: { params: Promise<{ i
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) notFound()
+  // Signing out from this page re-renders it via router.refresh() with no session —
+  // send them to /profile's own logged-out state instead of a bare 404.
+  if (!user) redirect('/profile')
 
   const repo = createCouponSetRepository(createServiceClient())
   const detail = await repo.getCouponSetDetailForSender(id, user.id)
