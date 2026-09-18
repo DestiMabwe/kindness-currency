@@ -1,24 +1,20 @@
 'use client'
 
-// Shared cart icon + count badge, used both in /create's own header (which doesn't render
-// SiteHeader at all) and inside SiteHeader itself, so the cart stays visible wherever a sender
-// might be, not just on /create. Self-contained: reads the cart via useCartSlugs() rather than
-// requiring every caller to pass the count down.
-//
-// SiteHeader (home/profile/pricing) sits next to the hamburger menu, so it renders nothing once
-// the cart is empty to avoid clutter next to that menu. /create's own header has no menu at all —
-// the cart icon occupies that top-right slot by itself — so it passes `alwaysVisible` to always
-// render there, badge or not, rather than leaving that corner blank.
+// Shared cart icon + count badge, used both in /create's own headers (the builder and gesture
+// flow each render their own, not SiteHeader) and inside SiteHeader itself, so the cart stays
+// visible wherever a sender might be. Self-contained: reads the cart via useCartLines() rather
+// than requiring every caller to pass the count down. Renders nothing once the cart is empty —
+// every caller now sits next to a hamburger menu, so an empty slot never looks abandoned.
 
 import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useCartLines } from '@/lib/cart'
 
-export function CartIcon({ alwaysVisible = false }: { alwaysVisible?: boolean }) {
+export function CartIcon() {
   const cartLines = useCartLines()
   const totalUnits = cartLines.reduce((sum, l) => sum + l.qty, 0)
-  if (!alwaysVisible && totalUnits === 0) return null
+  if (totalUnits === 0) return null
 
   return (
     <Link

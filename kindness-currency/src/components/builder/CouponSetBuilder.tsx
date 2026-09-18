@@ -11,6 +11,7 @@ import { QuantityStepper } from '@/components/builder/QuantityStepper'
 import { BundleTierPills } from '@/components/builder/BundleTierPills'
 import { PromoScrollPopup, type PromoScrollPopupHandle } from '@/components/shared/PromoScrollPopup'
 import { CartIcon } from '@/components/shared/CartIcon'
+import { HeaderMenu } from '@/components/shared/HeaderMenu'
 import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
 import { bundleTierBySlug, pairedSlugBySlug, type BundleTier } from '@/lib/bundleTiers'
@@ -57,6 +58,7 @@ export type CouponSetBuilderProps = {
   singleUseTemplates?: Template[]
   comingSoonTemplates?: ComingSoonTemplate[]
   isLoggedIn?: boolean
+  isAdmin?: boolean
   userEmail?: string | null
   region: PricingRegion
   /** Real, server-fetched unconsumed-instance counts (see orderRepository.groupUnconsumedInstances)
@@ -90,6 +92,7 @@ export function CouponSetBuilder({
   singleUseTemplates = [],
   comingSoonTemplates = [],
   isLoggedIn = false,
+  isAdmin = false,
   userEmail = null,
   region,
   pendingPersonalizations = [],
@@ -482,6 +485,7 @@ export function CouponSetBuilder({
           comingSoonTemplates={comingSoonTemplates}
           currentTemplateId={builder.state.selectedTemplateId}
           isLoggedIn={isLoggedIn}
+          isAdmin={isAdmin}
           region={region}
           pendingCountBySlug={pendingCountBySlug}
           onSelect={handleSelectTemplate}
@@ -549,6 +553,8 @@ export function CouponSetBuilder({
           messageStarter={visuals?.previewMessage}
           checkingEntitlement={checkingEntitlement}
           entitlementError={detailsError}
+          isLoggedIn={isLoggedIn}
+          isAdmin={isAdmin}
           onBack={builder.backToSelect}
           onSenderChange={builder.setSenderName}
           onRecipientChange={builder.setRecipientName}
@@ -572,6 +578,8 @@ export function CouponSetBuilder({
           expiresAt={builder.state.expiryDate || null}
           saving={saving}
           saveError={saveError}
+          isLoggedIn={isLoggedIn}
+          isAdmin={isAdmin}
           onBack={builder.backToDetails}
           onPatchCoupon={builder.patchCoupon}
           onPatchAllCoupons={builder.patchAllCoupons}
@@ -757,6 +765,7 @@ function TemplateSelectScreen({
   comingSoonTemplates,
   currentTemplateId,
   isLoggedIn,
+  isAdmin,
   region,
   pendingCountBySlug,
   onSelect,
@@ -768,6 +777,7 @@ function TemplateSelectScreen({
   comingSoonTemplates: ComingSoonTemplate[]
   currentTemplateId: string | null
   isLoggedIn: boolean
+  isAdmin: boolean
   region: PricingRegion
   pendingCountBySlug: Record<string, number>
   onSelect: (template: TemplateWithCoupons) => void
@@ -811,6 +821,7 @@ function TemplateSelectScreen({
         gesture={chosenGesture}
         templateId={singleUseTemplateIdBySlug[chosenGesture.slug] ?? null}
         isLoggedIn={isLoggedIn}
+        isAdmin={isAdmin}
         region={region}
         onExit={() => setChosenGesture(null)}
       />
@@ -820,14 +831,17 @@ function TemplateSelectScreen({
   return (
     <div>
       <PromoScrollPopup ref={promoPopupRef} />
-      <div className="flex items-center justify-between gap-2.5 px-4.5 pt-11.5 pb-1.5">
+      <div className="flex items-center justify-between gap-2.5 px-4.5 pt-3.5 pb-1.5">
         <div className="flex items-center gap-2.5">
           <Link href="/" aria-label="Kindness Currency home">
             <Image src="/logo.png" alt="" width={359} height={257} className="h-6 w-auto" />
           </Link>
           <div className="font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Step 1 of 3</div>
         </div>
-        <CartIcon alwaysVisible />
+        <div className="flex items-center gap-2">
+          <CartIcon />
+          <HeaderMenu isLoggedIn={isLoggedIn} isAdmin={isAdmin} />
+        </div>
       </div>
       <div className="px-5.5 pt-1.5">
         <h1 className="text-[28px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
@@ -1057,6 +1071,8 @@ export function DetailsFormScreen({
   messageStarter,
   checkingEntitlement = false,
   entitlementError = '',
+  isLoggedIn = false,
+  isAdmin = false,
   onBack,
   onSenderChange,
   onRecipientChange,
@@ -1072,6 +1088,8 @@ export function DetailsFormScreen({
   messageStarter?: string
   checkingEntitlement?: boolean
   entitlementError?: string
+  isLoggedIn?: boolean
+  isAdmin?: boolean
   onBack: () => void
   onSenderChange: (value: string) => void
   onRecipientChange: (value: string) => void
@@ -1088,11 +1106,13 @@ export function DetailsFormScreen({
 
   return (
     <div>
-      <div className="flex items-center gap-3 px-4.5 pt-11.5 pb-1.5">
+      <div className="flex items-center gap-3 px-4.5 pt-3.5 pb-1.5">
         <button type="button" onClick={onBack} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
           ‹
         </button>
-        <div className="font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Step 2 of 3</div>
+        <div className="flex-1 font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Step 2 of 3</div>
+        <CartIcon />
+        <HeaderMenu isLoggedIn={isLoggedIn} isAdmin={isAdmin} />
       </div>
       <div className="px-5.5">
         <h1 className="text-[27px] leading-[1.1] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
@@ -1281,6 +1301,8 @@ function EditScreen({
   expiresAt,
   saving,
   saveError,
+  isLoggedIn = false,
+  isAdmin = false,
   onBack,
   onPatchCoupon,
   onPatchAllCoupons,
@@ -1301,6 +1323,8 @@ function EditScreen({
   expiresAt: string | null
   saving: boolean
   saveError: string
+  isLoggedIn?: boolean
+  isAdmin?: boolean
   onBack: () => void
   onPatchCoupon: (id: string, patch: Partial<BuilderCoupon>) => void
   onPatchAllCoupons: (patch: Partial<Pick<BuilderCoupon, 'backgroundColor' | 'backgroundEffect'>>) => void
@@ -1334,7 +1358,7 @@ function EditScreen({
       </button>
 
       <div className="sticky top-0 z-30 border-b border-[#1A1A2E]/7 bg-[#FFF8F0]/92 backdrop-blur-sm">
-        <div className="flex items-center gap-3 px-4.5 pt-11.5 pb-3">
+        <div className="flex items-center gap-3 px-4.5 pt-3.5 pb-3">
           <button type="button" onClick={onBack} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
             ‹
           </button>
@@ -1346,6 +1370,8 @@ function EditScreen({
               For {recipientName || 'them'} · from {senderName || 'you'} · {customizedCount} of {coupons.length} customized
             </div>
           </div>
+          <CartIcon />
+          <HeaderMenu isLoggedIn={isLoggedIn} isAdmin={isAdmin} />
         </div>
       </div>
 

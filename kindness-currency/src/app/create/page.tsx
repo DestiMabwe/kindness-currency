@@ -3,6 +3,7 @@ import { createTemplateRepository } from '@/lib/templateRepository'
 import { createComingSoonTemplateRepository } from '@/lib/comingSoonTemplateRepository'
 import { createOrderRepository, groupUnconsumedInstances } from '@/lib/orderRepository'
 import { createClient } from '@/lib/supabase/server'
+import { isAdminEmail } from '@/lib/adminAuth'
 import { CouponSetBuilder } from '@/components/builder/CouponSetBuilder'
 import { getRegion } from '@/lib/region'
 
@@ -31,6 +32,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
       singleUseTemplates={singleUseTemplates}
       comingSoonTemplates={comingSoonTemplates}
       isLoggedIn={!!user}
+      isAdmin={isAdminEmail(user?.email)}
       userEmail={user?.email ?? null}
       region={region}
       pendingPersonalizations={groupUnconsumedInstances(unconsumedInstances)}

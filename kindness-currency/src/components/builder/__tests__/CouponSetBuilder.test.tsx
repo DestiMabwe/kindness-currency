@@ -129,6 +129,40 @@ describe('CouponSetBuilder', () => {
     })
   })
 
+  // Regression coverage: Steps 2 and 3 used to have no way to leave the builder at all except
+  // "‹ Back" (which only steps backward through the wizard) — no way to reach Your Gifts, About,
+  // Feedback, or log out once past the template gallery.
+  describe('navigation menu', () => {
+    it('offers the hamburger menu on the template-select screen', () => {
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
+
+      expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
+    })
+
+    it('offers the hamburger menu on the details screen, not just a back button', async () => {
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+
+      expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
+    })
+
+    it('offers the hamburger menu on the coupon editor screen', async () => {
+      await goToEditor()
+
+      expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
+    })
+
+    it('opens the real site menu with links to Your Gifts and About, not a dead end', async () => {
+      render(<CouponSetBuilder templates={[template()]} region="US" />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+
+      await userEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+
+      expect(screen.getByRole('link', { name: ctaCopy.navProfile })).toHaveAttribute('href', '/profile')
+      expect(screen.getByRole('link', { name: ctaCopy.navAboutUs })).toHaveAttribute('href', '/about')
+    })
+  })
+
   describe('template selection', () => {
     it('advances straight to the details screen for a non-restricted template', async () => {
       render(<CouponSetBuilder templates={[template()]} region="US" />)

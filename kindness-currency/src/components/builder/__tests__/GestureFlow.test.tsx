@@ -5,6 +5,10 @@ import { GestureFlow } from '../GestureFlow'
 import { ctaCopy } from '@/constants/ctaCopy'
 import type { SingleUseGesture } from '@/lib/singleUseGestures'
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}))
+
 const saveDraftAction = vi.fn()
 const sendCouponSetAction = vi.fn()
 const initiateSendCheckoutAction = vi.fn()
@@ -61,6 +65,22 @@ describe('GestureFlow', () => {
   beforeEach(() => {
     window.localStorage.clear()
     resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
+  })
+
+  // Regression coverage: same gap as the bundle-template flow — Step 3 here (and Step 2, via the
+  // shared DetailsFormScreen) used to have no way to leave except "‹ Back".
+  describe('navigation menu', () => {
+    it('offers the hamburger menu on the "Who\'s it for?" details screen', () => {
+      render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
+
+      expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
+    })
+
+    it('offers the hamburger menu on the personalize screen', async () => {
+      await goToPersonalize(freeGesture)
+
+      expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
+    })
   })
 
   describe('free gesture upsell', () => {

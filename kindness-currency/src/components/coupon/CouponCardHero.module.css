@@ -202,6 +202,12 @@
   line-clamp: 3;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* hyphens:auto is tried first — a word too wide for the column breaks at a real syllable with
+     a visible hyphen (e.g. "Grati-tude") instead of overflow-wrap's raw break landing wherever it
+     lands (the exact bug: "Oral Gratitude" splitting into "Oral" / "Gratitud" / a lone "e").
+     overflow-wrap:break-word stays as the last-resort fallback for a word hyphenation itself
+     can't break far enough (e.g. a long name with no valid hyphenation point). */
+  hyphens: auto;
   overflow-wrap: break-word;
 }
 

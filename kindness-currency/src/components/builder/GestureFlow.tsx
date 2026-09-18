@@ -35,6 +35,8 @@ import { GoldCoupon } from '@/components/builder/GoldCoupon'
 import { ColorSwatchPicker, DetailsFormScreen, EffectPillPicker, EditMessageModal } from '@/components/builder/CouponSetBuilder'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
 import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
+import { CartIcon } from '@/components/shared/CartIcon'
+import { HeaderMenu } from '@/components/shared/HeaderMenu'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { antiqueGold, antiqueGoldText, type SingleUseGesture, type SingleUseGestureSlug } from '@/lib/singleUseGestures'
@@ -142,12 +144,14 @@ export function GestureFlow({
   gesture,
   templateId,
   isLoggedIn,
+  isAdmin = false,
   region,
   onExit,
 }: {
   gesture: SingleUseGesture
   templateId: string | null
   isLoggedIn: boolean
+  isAdmin?: boolean
   region: PricingRegion
   onExit: () => void
 }) {
@@ -392,6 +396,8 @@ export function GestureFlow({
         expiryDate={expiryDate}
         senderMessage={senderMessage}
         messageStarter={isPaid ? gesture.messageStarter : undefined}
+        isLoggedIn={isLoggedIn}
+        isAdmin={isAdmin}
         onBack={handleExit}
         onSenderChange={setSenderName}
         onRecipientChange={setRecipientName}
@@ -426,7 +432,7 @@ export function GestureFlow({
       </button>
 
       <div className="sticky top-0 z-30 border-b border-[#1A1A2E]/7 bg-[#FFF8F0]/92 backdrop-blur-sm">
-        <div className="flex items-center gap-3 px-4.5 pt-11.5 pb-3">
+        <div className="flex items-center gap-3 px-4.5 pt-3.5 pb-3">
           <button type="button" onClick={() => setStep('details')} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
             ‹
           </button>
@@ -439,6 +445,8 @@ export function GestureFlow({
               <span style={{ color: antiqueGoldText, fontWeight: 700 }}>{displayPrice === 0 ? 'Free' : formatPrice(displayPrice, region)}</span>
             </div>
           </div>
+          <CartIcon />
+          <HeaderMenu isLoggedIn={isLoggedIn} isAdmin={isAdmin} />
         </div>
       </div>
 
