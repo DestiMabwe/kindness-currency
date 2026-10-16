@@ -4,20 +4,13 @@
 // DESIGN.md's Confirmation Modal / AgeGate / ComingSoonModal) rather than a centered dialog, for
 // visual consistency with every other modal in the product.
 //
-// Two tiers of trigger. Auto-triggers — a fixed delay (fires deterministically regardless of
-// whether/how a visitor scrolls: touch swipes inside the gesture carousel, a short viewport, or
-// reading before scrolling all behave differently on scroll events but identically on a timer)
-// and a low scroll distance as an earlier fallback — respect the session dismiss and only ever
-// fire once, so passive browsing doesn't nag a visitor who already closed it. The pill trigger —
-// an imperative `show()` exposed via ref that the parent calls the moment someone taps "Gestures,
-// made for them" — deliberately bypasses that dismiss: that view is bundle templates only, where
-// the 3-for-2 deal is exactly the relevant context, and a tap tied 1:1 to that specific filter
-// isn't an ambient interruption the way an auto-popup is, so it always surfaces there even if an
-// earlier auto-trigger was already dismissed this session. Exposed via ref rather than a prop
-// bump + effect so the click handler can call it directly, an event-driven trigger rather than a
-// setState-in-effect cascade.
+// Auto-triggers only — a fixed delay (fires deterministically regardless of whether/how a visitor
+// scrolls: touch swipes inside the gesture carousel, a short viewport, or reading before scrolling
+// all behave differently on scroll events but identically on a timer) and a low scroll distance as
+// an earlier fallback. Both respect the session dismiss and only ever fire once, so passive
+// browsing doesn't nag a visitor who already closed it.
 
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
@@ -26,9 +19,7 @@ const DISMISS_KEY = 'kindness-currency:promo-popup-dismissed'
 const TRIGGER_DELAY_MS = 3500
 const SCROLL_THRESHOLD_PX = 200
 
-export type PromoScrollPopupHandle = { show: () => void }
-
-export const PromoScrollPopup = forwardRef<PromoScrollPopupHandle>(function PromoScrollPopup(_props, ref) {
+export function PromoScrollPopup() {
   const [open, setOpen] = useState(false)
   const autoShown = useRef(false)
 
@@ -39,14 +30,6 @@ export const PromoScrollPopup = forwardRef<PromoScrollPopupHandle>(function Prom
     autoShown.current = true
     setOpen(true)
   }, [])
-
-  // Always opens, dismiss or no — see the file comment above for why the pill trigger is exempt.
-  const show = useCallback(() => {
-    autoShown.current = true
-    setOpen(true)
-  }, [])
-
-  useImperativeHandle(ref, () => ({ show }), [show])
 
   useEffect(() => {
     const timer = window.setTimeout(autoShow, TRIGGER_DELAY_MS)
@@ -109,4 +92,4 @@ export const PromoScrollPopup = forwardRef<PromoScrollPopupHandle>(function Prom
       </div>
     </div>
   )
-})
+}

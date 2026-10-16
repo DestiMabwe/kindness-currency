@@ -9,7 +9,7 @@ import { useCouponSetBuilder, type BuilderCoupon } from '@/hooks/useCouponSetBui
 import { SingleUseGestureSection, FilterPills, type FilterValue } from '@/components/builder/SingleUseGestureSection'
 import { QuantityStepper } from '@/components/builder/QuantityStepper'
 import { BundleTierPills } from '@/components/builder/BundleTierPills'
-import { PromoScrollPopup, type PromoScrollPopupHandle } from '@/components/shared/PromoScrollPopup'
+import { PromoScrollPopup } from '@/components/shared/PromoScrollPopup'
 import { CartIcon } from '@/components/shared/CartIcon'
 import { HeaderMenu } from '@/components/shared/HeaderMenu'
 import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
@@ -791,7 +791,6 @@ function TemplateSelectScreen({
   const singleUseLayout = filter === 'range' ? 'hidden' : filter === 'focused' ? 'stack' : 'carousel'
   const showBundleList = filter !== 'focused'
   const bundleTemplates = bundleTier ? templates.filter((t) => bundleTierBySlug[t.slug] === bundleTier) : templates
-  const promoPopupRef = useRef<PromoScrollPopupHandle>(null)
   const attemptedGestureResume = useRef(false)
 
   // Resumes straight into GestureFlow if a gesture draft is still in progress — the sender may
@@ -808,13 +807,6 @@ function TemplateSelectScreen({
     if (match) setChosenGesture(match)
   }, [])
 
-  const handleFilterChange = (value: FilterValue) => {
-    setFilter(value)
-    // "Gestures, made for them" is bundle templates only — the highest-intent moment for the
-    // 3-for-2 promo, since the deal explicitly excludes one-time gestures.
-    if (value === 'range') promoPopupRef.current?.show()
-  }
-
   if (chosenGesture) {
     return (
       <GestureFlow
@@ -830,7 +822,7 @@ function TemplateSelectScreen({
 
   return (
     <div>
-      <PromoScrollPopup ref={promoPopupRef} />
+      <PromoScrollPopup />
       <div className="flex items-center justify-between gap-2.5 px-4.5 pt-3.5 pb-1.5">
         <div className="flex items-center gap-2.5">
           <Link href="/" aria-label="Kindness Currency home">
@@ -850,7 +842,7 @@ function TemplateSelectScreen({
       </div>
 
       <div className="pt-4">
-        <FilterPills value={filter} onChange={handleFilterChange} />
+        <FilterPills value={filter} onChange={setFilter} />
         <SingleUseGestureSection gestures={singleUseGestures} layout={singleUseLayout} region={region} onChoose={setChosenGesture} />
       </div>
 
