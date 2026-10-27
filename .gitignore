@@ -7,3 +7,4 @@ build/
 .DS_Store
 kindness-currency/supabase/.temp/
 kindness-currency/supabase/.branches/
+.vercel
