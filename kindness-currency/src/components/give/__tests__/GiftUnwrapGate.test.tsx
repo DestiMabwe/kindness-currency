@@ -2,19 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { GiftUnwrapGate } from '../GiftUnwrapGate'
 
-vi.mock('@/app/give/[id]/actions', () => ({
-  setReminderFrequencyAction: vi.fn(),
-}))
-
 const baseProps = {
-  setId: 'set-1',
   senderName: 'Alex',
   accent: '#C2185B',
-  reminderFrequency: null,
-  isLoggedIn: true,
-  alreadyLinked: true,
-  linkRecipientAction: async () => ({ success: true }),
-  redirectTo: '/give/set-1',
 }
 
 const MESSAGE = 'Thinking of you every day.'
@@ -105,27 +95,5 @@ describe('GiftUnwrapGate', () => {
 
     act(() => vi.advanceTimersByTime(10000))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('keeps the message reachable from the floating envelope icon', () => {
-    render(
-      <GiftUnwrapGate {...baseProps} senderMessage={MESSAGE} hasVisitedBefore={true}>
-        <div>The coupon page</div>
-      </GiftUnwrapGate>
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Read the message again' }))
-
-    expect(screen.getByRole('dialog', { name: 'A gift from Alex' })).toBeInTheDocument()
-  })
-
-  it('hides the envelope icon when there was never a message', () => {
-    render(
-      <GiftUnwrapGate {...baseProps} senderMessage={null} hasVisitedBefore={true}>
-        <div>The coupon page</div>
-      </GiftUnwrapGate>
-    )
-
-    expect(screen.queryByRole('button', { name: 'Read the message again' })).not.toBeInTheDocument()
   })
 })

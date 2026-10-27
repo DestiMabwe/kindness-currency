@@ -7,6 +7,8 @@ import { ctaCopy } from '@/constants/ctaCopy'
 import { RecipientCouponList } from '@/components/coupon/RecipientCouponList'
 import { SaveToAccountBanner } from '@/components/shared/SaveToAccountBanner'
 import { GiftUnwrapGate } from '@/components/give/GiftUnwrapGate'
+import { GiftLetterStrip } from '@/components/give/GiftLetterStrip'
+import { GiftReminderRow } from '@/components/give/GiftReminderRow'
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { linkRecipientAction } from '@/app/give/[id]/actions'
 
@@ -39,16 +41,10 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
 
   return (
     <GiftUnwrapGate
-      setId={giveData.id}
       senderName={giveData.sender_name}
       senderMessage={giveData.sender_message}
       accent={visuals.accent}
       hasVisitedBefore={hasVisitedBefore}
-      reminderFrequency={giveData.reminder_frequency}
-      isLoggedIn={!!user}
-      alreadyLinked={giveData.recipient_user_id === user?.id}
-      linkRecipientAction={linkRecipientAction}
-      redirectTo={`/give/${giveData.id}`}
     >
       <div className="flex min-h-screen flex-col pb-10">
         <SiteHeader />
@@ -64,8 +60,9 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
             with love from {giveData.sender_name} ♥
           </div>
           <div className="mx-auto mt-3.5 max-w-[280px] text-[13px] leading-relaxed opacity-85">
-            {`${coupons.length} promises, each redeemable whenever you're ready. Tap one to call it in.`}
+            {ctaCopy.recipientHeroSubtext(coupons.length)}
           </div>
+          <GiftLetterStrip senderName={giveData.sender_name} senderMessage={giveData.sender_message} accent={visuals.accent} />
         </div>
 
         <SaveToAccountBanner
@@ -75,6 +72,16 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
           linkAction={linkRecipientAction}
           redirectTo={`/give/${giveData.id}`}
           storageScope="recipient"
+        />
+
+        <GiftReminderRow
+          setId={giveData.id}
+          couponCount={coupons.length}
+          initialReminderFrequency={giveData.reminder_frequency}
+          isLoggedIn={!!user}
+          alreadyLinked={giveData.recipient_user_id === user?.id}
+          linkRecipientAction={linkRecipientAction}
+          redirectTo={`/give/${giveData.id}`}
         />
 
         <RecipientCouponList

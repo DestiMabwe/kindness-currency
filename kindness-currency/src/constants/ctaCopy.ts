@@ -78,9 +78,20 @@ export const ctaCopy = {
   profileTabReceived: 'Received',
   profileReceivedEmptyState: "You haven't received any coupon sets yet.",
   giftMessageClose: 'Back to my coupons ♥',
-  giftRereadMessage: 'Read the message again',
-  giftReminderButton: 'Reminders',
-  giftReminderHeading: 'Want a nudge to redeem these?',
+  giftLetterFrom: (senderName: string) => `A note from ${senderName}`,
+  recipientHeroSubtext: (count: number) =>
+    count === 1
+      ? "One promise, saved for whenever you're ready. Tap it when it's time to call it in."
+      : `${count} promises, each redeemable whenever you're ready. Tap one to call it in.`,
+  giftReminderPrompt: (couponCount: number) => `Want a nudge to use ${couponCount === 1 ? 'it' : 'these'}?`,
+  giftReminderSet: 'Set a reminder',
+  giftReminderActive: {
+    biweekly: 'Reminding you every 2 weeks',
+    monthly: 'Reminding you once a month',
+    quarterly: 'Reminding you every 90 days',
+  },
+  giftReminderChange: 'Change',
+  giftReminderHeading: (couponCount: number) => `Want a nudge to redeem ${couponCount === 1 ? 'it' : 'these'}?`,
   giftReminderSubtext: "We'll send a gentle reminder — no pressure, and you can turn it off anytime.",
   giftReminderBiweekly: 'Every 2 weeks',
   giftReminderMonthly: 'Once a month',

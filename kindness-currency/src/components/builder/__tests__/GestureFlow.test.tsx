@@ -152,6 +152,7 @@ describe('GestureFlow', () => {
       await unlockGesture(freeGesture)
 
       const envelope = screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel })
+      expect(envelope).toHaveTextContent(ctaCopy.editMessageWriteLabel)
       await userEvent.click(envelope)
 
       expect(screen.getByText(new RegExp(freeGesture.messageStarter!))).toBeInTheDocument()

@@ -814,10 +814,10 @@ describe('coming soon section', () => {
   })
 
   describe('editing the message from the coupon editor', () => {
-    it('shows a floating button to write a message, since the field starts empty by default', async () => {
+    it('shows a labelled button to write a message, since the field starts empty by default', async () => {
       await goToEditor()
 
-      expect(screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel })).toHaveTextContent(ctaCopy.editMessageWriteLabel)
     })
 
     it('shows a floating button to edit a custom message the sender wrote themselves', async () => {

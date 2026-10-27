@@ -7,7 +7,7 @@ export type GiftMessageCardProps = {
   senderName: string
   senderMessage: string
   accent: string
-  /** 'unseal' plays the envelope opening (first reveal only); 'rise' is the quick re-read from the envelope icon. */
+  /** 'unseal' plays the envelope opening (first reveal only); 'rise' is the quick re-read from the hero's letter strip. */
   entrance: 'unseal' | 'rise'
   onClose: () => void
 }
@@ -23,7 +23,7 @@ function splitIntoLines(message: string): string[] {
 
 /**
  * The sender's message as a centred popup over the coupon page. Shared by the real /give/[id]
- * page (auto-shown 5s into a first visit, re-readable from the envelope icon) and the sender's
+ * page (auto-shown 5s into a first visit, re-readable from the hero's letter strip) and the sender's
  * own previews, so what a sender previews is exactly what their recipient gets.
  */
 export function GiftMessageCard({ senderName, senderMessage, accent, entrance, onClose }: GiftMessageCardProps) {

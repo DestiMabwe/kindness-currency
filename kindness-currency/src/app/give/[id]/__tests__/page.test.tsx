@@ -79,4 +79,32 @@ describe('GivePage', () => {
     expect(list).toHaveAttribute('data-motif', templateVisuals.mothers_day.motif)
     expect(list).toHaveAttribute('data-image-src', templateVisuals.mothers_day.imageSrc)
   })
+
+  const coupon = (sort_order: number) => ({ id: `c${sort_order}`, status: 'sent' as const, sort_order })
+
+  it('speaks of a single promise when the gift is one single-use coupon', async () => {
+    getCouponSetForRecipient.mockResolvedValue(couponSet({ template_slug: 'relief', coupons: [coupon(1)] }))
+
+    render(await GivePage({ params: Promise.resolve({ id: 'set-1' }) }))
+
+    expect(screen.getByText("One promise, saved for whenever you're ready. Tap it when it's time to call it in.")).toBeInTheDocument()
+    expect(screen.queryByText(/1 promises/)).not.toBeInTheDocument()
+  })
+
+  it('counts the promises when the gift is a bundle', async () => {
+    getCouponSetForRecipient.mockResolvedValue(couponSet({ coupons: [coupon(1), coupon(2), coupon(3)] }))
+
+    render(await GivePage({ params: Promise.resolve({ id: 'set-1' }) }))
+
+    expect(screen.getByText("3 promises, each redeemable whenever you're ready. Tap one to call it in.")).toBeInTheDocument()
+  })
+
+  it("tucks the sender's note into the page and offers reminders inline", async () => {
+    getCouponSetForRecipient.mockResolvedValue(couponSet({ sender_message: 'Thinking of you.', coupons: [coupon(1), coupon(2)] }))
+
+    render(await GivePage({ params: Promise.resolve({ id: 'set-1' }) }))
+
+    expect(screen.getByRole('button', { name: /A note from Alex/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Want a nudge to use these\?/ })).toBeInTheDocument()
+  })
 })

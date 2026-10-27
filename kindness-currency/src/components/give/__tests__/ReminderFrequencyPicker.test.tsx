@@ -12,6 +12,7 @@ const linkAction = vi.fn()
 
 const baseProps = {
   setId: 'set-1',
+  couponCount: 3,
   currentFrequency: null as null,
   isLoggedIn: true,
   alreadyLinked: true,

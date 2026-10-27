@@ -9,11 +9,13 @@ import type { ReminderFrequency } from '@/schemas/couponSchema'
 
 const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
 
-/** setId-scoped so GiftFloatingActions can auto-complete this choice once the recipient returns from the auth redirect. */
+/** setId-scoped so GiftReminderRow can auto-complete this choice once the recipient returns from the auth redirect. */
 export const pendingReminderKey = (setId: string) => `kindness-currency:pending-reminder:${setId}`
 
 export type ReminderFrequencyPickerProps = {
   setId: string
+  /** Words the heading for one coupon ("it") or a bundle ("these"). */
+  couponCount: number
   currentFrequency: ReminderFrequency | null
   isLoggedIn: boolean
   alreadyLinked: boolean
@@ -34,6 +36,7 @@ const OPTIONS: { value: ReminderFrequency | null; label: string }[] = [
 
 export function ReminderFrequencyPicker({
   setId,
+  couponCount,
   currentFrequency,
   isLoggedIn,
   alreadyLinked,
@@ -75,7 +78,7 @@ export function ReminderFrequencyPicker({
           className="text-[21px] font-extrabold text-[#1A1A2E] italic"
           style={{ fontFamily: 'var(--font-playfair)' }}
         >
-          {ctaCopy.giftReminderHeading}
+          {ctaCopy.giftReminderHeading(couponCount)}
         </h2>
         <div className="mt-2 text-[12.5px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.giftReminderSubtext}</div>
         <div className="mt-4.5 flex flex-col gap-2.5">

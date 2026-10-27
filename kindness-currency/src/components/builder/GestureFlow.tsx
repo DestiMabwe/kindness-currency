@@ -37,6 +37,7 @@ import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
 import { GiftReadyScreen } from '@/components/shared/GiftReadyScreen'
 import { CartIcon } from '@/components/shared/CartIcon'
 import { HeaderMenu } from '@/components/shared/HeaderMenu'
+import { MessagePill } from '@/components/builder/MessagePill'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { antiqueGold, antiqueGoldText, type SingleUseGesture, type SingleUseGestureSlug } from '@/lib/singleUseGestures'
@@ -422,15 +423,6 @@ export function GestureFlow({
 
   return (
     <div className="pb-5">
-      <button
-        type="button"
-        onClick={() => setEditMessageOpen(true)}
-        aria-label={senderMessage.trim() ? ctaCopy.editMessageEditLabel : ctaCopy.editMessageWriteLabel}
-        className="fixed top-4 right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full border border-[#1A1A2E]/10 bg-white text-lg text-[#1A1A2E]"
-      >
-        ✉
-      </button>
-
       <div className="sticky top-0 z-30 border-b border-[#1A1A2E]/7 bg-[#FFF8F0]/92 backdrop-blur-sm">
         <div className="flex items-center gap-3 px-4.5 pt-3.5 pb-3">
           <button type="button" onClick={() => setStep('details')} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
@@ -542,6 +534,7 @@ export function GestureFlow({
       </div>
 
       <div className="sticky bottom-0 z-40 mt-3.5 flex flex-col gap-2.5 border-t border-[#1A1A2E]/8 bg-[#FFF8F0]/94 px-4.5 pt-3.5 pb-4 backdrop-blur">
+        <MessagePill hasMessage={!!senderMessage.trim()} onClick={() => setEditMessageOpen(true)} />
         {saveError && <div className="text-center text-[12.5px] text-[#C2185B]">{saveError}</div>}
         <button
           type="button"
