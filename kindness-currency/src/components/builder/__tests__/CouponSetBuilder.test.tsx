@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CouponSetBuilder } from '../CouponSetBuilder'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -216,28 +216,23 @@ describe('CouponSetBuilder', () => {
       expect(screen.getByText(ctaCopy.howYouCreatePersonalizeBody)).toBeInTheDocument()
     })
 
-    it('advances from Preview into the Send step, previewing the recipient message, instructions, and coupon list — never the real builder', async () => {
+    it('advances from Preview into the Send step, previewing the recipient coupon list with the message unsealing over it — never the real builder', async () => {
       render(<CouponSetBuilder templates={[template()]} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewSampleCoupons }))
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> preview
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> send (message)
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> send
 
       expect(screen.getByText(ctaCopy.howYouCreateRecipientBanner)).toBeInTheDocument()
-      expect(screen.getByText('A gift from Your Name')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: ctaCopy.recipientRedeemButton })).toBeInTheDocument()
       expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
 
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftMessageContinue }))
+      expect(await screen.findByText('A gift from Your Name', undefined, { timeout: 2500 })).toBeInTheDocument()
 
-      expect(screen.getByText(ctaCopy.giftInstructionsHeading)).toBeInTheDocument()
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftOpenCoupons }))
-
-      expect(screen.getByRole('button', { name: ctaCopy.recipientRedeemButton })).toBeInTheDocument()
-
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftMessageClose }))
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateDone }))
 
-      expect(screen.queryByText(ctaCopy.giftInstructionsHeading)).not.toBeInTheDocument()
+      expect(screen.queryByText(ctaCopy.howYouCreateRecipientBanner)).not.toBeInTheDocument()
       expect(screen.queryByText("Who's it for?")).not.toBeInTheDocument()
     })
 
@@ -751,27 +746,25 @@ describe('coming soon section', () => {
   })
 
   describe('preview overlay', () => {
-    it('opens on "Preview All Coupons" showing the same intro a real recipient sees, then the coupon list, and closes on the close button', async () => {
+    it('opens "Preview All Coupons" straight onto the coupon list, with no popup when there is no message, and closes on the close button', async () => {
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
-      // The message field starts empty by default (mirroring GiftUnwrapGate's own
-      // senderMessage ? 'message' : 'instructions'), so this exercises the no-message path.
+      // The message field starts empty by default, so this exercises the no-message path.
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
       await screen.findByText('Save My Coupons')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
-      expect(screen.getByText('How Kindness Currency Works')).toBeInTheDocument()
-
-      await userEvent.click(screen.getByRole('button', { name: 'Open Your Coupons' }))
       expect(screen.getByText('Preview')).toBeInTheDocument()
+      await new Promise((resolve) => setTimeout(resolve, 1700))
+      expect(screen.queryByRole('dialog', { name: 'A gift from Alex' })).not.toBeInTheDocument()
 
       await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
       expect(screen.queryByText('Preview')).not.toBeInTheDocument()
     })
 
-    it('shows the sender-message step first when the smart-default suggestion is tapped to fill the message', async () => {
+    it('unseals the smart-default message over the coupon list when the suggestion was tapped to fill it', async () => {
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -781,15 +774,13 @@ describe('coming soon section', () => {
       await screen.findByText('Save My Coupons')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
+      expect(screen.getByText('Preview')).toBeInTheDocument()
 
-      expect(
-        screen.getByText(/For everything you do without ever being asked/)
-      ).toBeInTheDocument()
-      expect(screen.queryByText('How Kindness Currency Works')).not.toBeInTheDocument()
-      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+      const dialog = await screen.findByRole('dialog', { name: 'A gift from Alex' }, { timeout: 2500 })
+      expect(within(dialog).getByText(/For everything you do without ever being asked/)).toBeInTheDocument()
     })
 
-    it('shows the sender-message step first when a custom message was written, before the instructions and coupon list', async () => {
+    it('unseals a custom message over the coupon list shortly after the preview opens', async () => {
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -800,13 +791,13 @@ describe('coming soon section', () => {
       await screen.findByText('Save My Coupons')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
+      expect(screen.getByText('Preview')).toBeInTheDocument()
 
-      expect(screen.getByText(/Thinking of you every day\./)).toBeInTheDocument()
-      expect(screen.queryByText('How Kindness Currency Works')).not.toBeInTheDocument()
-      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+      const dialog = await screen.findByRole('dialog', { name: 'A gift from Alex' }, { timeout: 2500 })
+      expect(within(dialog).getByText('Thinking of you every day.')).toBeInTheDocument()
     })
 
-    it('shows every one of the sender\'s own coupons, uncapped, even with more than 3', async () => {
+    it("shows every one of the sender's own coupons, uncapped, even with more than 3", async () => {
       render(<CouponSetBuilder templates={[templateWithFourCoupons]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -816,7 +807,6 @@ describe('coming soon section', () => {
       await screen.findByText('Save My Coupons')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.previewAllCoupons }))
-      await userEvent.click(screen.getByRole('button', { name: 'Open Your Coupons' }))
 
       expect(screen.getByRole('heading', { level: 2, name: 'Coupon 1' })).toBeInTheDocument()
       expect(screen.getByRole('heading', { level: 2, name: 'Coupon 4' })).toBeInTheDocument()

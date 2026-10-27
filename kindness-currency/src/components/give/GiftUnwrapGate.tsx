@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { GiftFloatingActions } from './GiftFloatingActions'
-import { GiftMessageScreen, GiftInstructionsScreen } from './GiftIntroScreens'
 import type { ReminderFrequency } from '@/schemas/couponSchema'
 
 export type GiftUnwrapGateProps = {
@@ -10,7 +9,7 @@ export type GiftUnwrapGateProps = {
   senderName: string
   senderMessage: string | null
   accent: string
-  /** True once this recipient has loaded the link before — the whole intro is first-visit only. */
+  /** True once this recipient has loaded the link before — the message only unseals on its own on a first visit. */
   hasVisitedBefore: boolean
   reminderFrequency: ReminderFrequency | null
   isLoggedIn: boolean
@@ -20,15 +19,11 @@ export type GiftUnwrapGateProps = {
   children: ReactNode
 }
 
-type Step = 'message' | 'instructions' | 'revealed'
-
 /**
- * Message screen → tap "Continue" → how-it-works screen → tap "Open Your
- * Coupons" → reveal. Both intro steps are first-visit only (gated by
- * hasVisitedBefore, derived from opened_at as read *before* this load set
- * it) — repeat visits skip straight to `children` (today's existing
- * hero+coupon page, unchanged). The message stays reachable afterward via
- * the floating envelope icon rendered alongside the reveal.
+ * The recipient lands straight on the coupons (`children`). On a first visit with a message
+ * (hasVisitedBefore is derived from opened_at as read *before* this load set it), the message
+ * unseals over them as a popup a few seconds in; afterward it stays re-readable from the
+ * floating envelope icon.
  */
 export function GiftUnwrapGate({
   setId,
@@ -43,26 +38,6 @@ export function GiftUnwrapGate({
   redirectTo,
   children,
 }: GiftUnwrapGateProps) {
-  const [step, setStep] = useState<Step>(() => {
-    if (hasVisitedBefore) return 'revealed'
-    return senderMessage ? 'message' : 'instructions'
-  })
-
-  if (step === 'message') {
-    return (
-      <GiftMessageScreen
-        senderName={senderName}
-        senderMessage={senderMessage ?? ''}
-        accent={accent}
-        onContinue={() => setStep('instructions')}
-      />
-    )
-  }
-
-  if (step === 'instructions') {
-    return <GiftInstructionsScreen senderName={senderName} accent={accent} onContinue={() => setStep('revealed')} />
-  }
-
   return (
     <div className="kc-rise">
       {children}
@@ -70,6 +45,8 @@ export function GiftUnwrapGate({
         setId={setId}
         senderName={senderName}
         senderMessage={senderMessage}
+        accent={accent}
+        autoRevealMessage={!hasVisitedBefore}
         initialReminderFrequency={reminderFrequency}
         isLoggedIn={isLoggedIn}
         alreadyLinked={alreadyLinked}

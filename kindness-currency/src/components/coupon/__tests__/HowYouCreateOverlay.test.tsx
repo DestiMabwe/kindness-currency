@@ -48,35 +48,31 @@ describe('HowYouCreateOverlay', () => {
     expect(screen.getByText('One Free Pass')).toBeInTheDocument()
   })
 
-  it('advances from Preview into Send, labeled as the recipient\'s own view, using a placeholder name and the template\'s own preview message', async () => {
+  it("advances from Preview into a single Send screen — the recipient-view coupon list, with the template's own preview message unsealing over it from a placeholder sender", async () => {
     render(<HowYouCreateOverlay template={template()} onClose={vi.fn()} />)
 
     await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> preview
-    await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> send (message)
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> send
 
     expect(screen.getByText(ctaCopy.howYouCreateRecipientBanner)).toBeInTheDocument()
-    expect(screen.getByText('A gift from Your Name')).toBeInTheDocument()
+    expect(screen.getByText('One Home-Cooked Meal')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: ctaCopy.recipientRedeemButton }).length).toBeGreaterThan(0)
+
+    expect(await screen.findByRole('dialog', { name: 'A gift from Your Name' }, { timeout: 2500 })).toBeInTheDocument()
     expect(
       screen.getByText('For everything you do without ever being asked — a few ways I want to take care of you now.', { exact: false })
     ).toBeInTheDocument()
   })
 
-  it('walks message -> instructions -> a recipient-view coupon list with the redeem button -> closes on Done, never exposing a route into the real builder', async () => {
+  it('closes the message back to the coupon list, then closes on Done, never exposing a route into the real builder', async () => {
     const onClose = vi.fn()
     render(<HowYouCreateOverlay template={template()} onClose={onClose} />)
 
     await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> preview
-    await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> message
-    await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftMessageContinue })) // -> instructions
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateNext })) // -> send
 
-    expect(screen.getByText(ctaCopy.giftInstructionsHeading)).toBeInTheDocument()
-    expect(screen.getByText(ctaCopy.howYouCreateRecipientBanner)).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: ctaCopy.giftOpenCoupons })) // -> recipient coupon list
-
-    expect(screen.getByText(ctaCopy.howYouCreateRecipientBanner)).toBeInTheDocument()
-    expect(screen.getByText('One Home-Cooked Meal')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: ctaCopy.recipientRedeemButton }).length).toBeGreaterThan(0)
+    await userEvent.click(await screen.findByRole('button', { name: ctaCopy.giftMessageClose }, { timeout: 2500 }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: ctaCopy.howYouCreateDone }))
 

@@ -15,6 +15,8 @@ const baseProps = {
   setId: 'set-1',
   senderName: 'Alex',
   senderMessage: null as string | null,
+  accent: '#C2185B',
+  autoRevealMessage: false,
   initialReminderFrequency: null,
   isLoggedIn: true,
   alreadyLinked: true,
@@ -43,7 +45,7 @@ describe('GiftFloatingActions', () => {
     expect(screen.queryByRole('button', { name: 'Read the message again' })).not.toBeInTheDocument()
   })
 
-  it('opens the message replay modal on envelope tap', async () => {
+  it('opens the message card on envelope tap', async () => {
     render(<GiftFloatingActions {...baseProps} senderMessage="Thinking of you." />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Read the message again' }))

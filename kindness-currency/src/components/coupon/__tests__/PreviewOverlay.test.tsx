@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PreviewOverlay } from '../PreviewOverlay'
 import type { BuilderCoupon } from '@/hooks/useCouponSetBuilder'
@@ -18,73 +18,23 @@ const coupon = (overrides: Partial<BuilderCoupon> = {}): BuilderCoupon => ({
 
 describe('PreviewOverlay', () => {
   describe('without recipientPreview (generic template-sample preview)', () => {
-    it('goes straight to the coupon list, with no message or instructions step', () => {
+    it('goes straight to the coupon list, with no message popup', () => {
       render(
         <PreviewOverlay coupons={[coupon()]} accent="#C2185B" motif="♥" imageSrc={null} expiresAt={null} onClose={vi.fn()} />
       )
 
       expect(screen.getByText('Preview')).toBeInTheDocument()
       expect(screen.getByText('One Massage')).toBeInTheDocument()
-      expect(screen.queryByText('How Kindness Currency Works')).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
   })
 
   describe('with recipientPreview (the sender previewing their own set)', () => {
-    it('shows the message screen first when a message was written', () => {
-      render(
-        <PreviewOverlay
-          coupons={[coupon()]}
-          accent="#C2185B"
-          motif="♥"
-          imageSrc={null}
-          expiresAt={null}
-          onClose={vi.fn()}
-          recipientPreview={{ senderName: 'Alex', senderMessage: 'Thinking of you every day.' }}
-        />
-      )
-
-      expect(screen.getByText('A gift from Alex')).toBeInTheDocument()
-      expect(screen.queryByText('One Massage')).not.toBeInTheDocument()
+    afterEach(() => {
+      vi.useRealTimers()
     })
 
-    it('skips straight to the instructions screen when no message was written', () => {
-      render(
-        <PreviewOverlay
-          coupons={[coupon()]}
-          accent="#C2185B"
-          motif="♥"
-          imageSrc={null}
-          expiresAt={null}
-          onClose={vi.fn()}
-          recipientPreview={{ senderName: 'Alex', senderMessage: null }}
-        />
-      )
-
-      expect(screen.getByText('How Kindness Currency Works')).toBeInTheDocument()
-    })
-
-    it('walks message → instructions → coupon list, matching the real recipient flow', async () => {
-      render(
-        <PreviewOverlay
-          coupons={[coupon()]}
-          accent="#C2185B"
-          motif="♥"
-          imageSrc={null}
-          expiresAt={null}
-          onClose={vi.fn()}
-          recipientPreview={{ senderName: 'Alex', senderMessage: 'Thinking of you every day.' }}
-        />
-      )
-
-      await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
-      expect(screen.getByText('How Kindness Currency Works')).toBeInTheDocument()
-
-      await userEvent.click(screen.getByRole('button', { name: 'Open Your Coupons' }))
-      expect(screen.getByText('One Massage')).toBeInTheDocument()
-    })
-
-    it('lets the sender close out of the preview from the message step', async () => {
-      const onClose = vi.fn()
+    const renderWithMessage = (senderMessage: string | null, onClose = vi.fn()) =>
       render(
         <PreviewOverlay
           coupons={[coupon()]}
@@ -93,9 +43,36 @@ describe('PreviewOverlay', () => {
           imageSrc={null}
           expiresAt={null}
           onClose={onClose}
-          recipientPreview={{ senderName: 'Alex', senderMessage: 'Thinking of you every day.' }}
+          recipientPreview={{ senderName: 'Alex', senderMessage }}
         />
       )
+
+    it('opens on the coupon list, then unseals the message over it shortly after, matching the real recipient flow', () => {
+      vi.useFakeTimers()
+      renderWithMessage('Thinking of you every day.')
+
+      expect(screen.getByText('One Massage')).toBeInTheDocument()
+      expect(screen.queryByText('A gift from Alex')).not.toBeInTheDocument()
+
+      act(() => vi.advanceTimersByTime(1500))
+
+      expect(screen.getByRole('dialog', { name: 'A gift from Alex' })).toBeInTheDocument()
+      expect(screen.getByText('One Massage')).toBeInTheDocument()
+    })
+
+    it('never shows a message popup when no message was written', () => {
+      vi.useFakeTimers()
+      renderWithMessage(null)
+
+      act(() => vi.advanceTimersByTime(5000))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.getByText('One Massage')).toBeInTheDocument()
+    })
+
+    it('lets the sender close out of the preview', async () => {
+      const onClose = vi.fn()
+      renderWithMessage('Thinking of you every day.', onClose)
 
       await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
 

@@ -1,16 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MessageReplayModal } from './MessageReplayModal'
+import { GiftMessageCard } from './GiftMessageCard'
 import { ReminderFrequencyPicker, pendingReminderKey } from './ReminderFrequencyPicker'
 import { setReminderFrequencyAction } from '@/app/give/[id]/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
+import { useDelayedMessageReveal } from '@/hooks/useDelayedMessageReveal'
 import type { ReminderFrequency } from '@/schemas/couponSchema'
 
 export type GiftFloatingActionsProps = {
   setId: string
   senderName: string
   senderMessage: string | null
+  accent: string
+  /** First visit with a message: unseal it over the coupons after MESSAGE_REVEAL_DELAY_MS. */
+  autoRevealMessage: boolean
   initialReminderFrequency: ReminderFrequency | null
   isLoggedIn: boolean
   alreadyLinked: boolean
@@ -18,15 +22,20 @@ export type GiftFloatingActionsProps = {
   redirectTo: string
 }
 
+const MESSAGE_REVEAL_DELAY_MS = 5000
+
 /**
  * Persistent icon stack on the coupon-reveal page: envelope (only shown if
  * there's a message to re-read) above a reminder bell (always available, so
- * a recipient who dismissed the picker can still change their mind later).
+ * a recipient who dismissed the picker can still change their mind later). Also owns the
+ * first-visit message reveal, so the auto-shown card and the envelope's re-read are one dialog.
  */
 export function GiftFloatingActions({
   setId,
   senderName,
   senderMessage,
+  accent,
+  autoRevealMessage,
   initialReminderFrequency,
   isLoggedIn,
   alreadyLinked,
@@ -34,6 +43,7 @@ export function GiftFloatingActions({
   redirectTo,
 }: GiftFloatingActionsProps) {
   const [showMessage, setShowMessage] = useState(false)
+  const [autoRevealOpen, closeAutoReveal] = useDelayedMessageReveal(autoRevealMessage && !!senderMessage, MESSAGE_REVEAL_DELAY_MS)
   const [showReminder, setShowReminder] = useState(false)
   const [reminderFrequency, setReminderFrequency] = useState(initialReminderFrequency)
 
@@ -74,8 +84,17 @@ export function GiftFloatingActions({
         </button>
       </div>
 
-      {showMessage && senderMessage && (
-        <MessageReplayModal senderName={senderName} senderMessage={senderMessage} onClose={() => setShowMessage(false)} />
+      {(autoRevealOpen || showMessage) && senderMessage && (
+        <GiftMessageCard
+          senderName={senderName}
+          senderMessage={senderMessage}
+          accent={accent}
+          entrance={autoRevealOpen ? 'unseal' : 'rise'}
+          onClose={() => {
+            closeAutoReveal()
+            setShowMessage(false)
+          }}
+        />
       )}
 
       {showReminder && (
