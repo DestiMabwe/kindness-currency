@@ -188,30 +188,28 @@ describe('GestureFlow', () => {
   })
 
   describe('Save/Send without an account', () => {
-    it('saves a draft while logged out, with no AuthGate interruption at all', async () => {
-      saveDraftAction.mockReset().mockResolvedValue({ success: true, id: 'set-1' })
+    it('opens AuthGate instead of saving a draft while logged out', async () => {
+      saveDraftAction.mockReset()
       await goToPersonalize(freeGesture)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
 
-      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
-      expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
-      expect(saveDraftAction).toHaveBeenCalledWith(expect.objectContaining({ gesture_unlocked: false }))
+      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+      expect(saveDraftAction).not.toHaveBeenCalled()
     })
 
-    it('sends an unmodified free gesture while logged out, with no AuthGate interruption at all', async () => {
-      sendCouponSetAction.mockReset().mockResolvedValue({ success: true, id: 'set-1' })
+    it('opens AuthGate instead of sending, even for an unmodified free gesture, while logged out', async () => {
+      sendCouponSetAction.mockReset()
       await goToPersonalize(freeGesture)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
 
-      expect(await screen.findByText('Your gift is ready')).toBeInTheDocument()
-      expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
-      expect(sendCouponSetAction).toHaveBeenCalledWith(expect.objectContaining({ gesture_unlocked: false }))
+      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+      expect(sendCouponSetAction).not.toHaveBeenCalled()
     })
 
     it('opens AuthGate — not checkout directly — when sending a paid unlock while logged out', async () => {
-      sendCouponSetAction.mockReset().mockResolvedValue({ success: false, error: 'Payment required.', paymentRequired: true })
+      sendCouponSetAction.mockReset()
       await unlockGesture(freeGesture)
       await userEvent.type(screen.getByLabelText('Service title'), ' (mine)')
 
@@ -219,7 +217,7 @@ describe('GestureFlow', () => {
 
       expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
       expect(initiateSendCheckoutAction).not.toHaveBeenCalled()
-      expect(sendCouponSetAction).toHaveBeenCalledWith(expect.objectContaining({ gesture_unlocked: true }))
+      expect(sendCouponSetAction).not.toHaveBeenCalled()
     })
   })
 
