@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { CouponCardHero } from './CouponCardHero'
-import { PINVerificationModal } from '@/components/modals/PINVerificationModal'
+import { RecipientPinModal } from '@/components/modals/RecipientPinModal'
 import { sortCouponsForDisplay, type GiveCoupon } from '@/lib/giveRepository'
-import { redeemCouponAction } from '@/app/give/[id]/actions'
+import { generatePinAction, getCouponStatusAction } from '@/app/give/[id]/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
 
 export type RecipientCouponListProps = {
@@ -30,16 +30,24 @@ export function RecipientCouponList({
 
   const redeemingCoupon = coupons.find((c) => c.id === redeemingId) ?? null
 
-  const handleVerify = async (pin: string): Promise<boolean> => {
-    if (!redeemingId) return false
-    const result = await redeemCouponAction({ couponId: redeemingId, pin })
-    if (!result.success) return false
+  const handleGenerate = useCallback(async () => {
+    if (!redeemingId) return { success: false as const, error: ctaCopy.pinRateLimited }
+    return generatePinAction(redeemingId)
+  }, [redeemingId])
 
-    setCoupons((prev) => prev.map((c) => (c.id === redeemingId ? { ...c, status: result.coupon.status } : c)))
+  const handlePollStatus = useCallback(async () => {
+    if (!redeemingId) return null
+    return getCouponStatusAction(redeemingId)
+  }, [redeemingId])
+
+  // The sender confirmed the PIN on their side — the poll saw the coupon flip to redeemed.
+  const handleRedeemed = useCallback(() => {
+    setCoupons((prev) => prev.map((c) => (c.id === redeemingId ? { ...c, status: 'redeemed' } : c)))
     setRedeemingId(null)
     setCelebrating(true)
-    return true
-  }
+  }, [redeemingId])
+
+  const handleClose = useCallback(() => setRedeemingId(null), [])
 
   return (
     <>
@@ -64,11 +72,13 @@ export function RecipientCouponList({
       </div>
 
       {redeemingCoupon && (
-        <PINVerificationModal
+        <RecipientPinModal
           couponTitle={redeemingCoupon.service_title}
           senderName={senderName}
-          onVerify={handleVerify}
-          onClose={() => setRedeemingId(null)}
+          onGenerate={handleGenerate}
+          onPollStatus={handlePollStatus}
+          onRedeemed={handleRedeemed}
+          onClose={handleClose}
         />
       )}
 

@@ -44,8 +44,14 @@ export const CouponMutationSchema = z.object({
 // Recipient's chosen reminder cadence — sent by the /api/cron/send-reminders job via reminderEngine/reminderRepository
 export const ReminderFrequencySchema = z.enum(['biweekly', 'monthly', 'quarterly'])
 
-// Redemption input — RedemptionEngine parses every payload through this before touching the database
-export const RedeemInputSchema = z.object({
+// Recipient taps "Generate Redemption PIN" — RedemptionEngine parses this before touching the database
+export const GeneratePinInputSchema = z.object({
+  couponId: z.string().uuid(),
+})
+
+// Sender enters the PIN the recipient gave them — RedemptionEngine parses every payload through
+// this before touching the database
+export const RedeemCouponInputSchema = z.object({
   couponId: z.string().uuid(),
   pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
 })
@@ -67,6 +73,7 @@ export type FontChoice = z.infer<typeof FontChoiceSchema>
 export type BackgroundEffect = z.infer<typeof BackgroundEffectSchema>
 export type CouponSetMutation = z.infer<typeof CouponSetMutationSchema>
 export type CouponMutation = z.infer<typeof CouponMutationSchema>
-export type RedeemInput = z.infer<typeof RedeemInputSchema>
+export type GeneratePinInput = z.infer<typeof GeneratePinInputSchema>
+export type RedeemCouponInput = z.infer<typeof RedeemCouponInputSchema>
 export type ReminderFrequency = z.infer<typeof ReminderFrequencySchema>
 export type SaveCouponSetInput = z.infer<typeof SaveCouponSetInputSchema>

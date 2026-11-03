@@ -2,14 +2,19 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { headers } from 'next/headers'
 
 // Tunable limits, one place. All windows use the same increment_rate_limit() Postgres RPC
-// (supabase/migrations/20260917000001_add_rate_limits.sql); PIN lockout is separate (see
-// redemptionEngine.ts's use of the record_pin_attempt RPC instead).
+// (supabase/migrations/20260917000001_add_rate_limits.sql). Wrong-PIN attempts are tracked
+// separately, per redemption OTP, by the record_otp_failure RPC (see redemptionEngine.ts).
 export const RATE_LIMITS = {
   authByIp: { limit: 10, windowSeconds: 10 * 60 },
   authByEmail: { limit: 3, windowSeconds: 10 * 60 },
   checkoutByUser: { limit: 10, windowSeconds: 60 },
   sendByUser: { limit: 20, windowSeconds: 60 * 60 },
   sendByIp: { limit: 5, windowSeconds: 60 * 60 },
+  // Recipient taps "Generate Redemption PIN" with no login: capped per coupon (so a link-holder
+  // can't keep killing the recipient's live PIN, since each generate supersedes the last) and
+  // per IP (so one caller can't sweep many coupons).
+  generatePinByCoupon: { limit: 3, windowSeconds: 10 * 60 },
+  generatePinByIp: { limit: 10, windowSeconds: 10 * 60 },
 } as const
 
 export type RateLimitResult = { allowed: boolean; retryAfterSeconds: number }

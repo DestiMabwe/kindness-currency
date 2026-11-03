@@ -7,13 +7,12 @@ import { ctaCopy } from '@/constants/ctaCopy'
 
 export type GiftReadyScreenProps = {
   shareLink: string
-  pin: string
   senderName: string
   recipientName: string
   onStartOver: () => void
 }
 
-export function GiftReadyScreen({ shareLink, pin, senderName, recipientName, onStartOver }: GiftReadyScreenProps) {
+export function GiftReadyScreen({ shareLink, senderName, recipientName, onStartOver }: GiftReadyScreenProps) {
   const [copied, setCopied] = useState(false)
   const shareMessage = ctaCopy.giftReadyShareMessage(recipientName, senderName, shareLink)
 
@@ -64,7 +63,7 @@ export function GiftReadyScreen({ shareLink, pin, senderName, recipientName, onS
           Your gift is ready
         </h1>
         <div className="mt-2 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-75">
-          Share the link and PIN separately, so the surprise stays a surprise.
+          Share the link — it&apos;s all they need to open it.
         </div>
       </div>
 
@@ -75,21 +74,7 @@ export function GiftReadyScreen({ shareLink, pin, senderName, recipientName, onS
         </div>
       </div>
 
-      <div className="mt-3.5 rounded-[18px] bg-[#1A1A2E] p-4.5 text-center">
-        <div className="text-[10.5px] font-semibold tracking-[0.1em] text-white/55 uppercase">Their 4-digit PIN</div>
-        <div className="mt-2.5 flex items-center justify-center gap-3">
-          {pin.split('').map((digit, i) => (
-            <span
-              key={i}
-              className="flex h-[58px] w-[46px] items-center justify-center rounded-xl border border-white/16 bg-white/6 text-[30px] font-bold text-white"
-              style={{ fontFamily: 'var(--font-playfair)' }}
-            >
-              {digit}
-            </span>
-          ))}
-        </div>
-        <div className="mt-3 text-[11.5px] leading-relaxed text-[#FF8F00]">{ctaCopy.giftReadyPinInstruction}</div>
-      </div>
+      <div className="mt-3.5 text-center text-[12.5px] leading-relaxed text-[#FF8F00]">{ctaCopy.giftReadyRedeemInstruction}</div>
 
       <div className="mt-4.5 flex flex-col gap-2.5">
         <button

@@ -13,7 +13,6 @@ describe('GiftReadyScreen', () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={vi.fn()}
@@ -21,26 +20,22 @@ describe('GiftReadyScreen', () => {
     expect(screen.getByText('https://kindnesscurrency.app/give/abc123')).toBeInTheDocument()
   })
 
-  it('displays the PIN as 4 separate digits', () => {
+  it('shows no PIN and tells the sender the recipient will give them one to confirm', () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={vi.fn()}
       />)
-    expect(screen.getByText('4')).toBeInTheDocument()
-    expect(screen.getByText('8')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
-    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.queryByText(/Their 4-digit PIN/)).not.toBeInTheDocument()
+    expect(screen.getByText("Share the link via WhatsApp. When they're ready to redeem, they'll give you a PIN to confirm.")).toBeInTheDocument()
   })
 
   it('copies the link with the personalized message (not the PIN) to the clipboard', async () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={vi.fn()}
@@ -52,14 +47,13 @@ describe('GiftReadyScreen', () => {
     expect(copiedText).toContain('https://kindnesscurrency.app/give/abc123')
     expect(copiedText).toContain('Ally')
     expect(copiedText).toContain('Alex')
-    expect(copiedText).not.toContain('4821')
+    expect(copiedText).not.toMatch(/PIN/)
   })
 
   it('shares the link with a personalized message via WhatsApp, never the PIN', async () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={vi.fn()}
@@ -83,7 +77,6 @@ describe('GiftReadyScreen', () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={vi.fn()}
@@ -104,7 +97,6 @@ describe('GiftReadyScreen', () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={onStartOver}
@@ -119,7 +111,6 @@ describe('GiftReadyScreen', () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={vi.fn()}
@@ -132,7 +123,6 @@ describe('GiftReadyScreen', () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={vi.fn()}
@@ -145,7 +135,6 @@ describe('GiftReadyScreen', () => {
     render(
       <GiftReadyScreen
         shareLink="https://kindnesscurrency.app/give/abc123"
-        pin="4821"
         senderName="Alex"
         recipientName="Ally"
         onStartOver={vi.fn()}

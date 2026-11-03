@@ -389,10 +389,10 @@ describe('useCouponSetBuilder', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
       act(() => result.current.loadTemplate('mothers_day'))
 
-      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false }))
+      act(() => result.current.completeSave({ setId: 'set-1', wasLinkedAtSave: false }))
 
       expect(result.current.state.screen).toBe('giftReady')
-      expect(result.current.state.savedResult).toEqual({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false })
+      expect(result.current.state.savedResult).toEqual({ setId: 'set-1', wasLinkedAtSave: false })
       // Cleared, not just skipped-on-write: a later reload of /create (e.g. from the nav
       // link) must start fresh at template-select, not resume this finished session.
       expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
@@ -403,7 +403,7 @@ describe('useCouponSetBuilder', () => {
     it('resets back to the select screen and clears the saved result', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
       act(() => result.current.loadTemplate('mothers_day'))
-      act(() => result.current.completeSave({ setId: 'set-1', pin: '4821', wasLinkedAtSave: false }))
+      act(() => result.current.completeSave({ setId: 'set-1', wasLinkedAtSave: false }))
 
       act(() => result.current.startNewSet())
 

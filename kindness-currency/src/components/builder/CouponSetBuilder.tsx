@@ -211,7 +211,7 @@ export function CouponSetBuilder({
       setSaveError(result.error)
       return
     }
-    builder.completeSave({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
+    builder.completeSave({ setId: result.id, wasLinkedAtSave: isLoggedIn })
     // Re-fetches this page's server props so the just-consumed instance's count drops immediately
     // (pendingPersonalizations is fetched once at page load, not reactive on its own) — otherwise
     // the gallery badge would keep showing it as still waiting until the next full page load.
@@ -291,7 +291,7 @@ export function CouponSetBuilder({
     void unlockEditorIfEntitled(slug)
   }
 
-  // Right after an anonymous save, remember {setId, pin} so that if the sender clicks
+  // Right after an anonymous save, remember the setId so that if the sender clicks
   // "Save this to your account" and gets redirected away for auth, the reload below can
   // find it again — the builder's own draft was already cleared by completeSave.
   useEffect(() => {
@@ -309,9 +309,10 @@ export function CouponSetBuilder({
     const raw = window.localStorage.getItem(PENDING_SENDER_READY_KEY)
     if (!raw) return
     try {
-      const pending = JSON.parse(raw) as { setId: string; pin: string }
+      // An entry written before the PIN model changed may still carry a `pin` field — ignored.
+      const pending = JSON.parse(raw) as { setId: string }
       if (window.localStorage.getItem(pendingLinkKey('sender', pending.setId)) === 'true') {
-        builder.completeSave({ setId: pending.setId, pin: pending.pin, wasLinkedAtSave: false })
+        builder.completeSave({ setId: pending.setId, wasLinkedAtSave: false })
       }
     } catch {
       // Malformed leftover — ignore rather than block a normal /create visit.
@@ -460,7 +461,6 @@ export function CouponSetBuilder({
       <>
         <GiftReadyScreen
           shareLink={`${window.location.origin}/give/${builder.state.savedResult.setId}`}
-          pin={builder.state.savedResult.pin}
           senderName={builder.state.senderName}
           recipientName={builder.state.recipientName}
           onStartOver={builder.startNewSet}

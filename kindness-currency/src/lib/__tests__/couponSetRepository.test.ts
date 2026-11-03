@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest'
-import bcrypt from 'bcryptjs'
 import { createCouponSetRepository } from '../couponSetRepository'
 
 function makeSupabase({
@@ -38,20 +37,16 @@ const validInput = () => ({
 
 describe('CouponSetRepository', () => {
   describe('saveCouponSet', () => {
-    it('generates a 4-digit PIN, stores only its bcrypt hash, and returns the plaintext PIN once', async () => {
+    it('creates no sender PIN: nothing PIN-related is stored or returned (the recipient generates one at redemption)', async () => {
       const { supabase, rpc } = makeSupabase()
       const repo = createCouponSetRepository(supabase as never)
 
       const result = await repo.saveCouponSet(validInput(), 'user-1', 'sent')
 
-      expect(result.success).toBe(true)
-      if (!result.success) throw new Error('expected success')
-      expect(result.pin).toMatch(/^\d{4}$/)
-      expect(result.id).toBe('set-1')
+      expect(result).toEqual({ success: true, id: 'set-1' })
 
       const rpcArgs = rpc.mock.calls[0][1]
-      expect(rpcArgs.p_set.pin_code).not.toBe(result.pin)
-      expect(await bcrypt.compare(result.pin, rpcArgs.p_set.pin_code)).toBe(true)
+      expect(rpcArgs.p_set).not.toHaveProperty('pin_code')
       expect(rpcArgs.p_user_id).toBe('user-1')
     })
 
@@ -392,60 +387,6 @@ describe('CouponSetRepository', () => {
       const repo = createCouponSetRepository(supabase as never)
 
       const result = await repo.linkSender('set-1', 'sender-user-1')
-
-      expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
-    })
-  })
-
-  describe('resetPin', () => {
-    function makeResetPinSupabase(updateResult: { data: unknown; error: unknown }) {
-      const single = vi.fn().mockResolvedValue(updateResult)
-      const select = vi.fn().mockReturnValue({ single })
-      const eqOwner = vi.fn().mockReturnValue({ select })
-      const eqId = vi.fn().mockReturnValue({ eq: eqOwner })
-      const update = vi.fn().mockReturnValue({ eq: eqId })
-      const from = vi.fn().mockReturnValue({ update })
-      return { supabase: { from }, update, eqId, eqOwner }
-    }
-
-    it('generates a new 4-digit PIN, stores only its bcrypt hash, and returns the plaintext PIN once', async () => {
-      const { supabase, update } = makeResetPinSupabase({ data: { id: 'set-1' }, error: null })
-      const repo = createCouponSetRepository(supabase as never)
-
-      const result = await repo.resetPin('set-1', 'user-1')
-
-      expect(result.success).toBe(true)
-      if (!result.success) throw new Error('expected success')
-      expect(result.pin).toMatch(/^\d{4}$/)
-      const updatedFields = update.mock.calls[0][0]
-      expect(updatedFields.pin_code).not.toBe(result.pin)
-      expect(await bcrypt.compare(result.pin, updatedFields.pin_code)).toBe(true)
-    })
-
-    it("only updates the set if it belongs to the given user", async () => {
-      const { supabase, eqId, eqOwner } = makeResetPinSupabase({ data: { id: 'set-1' }, error: null })
-      const repo = createCouponSetRepository(supabase as never)
-
-      await repo.resetPin('set-1', 'user-1')
-
-      expect(eqId).toHaveBeenCalledWith('id', 'set-1')
-      expect(eqOwner).toHaveBeenCalledWith('user_id', 'user-1')
-    })
-
-    it('returns an error result when the set is not owned by the given user', async () => {
-      const { supabase } = makeResetPinSupabase({ data: null, error: null })
-      const repo = createCouponSetRepository(supabase as never)
-
-      const result = await repo.resetPin('set-1', 'someone-else')
-
-      expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
-    })
-
-    it('returns an error result if the update fails', async () => {
-      const { supabase } = makeResetPinSupabase({ data: null, error: { message: 'db error' } })
-      const repo = createCouponSetRepository(supabase as never)
-
-      const result = await repo.resetPin('set-1', 'user-1')
 
       expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
     })

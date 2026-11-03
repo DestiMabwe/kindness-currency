@@ -23,7 +23,7 @@ export type BuilderCoupon = {
  * which is what actually decides whether the "save to your account" banner
  * still needs to offer claiming it.
  */
-export type SavedResult = { setId: string; pin: string; wasLinkedAtSave: boolean }
+export type SavedResult = { setId: string; wasLinkedAtSave: boolean }
 
 export type BuilderState = {
   screen: BuilderScreen

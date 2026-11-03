@@ -55,9 +55,9 @@ export function createGiveRepository(supabase: SupabaseClient) {
   return {
     /**
      * Reads everything the recipient page needs for /give/[id]. Deliberately
-     * never selects pin_code — this is the only read path for anonymous
-     * recipients, so the query itself enforces that the PIN hash never
-     * leaves the database.
+     * never selects any PIN hash (coupon_sets.pin_code, redemption_otps) — this
+     * is the only read path for anonymous recipients, so the query itself
+     * enforces that no PIN hash ever leaves the database.
      */
     async getCouponSetForRecipient(id: string): Promise<GiveCouponSet | null> {
       const { data, error } = await supabase
@@ -89,6 +89,19 @@ export function createGiveRepository(supabase: SupabaseClient) {
         template_slug: template.slug,
         coupons: [...data.coupons].sort((a, b) => a.sort_order - b.sort_order),
       }
+    },
+
+    /**
+     * Current status of one coupon — the recipient's PIN screen polls this to notice the sender
+     * confirming the PIN. Selects status only, nothing else about the coupon or its set.
+     */
+    async getCouponStatus(couponId: string): Promise<CouponStatus | null> {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('status')
+        .eq('id', couponId)
+        .single<{ status: CouponStatus }>()
+      return error || !data ? null : data.status
     },
 
     /**

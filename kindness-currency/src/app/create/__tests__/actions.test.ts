@@ -65,7 +65,7 @@ describe('initiateSendCheckoutAction', () => {
 describe('sendCouponSetAction', () => {
   beforeEach(() => {
     getUser.mockReset().mockResolvedValue({ data: { user: { id: 'user-1', email: 'alex@example.com' } } })
-    saveCouponSet.mockReset().mockResolvedValue({ success: true, id: 'set-1', pin: '1234' })
+    saveCouponSet.mockReset().mockResolvedValue({ success: true, id: 'set-1' })
     checkRateLimit.mockReset().mockResolvedValue({ allowed: true, retryAfterSeconds: 0 })
     getCallerIp.mockReset().mockResolvedValue('1.2.3.4')
   })
