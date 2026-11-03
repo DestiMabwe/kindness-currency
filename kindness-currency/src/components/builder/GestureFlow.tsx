@@ -341,9 +341,15 @@ export function GestureFlow({
     setStep('done')
   }
 
-  // No upfront login check — a free draft or an unmodified free gesture needs no account at all;
-  // performSave only opens AuthGate if the save actually comes back paymentRequired.
+  // Saving or sending always requires an account: check login first, and if the sender isn't
+  // logged in, remember what they were doing and open AuthGate. The resume effect below finishes
+  // the save automatically once they're back and logged in.
   const handleSaveOrSend = (intent: 'draft' | 'sent') => {
+    if (!isLoggedIn) {
+      if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, intent)
+      setAuthOpen(true)
+      return
+    }
     void performSave(intent)
   }
 

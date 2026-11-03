@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { initiateSendCheckoutAction, sendCouponSetAction } from '../actions'
+import { initiateSendCheckoutAction, saveDraftAction, sendCouponSetAction } from '../actions'
 
 const getUser = vi.fn()
 vi.mock('@/lib/supabase/server', () => ({
@@ -77,13 +77,13 @@ describe('sendCouponSetAction', () => {
     expect(saveCouponSet).toHaveBeenCalledWith({ some: 'input' }, 'user-1', 'sent')
   })
 
-  it('falls back to an IP-keyed limit for an anonymous sender', async () => {
+  it('rejects an anonymous send without rate-limiting or touching the repository', async () => {
     getUser.mockResolvedValue({ data: { user: null } })
 
-    await sendCouponSetAction({ some: 'input' })
+    const result = await sendCouponSetAction({ some: 'input' })
 
-    expect(checkRateLimit).toHaveBeenCalledWith(expect.anything(), 'send:ip:1.2.3.4', expect.anything())
-    expect(saveCouponSet).toHaveBeenCalledWith({ some: 'input' }, null, 'sent')
+    expect(result).toEqual({ success: false, error: 'Please log in to save or send your coupons.' })
+    expect(saveCouponSet).not.toHaveBeenCalled()
   })
 
   it('rejects the send and never touches the repository once the limit is exceeded', async () => {
@@ -92,6 +92,29 @@ describe('sendCouponSetAction', () => {
     const result = await sendCouponSetAction({ some: 'input' })
 
     expect(result).toEqual({ success: false, error: "You're sending a bit fast — please wait a moment and try again." })
+    expect(saveCouponSet).not.toHaveBeenCalled()
+  })
+})
+
+describe('saveDraftAction', () => {
+  beforeEach(() => {
+    saveCouponSet.mockReset().mockResolvedValue({ success: true, id: 'set-1' })
+  })
+
+  it('saves under the logged-in user', async () => {
+    getUser.mockReset().mockResolvedValue({ data: { user: { id: 'user-1', email: 'alex@example.com' } } })
+
+    await saveDraftAction({ some: 'input' })
+
+    expect(saveCouponSet).toHaveBeenCalledWith({ some: 'input' }, 'user-1', 'draft')
+  })
+
+  it('rejects an anonymous save without touching the repository', async () => {
+    getUser.mockReset().mockResolvedValue({ data: { user: null } })
+
+    const result = await saveDraftAction({ some: 'input' })
+
+    expect(result).toEqual({ success: false, error: 'Please log in to save or send your coupons.' })
     expect(saveCouponSet).not.toHaveBeenCalled()
   })
 })

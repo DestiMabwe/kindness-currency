@@ -5,7 +5,7 @@ import { createOrderRepository } from '@/lib/orderRepository'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 import { initiateSingleCheckout, verifyAndFulfillCheckout, type InitiateCheckoutResult, type VerifyAndFulfillResult } from '@/lib/checkoutService'
-import { checkRateLimit, getCallerIp, RATE_LIMITS } from '@/lib/rateLimit'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
 
 const SEND_RATE_LIMITED_ERROR = "You're sending a bit fast — please wait a moment and try again."
 const CHECKOUT_RATE_LIMITED_ERROR = "You're checking out a bit fast — please wait a moment and try again."
@@ -18,10 +18,13 @@ async function getAuthedUser() {
   return user
 }
 
-/** Always free — writes status='draft', no entitlement check. */
+const LOGIN_REQUIRED_ERROR = 'Please log in to save or send your coupons.'
+
+/** Always free — writes status='draft', no entitlement check. Requires a logged-in sender. */
 export async function saveDraftAction(input: unknown): Promise<SaveCouponSetResult> {
   const user = await getAuthedUser()
-  return createCouponSetRepository(createServiceClient()).saveCouponSet(input, user?.id ?? null, 'draft')
+  if (!user) return { success: false, error: LOGIN_REQUIRED_ERROR }
+  return createCouponSetRepository(createServiceClient()).saveCouponSet(input, user.id, 'draft')
 }
 
 /**
@@ -31,14 +34,13 @@ export async function saveDraftAction(input: unknown): Promise<SaveCouponSetResu
  */
 export async function sendCouponSetAction(input: unknown): Promise<SaveCouponSetResult> {
   const user = await getAuthedUser()
+  if (!user) return { success: false, error: LOGIN_REQUIRED_ERROR }
   const supabase = createServiceClient()
 
-  const rateLimit = user
-    ? await checkRateLimit(supabase, `send:user:${user.id}`, RATE_LIMITS.sendByUser)
-    : await checkRateLimit(supabase, `send:ip:${await getCallerIp()}`, RATE_LIMITS.sendByIp)
+  const rateLimit = await checkRateLimit(supabase, `send:user:${user.id}`, RATE_LIMITS.sendByUser)
   if (!rateLimit.allowed) return { success: false, error: SEND_RATE_LIMITED_ERROR }
 
-  return createCouponSetRepository(supabase).saveCouponSet(input, user?.id ?? null, 'sent')
+  return createCouponSetRepository(supabase).saveCouponSet(input, user.id, 'sent')
 }
 
 /**
