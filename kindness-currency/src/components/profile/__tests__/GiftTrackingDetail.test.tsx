@@ -4,9 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { GiftTrackingDetail } from '../GiftTrackingDetail'
 import type { GiftTrackingDetail as GiftTrackingDetailData } from '@/lib/couponSetRepository'
 
-const resetPinAction = vi.fn()
+const redeemCouponAction = vi.fn()
 vi.mock('@/app/profile/actions', () => ({
-  resetPinAction: (setId: string) => resetPinAction(setId),
+  redeemCouponAction: (input: { couponId: string; pin: string }) => redeemCouponAction(input),
 }))
 
 const baseDetail = (overrides: Partial<GiftTrackingDetailData> = {}): GiftTrackingDetailData => ({
@@ -26,7 +26,7 @@ const baseDetail = (overrides: Partial<GiftTrackingDetailData> = {}): GiftTracki
 
 describe('GiftTrackingDetail', () => {
   beforeEach(() => {
-    resetPinAction.mockReset()
+    redeemCouponAction.mockReset()
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
   })
 
@@ -108,15 +108,52 @@ describe('GiftTrackingDetail', () => {
     expect(screen.getByRole('link', { name: 'Back to Your Gifts' })).toHaveAttribute('href', '/profile')
   })
 
-  it('opens the reset-PIN flow for this specific set from View PIN', async () => {
-    resetPinAction.mockResolvedValue({ success: true, pin: '7392' })
+  it('no longer offers a way to view or reset a PIN — the sender never holds one', () => {
     render(<GiftTrackingDetail detail={baseDetail()} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'View PIN' }))
-    expect(screen.getByText('Generate a new PIN?')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'View PIN' })).not.toBeInTheDocument()
+  })
 
-    await userEvent.click(screen.getByRole('button', { name: 'Generate New PIN' }))
+  it('offers "Enter their PIN" only on coupons that are not redeemed yet', () => {
+    render(
+      <GiftTrackingDetail
+        detail={baseDetail({
+          coupons: [
+            { id: 'c1', service_title: 'Cook Dinner', status: 'redeemed', redeemed_at: '2026-08-22T00:00:00Z' },
+            { id: 'c2', service_title: 'Do The Dishes', status: 'sent', redeemed_at: null },
+          ],
+        })}
+      />
+    )
 
-    expect(resetPinAction).toHaveBeenCalledWith('set-1')
+    expect(screen.getAllByRole('button', { name: 'Enter their PIN' })).toHaveLength(1)
+  })
+
+  it('confirms a PIN for that specific coupon and marks it redeemed on success', async () => {
+    redeemCouponAction.mockResolvedValue({
+      success: true,
+      coupon: { id: 'c2', status: 'redeemed', redeemedAt: '2026-08-23T00:00:00Z' },
+    })
+    render(<GiftTrackingDetail detail={baseDetail()} />)
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Enter their PIN' })[1])
+    await userEvent.type(screen.getByLabelText('4-digit PIN'), '4821')
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, redeem with love ♥' }))
+
+    expect(redeemCouponAction).toHaveBeenCalledWith({ couponId: 'c2', pin: '4821' })
+    expect(await screen.findByText('1 of 2 coupons redeemed so far.')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Enter their PIN' })).toHaveLength(1)
+  })
+
+  it('keeps the coupon pending and shows the soft error on a wrong PIN', async () => {
+    redeemCouponAction.mockResolvedValue({ success: false, error: 'nope' })
+    render(<GiftTrackingDetail detail={baseDetail()} />)
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Enter their PIN' })[0])
+    await userEvent.type(screen.getByLabelText('4-digit PIN'), '0000')
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, redeem with love ♥' }))
+
+    expect(await screen.findByText("That PIN doesn't match or has expired. Ask Mom to generate a new one.")).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Enter their PIN' })).toHaveLength(2)
   })
 })

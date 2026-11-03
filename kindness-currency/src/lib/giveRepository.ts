@@ -92,6 +92,19 @@ export function createGiveRepository(supabase: SupabaseClient) {
     },
 
     /**
+     * Current status of one coupon — the recipient's PIN screen polls this to notice the sender
+     * confirming the PIN. Selects status only, nothing else about the coupon or its set.
+     */
+    async getCouponStatus(couponId: string): Promise<CouponStatus | null> {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('status')
+        .eq('id', couponId)
+        .single<{ status: CouponStatus }>()
+      return error || !data ? null : data.status
+    },
+
+    /**
      * Records the moment the recipient first loaded this link — closes the
      * loop for the sender even without a redemption. Conditioned on
      * opened_at still being null so repeat visits never overwrite the

@@ -6,12 +6,13 @@ import { useDialogA11y } from '@/hooks/useDialogA11y'
 
 export type PINVerificationModalProps = {
   couponTitle: string
-  senderName: string
+  recipientName: string
   onVerify: (pin: string) => Promise<boolean>
   onClose: () => void
 }
 
-export function PINVerificationModal({ couponTitle, senderName, onVerify, onClose }: PINVerificationModalProps) {
+/** Sender-side: the signed-in sender enters the PIN the recipient generated and read out to them. */
+export function PINVerificationModal({ couponTitle, recipientName, onVerify, onClose }: PINVerificationModalProps) {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -23,7 +24,7 @@ export function PINVerificationModal({ couponTitle, senderName, onVerify, onClos
     const ok = await onVerify(pin)
     setSubmitting(false)
     if (!ok) {
-      setError(ctaCopy.pinWrongError(senderName))
+      setError(ctaCopy.pinWrongError(recipientName))
       setPin('')
     }
   }
@@ -42,13 +43,13 @@ export function PINVerificationModal({ couponTitle, senderName, onVerify, onClos
             Redeem this right now?
           </h2>
           <div className="mt-2 text-[13px] leading-relaxed text-[#2C2C2C] opacity-75">
-            &ldquo;{couponTitle}&rdquo; — once you redeem, it can&apos;t be undone. Ready?
+            &ldquo;{couponTitle}&rdquo; — once you confirm, it can&apos;t be undone. Ready?
           </div>
         </div>
 
         <div className="mt-5">
           <div className="text-center font-sans text-[11px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-55">
-            Enter your 4-digit PIN
+            {ctaCopy.senderPinPrompt(recipientName)}
           </div>
           <input
             value={pin}

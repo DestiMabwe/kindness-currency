@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
-import { resetPinAction } from '@/app/profile/actions'
-import { ResetPinModal } from './ResetPinModal'
+import { redeemCouponAction } from '@/app/profile/actions'
+import { PINVerificationModal } from '@/components/modals/PINVerificationModal'
 import { resolveGiftVisual } from '@/constants/designTokens'
 import type { GiftTrackingDetail as GiftTrackingDetailData } from '@/lib/couponSetRepository'
 
@@ -43,14 +43,33 @@ const STATUS_HEADLINE: Record<GiftStatus, (name: string) => string> = {
   redeemed: ctaCopy.giftTrackingStatusRedeemed,
 }
 
-export function GiftTrackingDetail({ detail }: GiftTrackingDetailProps) {
+export function GiftTrackingDetail({ detail: initialDetail }: GiftTrackingDetailProps) {
   const [copied, setCopied] = useState(false)
-  const [resetPinOpen, setResetPinOpen] = useState(false)
+  const [coupons, setCoupons] = useState(initialDetail.coupons)
+  const [enteringPinForId, setEnteringPinForId] = useState<string | null>(null)
+  // Coupon state is local so a PIN confirmed here updates the progress, headline and timeline
+  // immediately, without waiting on a server refresh.
+  const detail = { ...initialDetail, coupons }
   const status = statusFor(detail)
   const { accent, motif } = resolveGiftVisual(detail.templateSlug)
   const redeemed = redeemedCount(detail.coupons)
   const total = detail.coupons.length
   const redeemedAt = firstRedeemedAt(detail.coupons)
+  const enteringPinFor = coupons.find((c) => c.id === enteringPinForId) ?? null
+
+  const handleVerify = async (pin: string): Promise<boolean> => {
+    if (!enteringPinForId) return false
+    const result = await redeemCouponAction({ couponId: enteringPinForId, pin })
+    if (!result.success) return false
+
+    setCoupons((prev) =>
+      prev.map((c) =>
+        c.id === enteringPinForId ? { ...c, status: result.coupon.status, redeemed_at: result.coupon.redeemedAt } : c
+      )
+    )
+    setEnteringPinForId(null)
+    return true
+  }
 
   const shareLink = typeof window !== 'undefined' ? `${window.location.origin}/give/${detail.id}` : ''
 
@@ -119,13 +138,6 @@ export function GiftTrackingDetail({ detail }: GiftTrackingDetailProps) {
             <div className="mt-0.5 text-[15px] font-bold text-[#1A1A2E]">{detail.recipient_name}</div>
             {detail.templateName && <div className="text-[12.5px] text-[#2C2C2C] opacity-70">{detail.templateName}</div>}
           </div>
-          <button
-            type="button"
-            onClick={() => setResetPinOpen(true)}
-            className="flex items-center gap-1 text-[12px] font-semibold text-[#1A1A2E] opacity-70"
-          >
-            <span aria-hidden="true">👁</span> {ctaCopy.resetPinButtonLabel}
-          </button>
         </div>
       </div>
 
@@ -146,6 +158,15 @@ export function GiftTrackingDetail({ detail }: GiftTrackingDetailProps) {
                   <div className="text-[11px] text-[#2C2C2C] opacity-60">
                     {isRedeemed ? ctaCopy.giftTrackingCouponRedeemed : ctaCopy.giftTrackingCouponPending}
                   </div>
+                  {!isRedeemed && (
+                    <button
+                      type="button"
+                      onClick={() => setEnteringPinForId(coupon.id)}
+                      className="mt-1 font-sans text-[11.5px] font-bold text-[#C2185B]"
+                    >
+                      {ctaCopy.giftTrackingEnterPin}
+                    </button>
+                  )}
                 </div>
               </div>
             )
@@ -170,11 +191,12 @@ export function GiftTrackingDetail({ detail }: GiftTrackingDetailProps) {
         </div>
       </div>
 
-      {resetPinOpen && (
-        <ResetPinModal
+      {enteringPinFor && (
+        <PINVerificationModal
+          couponTitle={enteringPinFor.service_title}
           recipientName={detail.recipient_name}
-          onReset={() => resetPinAction(detail.id)}
-          onClose={() => setResetPinOpen(false)}
+          onVerify={handleVerify}
+          onClose={() => setEnteringPinForId(null)}
         />
       )}
     </div>

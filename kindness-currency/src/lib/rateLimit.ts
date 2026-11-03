@@ -10,6 +10,11 @@ export const RATE_LIMITS = {
   checkoutByUser: { limit: 10, windowSeconds: 60 },
   sendByUser: { limit: 20, windowSeconds: 60 * 60 },
   sendByIp: { limit: 5, windowSeconds: 60 * 60 },
+  // Recipient taps "Generate Redemption PIN" with no login: capped per coupon (so a link-holder
+  // can't keep killing the recipient's live PIN, since each generate supersedes the last) and
+  // per IP (so one caller can't sweep many coupons).
+  generatePinByCoupon: { limit: 3, windowSeconds: 10 * 60 },
+  generatePinByIp: { limit: 10, windowSeconds: 10 * 60 },
 } as const
 
 export type RateLimitResult = { allowed: boolean; retryAfterSeconds: number }
