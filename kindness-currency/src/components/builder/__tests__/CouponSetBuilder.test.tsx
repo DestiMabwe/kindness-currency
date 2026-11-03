@@ -304,7 +304,7 @@ describe('CouponSetBuilder', () => {
   it('shows a real, server-fetched pending-to-personalize badge, and refreshes the page after completing a send so it reflects the just-consumed instance', async () => {
     // Consuming a purchased instance only happens on an actual Send (paid), never a free draft
     // save — see couponSetRepository's requiresPaymentForSend / CouponSetBuilder's performSave.
-    sendCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+    sendCouponSetAction.mockResolvedValue({ success: true, id: 'set-1' })
     render(
       <CouponSetBuilder
         templates={[template()]}
@@ -580,7 +580,7 @@ describe('coming soon section', () => {
     })
 
     it('includes a sender message field, and a custom message flows through to the save payload', async () => {
-      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -595,7 +595,7 @@ describe('coming soon section', () => {
     })
 
     it('omits sender_message from the save payload when left blank', async () => {
-      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -833,7 +833,7 @@ describe('coming soon section', () => {
     })
 
     it('opens a modal that saves the new message into the builder state', async () => {
-      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       await goToEditor(true)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel }))
@@ -847,7 +847,7 @@ describe('coming soon section', () => {
     })
 
     it('discards the draft and keeps the original message when Cancel is tapped', async () => {
-      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -873,7 +873,7 @@ describe('coming soon section', () => {
 
   describe('save and send', () => {
     it('saves a free draft when already logged in and "Save My Coupons" is clicked', async () => {
-      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       await goToEditor(true)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
@@ -884,7 +884,7 @@ describe('coming soon section', () => {
     })
 
     it('sends directly and shows GiftReadyScreen when already logged in, paid, and "Send with Love" is clicked', async () => {
-      sendCouponSetAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      sendCouponSetAction.mockResolvedValue({ success: true, id: 'set-1' })
       await goToEditor(true)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
@@ -908,7 +908,7 @@ describe('coming soon section', () => {
     })
 
     it('shows the WhatsApp share option on the ready screen once logged in', async () => {
-      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       await goToEditor(true)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
@@ -927,7 +927,7 @@ describe('coming soon section', () => {
     })
 
     it('does not show the save-to-account banner, since the sender is always logged in at save time now', async () => {
-      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1', pin: '4821' })
+      saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       await goToEditor(true)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))

@@ -55,9 +55,9 @@ export function createGiveRepository(supabase: SupabaseClient) {
   return {
     /**
      * Reads everything the recipient page needs for /give/[id]. Deliberately
-     * never selects pin_code — this is the only read path for anonymous
-     * recipients, so the query itself enforces that the PIN hash never
-     * leaves the database.
+     * never selects any PIN hash (coupon_sets.pin_code, redemption_otps) — this
+     * is the only read path for anonymous recipients, so the query itself
+     * enforces that no PIN hash ever leaves the database.
      */
     async getCouponSetForRecipient(id: string): Promise<GiveCouponSet | null> {
       const { data, error } = await supabase

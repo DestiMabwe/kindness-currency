@@ -337,7 +337,7 @@ export function GestureFlow({
       return
     }
     clearPersistedGestureDraft()
-    setSavedResult({ setId: result.id, pin: result.pin, wasLinkedAtSave: isLoggedIn })
+    setSavedResult({ setId: result.id, wasLinkedAtSave: isLoggedIn })
     setStep('done')
   }
 
@@ -413,7 +413,6 @@ export function GestureFlow({
     return (
       <GiftReadyScreen
         shareLink={`${window.location.origin}/give/${savedResult.setId}`}
-        pin={savedResult.pin}
         senderName={senderName}
         recipientName={recipientName}
         onStartOver={handleExit}

@@ -2,8 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { headers } from 'next/headers'
 
 // Tunable limits, one place. All windows use the same increment_rate_limit() Postgres RPC
-// (supabase/migrations/20260917000001_add_rate_limits.sql); PIN lockout is separate (see
-// redemptionEngine.ts's use of the record_pin_attempt RPC instead).
+// (supabase/migrations/20260917000001_add_rate_limits.sql). Wrong-PIN attempts are tracked
+// separately, per redemption OTP, by the record_otp_failure RPC (see redemptionEngine.ts).
 export const RATE_LIMITS = {
   authByIp: { limit: 10, windowSeconds: 10 * 60 },
   authByEmail: { limit: 3, windowSeconds: 10 * 60 },

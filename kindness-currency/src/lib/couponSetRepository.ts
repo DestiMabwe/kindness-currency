@@ -1,13 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import bcrypt from 'bcryptjs'
-import { randomInt } from 'node:crypto'
 import { SaveCouponSetInputSchema, type CouponSetStatus } from '@/schemas/couponSchema'
 import { singleUseGestures } from '@/lib/singleUseGestures'
 
 const gestureBySlug = Object.fromEntries(singleUseGestures.map((g) => [g.slug, g]))
 
 export type SaveCouponSetResult =
-  | { success: true; id: string; pin: string }
+  | { success: true; id: string }
   | { success: false; error: string; paymentRequired?: boolean }
 
 export type CouponSetSummary = {
@@ -78,9 +76,9 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
      * atomic transaction, so a crash mid-save can never burn a paid entitlement with nothing
      * created, or let a paid send through without consuming one (see the migration for the
      * function body). userId is null for an anonymous sender — mirrors the recipient side, which
-     * already supports an anonymous /give/[id] visitor linking their account later. Generates the
-     * 4-digit PIN and returns it once, in plaintext, so the caller can show it on GiftReadyScreen
-     * — only the bcrypt hash is stored.
+     * already supports an anonymous /give/[id] visitor linking their account later. No PIN is
+     * created here: the recipient generates a short-lived one at redemption time (see
+     * redemptionEngine.ts).
      *
      * status is decided by the caller's own server action (saveDraftAction vs
      * sendCouponSetAction), never taken from the client's payload — a 'draft' save is always free;
@@ -105,9 +103,6 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
 
       const requiresPayment = status === 'sent' && requiresPaymentForSend(template, gesture_unlocked)
 
-      const pin = String(randomInt(1000, 10000))
-      const pinHash = await bcrypt.hash(pin, 10)
-
       const { data: setId, error } = await supabase.rpc('create_coupon_set', {
         p_user_id: userId,
         p_status: status,
@@ -116,7 +111,6 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
           ...setFields,
           expiry_date: expiry_date ?? null,
           sender_message: sender_message ?? null,
-          pin_code: pinHash,
         },
         p_coupons: coupons,
       })
@@ -129,7 +123,7 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
       }
       if (!setId) return { success: false, error: GENERIC_ERROR }
 
-      return { success: true, id: setId as string, pin }
+      return { success: true, id: setId as string }
     },
 
     /**

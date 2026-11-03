@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest'
-import bcrypt from 'bcryptjs'
 import { createCouponSetRepository } from '../couponSetRepository'
 
 function makeSupabase({
@@ -38,20 +37,16 @@ const validInput = () => ({
 
 describe('CouponSetRepository', () => {
   describe('saveCouponSet', () => {
-    it('generates a 4-digit PIN, stores only its bcrypt hash, and returns the plaintext PIN once', async () => {
+    it('creates no sender PIN: nothing PIN-related is stored or returned (the recipient generates one at redemption)', async () => {
       const { supabase, rpc } = makeSupabase()
       const repo = createCouponSetRepository(supabase as never)
 
       const result = await repo.saveCouponSet(validInput(), 'user-1', 'sent')
 
-      expect(result.success).toBe(true)
-      if (!result.success) throw new Error('expected success')
-      expect(result.pin).toMatch(/^\d{4}$/)
-      expect(result.id).toBe('set-1')
+      expect(result).toEqual({ success: true, id: 'set-1' })
 
       const rpcArgs = rpc.mock.calls[0][1]
-      expect(rpcArgs.p_set.pin_code).not.toBe(result.pin)
-      expect(await bcrypt.compare(result.pin, rpcArgs.p_set.pin_code)).toBe(true)
+      expect(rpcArgs.p_set).not.toHaveProperty('pin_code')
       expect(rpcArgs.p_user_id).toBe('user-1')
     })
 

@@ -36,9 +36,9 @@ export const ctaCopy = {
     `That PIN doesn't match or has expired. Ask ${recipientName} to generate a new one.`,
   pinAlreadyRedeemed: 'This one has already been redeemed ♥',
   pinRateLimited: 'Easy there — please wait a few minutes before generating another PIN.',
-  giftReadyPinInstruction: 'Share the link via WhatsApp. Send the PIN separately — or whisper it in person.',
+  giftReadyRedeemInstruction: "Share the link via WhatsApp. When they're ready to redeem, they'll give you a PIN to confirm.",
   giftReadyShareMessage: (recipientName: string, senderName: string, shareLink: string) =>
-    `${recipientName}, ${senderName} made you something special on Kindness Currency\n\nOpen it here:\n${shareLink}\n\nI'll send your PIN separately, so keep an eye out!`,
+    `${recipientName}, ${senderName} made you something special on Kindness Currency\n\nOpen it here:\n${shareLink}`,
   giftReadyStartOver: 'Spot another template? Start a new coupon set →',
   templatesSubheading: 'Customize the perfect coupons. Start free.',
   comingSoonHeading: 'Coming Soon',

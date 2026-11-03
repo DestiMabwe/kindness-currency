@@ -189,7 +189,7 @@ describe('GestureFlow', () => {
 
   describe('Save/Send without an account', () => {
     it('saves a draft while logged out, with no AuthGate interruption at all', async () => {
-      saveDraftAction.mockReset().mockResolvedValue({ success: true, id: 'set-1', pin: '1234' })
+      saveDraftAction.mockReset().mockResolvedValue({ success: true, id: 'set-1' })
       await goToPersonalize(freeGesture)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
@@ -200,7 +200,7 @@ describe('GestureFlow', () => {
     })
 
     it('sends an unmodified free gesture while logged out, with no AuthGate interruption at all', async () => {
-      sendCouponSetAction.mockReset().mockResolvedValue({ success: true, id: 'set-1', pin: '1234' })
+      sendCouponSetAction.mockReset().mockResolvedValue({ success: true, id: 'set-1' })
       await goToPersonalize(freeGesture)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
@@ -246,7 +246,7 @@ describe('GestureFlow', () => {
       sendCouponSetAction
         .mockReset()
         .mockResolvedValueOnce({ success: false, error: 'Payment required.', paymentRequired: true })
-        .mockResolvedValueOnce({ success: true, id: 'set-1', pin: '1234' })
+        .mockResolvedValueOnce({ success: true, id: 'set-1' })
       initiateSendCheckoutAction.mockReset().mockResolvedValue({ success: true, accessCode: 'access-code-1' })
       verifyCheckoutAction.mockReset().mockResolvedValue({ paid: true, cartSnapshot: [], amountCents: 199 })
       await goToPersonalizeLoggedIn(paidGesture)
