@@ -67,9 +67,31 @@ describe('CartView', () => {
     expect(screen.queryByText('$2.99')).not.toBeInTheDocument()
   })
 
+  it('tells the buyer one-time gestures do not count toward 3-for-2 only when the cart holds gestures', () => {
+    addToCart('mothers_day', 1)
+    const { unmount } = render(<CartView isLoggedIn={true} region="US" />)
+    expect(screen.queryByText(ctaCopy.cartGesturesExcludedNote)).not.toBeInTheDocument()
+    unmount()
+
+    addToCart('celebration', 1) // a $1.99 one-time gesture
+    render(<CartView isLoggedIn={true} region="US" />)
+    expect(screen.getByText(ctaCopy.cartGesturesExcludedNote)).toBeInTheDocument()
+  })
+
   describe('checkout', () => {
     beforeEach(() => {
       addToCart('mothers_day', 1)
+    })
+
+    it('warns a logged-out buyer about the sign-in step before they reach Pay, but not a logged-in one', async () => {
+      const { unmount } = render(<CartView isLoggedIn={false} region="US" />)
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+      expect(screen.getByText(ctaCopy.cartCheckoutSignInNote)).toBeInTheDocument()
+      unmount()
+
+      render(<CartView isLoggedIn={true} region="US" />)
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+      expect(screen.queryByText(ctaCopy.cartCheckoutSignInNote)).not.toBeInTheDocument()
     })
 
     it('opens the Paystack popup with the server-issued access code instead of navigating away', async () => {

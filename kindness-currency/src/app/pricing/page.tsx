@@ -7,7 +7,8 @@ import { createComingSoonTemplateRepository } from '@/lib/comingSoonTemplateRepo
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { bundleTierBySlug, type BundleTier } from '@/lib/bundleTiers'
-import { REGION_TIER_PRICE, REGION_FLAGSHIP_PRICE, REGION_PAIRED_BUNDLE_PRICE, formatPrice } from '@/lib/geoPricing'
+import { REGION_TIER_PRICE, REGION_FLAGSHIP_PRICE, REGION_PAIRED_BUNDLE_PRICE, formatPrice, gesturePriceForRegion } from '@/lib/geoPricing'
+import { singleUseGestures } from '@/lib/singleUseGestures'
 import { getRegion } from '@/lib/region'
 
 const TIER_ORDER: { tier: BundleTier; label: string }[] = [
@@ -87,6 +88,31 @@ export default async function PricingPage() {
 
         <div className="mt-2 text-[11px] leading-relaxed text-[#2C2C2C] opacity-55">
           {ctaCopy.pricingPairNote(formatPrice(REGION_PAIRED_BUNDLE_PRICE[region], region), formatPrice(REGION_TIER_PRICE[region].romance, region))}
+        </div>
+
+        <div className="mt-7 h-px bg-[#1A1A2E]/10" />
+
+        <div className="mt-7">
+          <h2 className="text-[18px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+            {ctaCopy.pricingGesturesHeading}
+          </h2>
+          <div className="mt-1.5 text-[13px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.pricingGesturesBody}</div>
+          <div className="mt-2.5 flex flex-col gap-2">
+            {singleUseGestures.map((gesture) => {
+              const price = gesturePriceForRegion(gesture, region)
+              return (
+                <div
+                  key={gesture.slug}
+                  className="flex items-center justify-between rounded-xl border border-[#1A1A2E]/8 bg-white px-3.5 py-2.5"
+                >
+                  <span className="text-[13.5px] font-semibold text-[#1A1A2E]">{gesture.serviceTitle}</span>
+                  <span className="text-[13px] font-bold text-[#C2185B]">
+                    {price === 0 ? ctaCopy.pricingGestureFree : formatPrice(price, region)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         <div className="mt-7 h-px bg-[#1A1A2E]/10" />

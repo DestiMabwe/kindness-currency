@@ -43,6 +43,8 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   const lines = linesForCart(cartLines, region)
 
   const { subtotal, pairDiscount, discount, total, freeSlug, bookUnits } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE[region])
+  // Gestures never count toward 3-for-2, so any units beyond the coupon-book units are gestures.
+  const hasGestureUnits = lines.reduce((sum, l) => sum + l.qty, 0) > bookUnits
 
   const handlePay = async () => {
     if (!isLoggedIn) {
@@ -100,6 +102,9 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
           </div>
         </div>
         <div className="mt-4 text-[12px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.cartCheckoutNote}</div>
+        {!isLoggedIn && (
+          <div className="mt-1.5 text-[12px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.cartCheckoutSignInNote}</div>
+        )}
         {payError && <div className="mt-3 text-center text-[12.5px] text-[#C2185B]">{payError}</div>}
         <button
           type="button"
@@ -133,6 +138,7 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
           {bookUnits < 3 && (
             <div className="mt-3 rounded-xl bg-[#C2185B]/8 px-3.5 py-2.5 text-[12px] leading-relaxed text-[#1A1A2E]">
               {ctaCopy.cartAlmostThreeForTwo(3 - bookUnits)}
+              {hasGestureUnits && <span className="mt-0.5 block opacity-70">{ctaCopy.cartGesturesExcludedNote}</span>}
             </div>
           )}
           <div className="mt-4 flex flex-col gap-2.5">
