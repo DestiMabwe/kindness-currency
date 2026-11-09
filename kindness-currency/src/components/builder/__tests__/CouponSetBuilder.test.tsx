@@ -275,6 +275,21 @@ describe('CouponSetBuilder', () => {
     expect(screen.getByRole('link', { name: ctaCopy.cartLinkLabel(2) })).toBeInTheDocument()
   })
 
+  it('keeps an "N in your cart" note with a View cart link after the Added confirmation fades', async () => {
+    render(<CouponSetBuilder templates={[template()]} region="US" />)
+    expect(screen.queryByText(ctaCopy.viewCartLink)).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel("Mom's Promise Tokens") }))
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('$5.98') }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: ctaCopy.designMyGiftCta('$2.99') })).toBeInTheDocument(),
+      { timeout: 2000 }
+    )
+    expect(screen.getByText(ctaCopy.inCartNote(2))).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: ctaCopy.viewCartLink })).toHaveAttribute('href', '/cart')
+  })
+
   it('confirms the add with "Added" and disables the button briefly, so a hesitant re-tap can\'t silently add a second set', async () => {
     render(<CouponSetBuilder templates={[template()]} region="US" />)
 

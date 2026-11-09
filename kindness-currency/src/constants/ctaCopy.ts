@@ -159,6 +159,8 @@ export const ctaCopy = {
     `Requested By Him & Requested By Her are ${formattedPairPrice} together as a couple’s bundle, instead of ${formattedEachPrice} each.`,
   designMyGiftCta: (formattedPrice: string) => `Design My Gift · ${formattedPrice}`,
   designMyGiftAddedCta: 'Added ✓',
+  inCartNote: (qty: number) => `${qty} in your cart`,
+  viewCartLink: 'View cart',
   qtyDecreaseLabel: (name: string) => `Decrease quantity for ${name}`,
   qtyIncreaseLabel: (name: string) => `Increase quantity for ${name}`,
   pendingToPersonalizeBadge: (count: number) => (count === 1 ? '1 to personalize' : `${count} to personalize`),
