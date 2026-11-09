@@ -54,7 +54,12 @@ export function PromoScrollPopup() {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">
+    <div
+      className="fixed inset-0 z-[80] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) dismiss()
+      }}
+    >
       <div
         ref={dialogRef}
         role="dialog"

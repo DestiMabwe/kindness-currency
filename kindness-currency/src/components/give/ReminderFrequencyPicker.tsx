@@ -65,7 +65,12 @@ export function ReminderFrequencyPicker({
   }
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]">
+    <div
+      className="fixed inset-0 z-[85] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
       <div
         ref={dialogRef}
         role="dialog"

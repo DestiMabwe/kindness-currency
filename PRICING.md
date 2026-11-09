@@ -1,6 +1,6 @@
 # Pricing
 
-Status: proposed, not yet implemented. No billing infrastructure exists yet (no Stripe/Paddle/etc. in `package.json`). This document records the pricing model as discussed and agreed with the product owner on 2026-08-27, superseding the "monetisation explicitly undecided" note in `PRODUCT.md`.
+Status: implemented. Payments run through Paystack, which settles in ZAR only (US/UK visitors see a display price; see `src/lib/geoPricing.ts`). This document records the pricing model as discussed and agreed with the product owner on 2026-08-27, superseding the "monetisation explicitly undecided" note in `PRODUCT.md`.
 
 ## Model
 
@@ -58,9 +58,14 @@ Consistently the highest willingness-to-pay category in gifting (anniversaries, 
 
 Fully custom titles/text, not template defaults. Priced above every template since it replaces the sender's entire creative effort, not just a design choice. Currently early-access/"launching soon" (`src/lib/comingSoonTemplateRepository.ts`).
 
+## One-time gestures
+
+Single-coupon gestures (`src/lib/singleUseGestures.ts`) sit alongside the sets. Five are free and come as written (wording is locked); four are paid — $1.99 US / £1.49 UK / R14.99 ZA — and are fully customizable. Gestures never count toward the 3-for-2 and are not part of the "no permanently free tier" statement above, which applies to the template sets. They are listed on `/pricing`, and the cart tells the buyer when gestures aren't counted.
+
 ## Open questions / not yet decided
 
-- Payment provider (Stripe, Paddle, LemonSqueezy, etc.) — nothing is integrated yet.
+- ~~Payment provider~~ — decided: Paystack (ZAR settlement).
+- ~~Whether the couple's bundle and the 3-for-2 should stack~~ — decided: they stack (a cart with both gets both discounts).
 - Whether the "3 for 2" bundle discount is per-checkout (any 3 in one cart) or needs to track cumulative purchases per account. Per-checkout is far simpler to implement and is the current assumption.
 - Whether/when to revisit an optional "Kindness+" annual pass (unlimited templates + no branding + unlimited custom books) for repeat power users — deliberately deferred until there's real purchase data, not a v1 concern.
 - Whether the existing "Made with Kindness Currency" footer watermark stays on all paid coupon sets, or becomes a removable extra on top of the per-template price.
