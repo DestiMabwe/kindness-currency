@@ -19,12 +19,20 @@ const DISMISS_KEY = 'kindness-currency:promo-popup-dismissed'
 const TRIGGER_DELAY_MS = 3500
 const SCROLL_THRESHOLD_PX = 200
 
-export function PromoScrollPopup() {
+// `suppressed` stops the auto-open while the visitor is shopping one-time gestures, which the
+// offer explicitly excludes. It doesn't consume the once-per-session auto-show.
+export function PromoScrollPopup({ suppressed = false }: { suppressed?: boolean }) {
   const [open, setOpen] = useState(false)
   const autoShown = useRef(false)
+  const suppressedRef = useRef(suppressed)
+
+  useEffect(() => {
+    suppressedRef.current = suppressed
+  }, [suppressed])
 
   const autoShow = useCallback(() => {
     if (autoShown.current) return
+    if (suppressedRef.current) return
     if (typeof window === 'undefined') return
     if (window.sessionStorage.getItem(DISMISS_KEY) === 'true') return
     autoShown.current = true
