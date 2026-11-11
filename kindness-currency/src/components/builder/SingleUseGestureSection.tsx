@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { GoldCoupon } from '@/components/builder/GoldCoupon'
 import { QuantityStepper } from '@/components/builder/QuantityStepper'
+import { InCartNote } from '@/components/builder/InCartNote'
 import { addToCart } from '@/lib/cart'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { antiqueGold, type SingleUseGesture } from '@/lib/singleUseGestures'
@@ -158,6 +159,7 @@ function GestureCard({
             {ctaCopy.singleUseFreeCta}
           </button>
         )}
+        {isPaid && <InCartNote slug={gesture.slug} />}
       </div>
     </div>
   )

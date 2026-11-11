@@ -17,7 +17,8 @@ import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
 import { bundleTierBySlug, pairedSlugBySlug, type BundleTier } from '@/lib/bundleTiers'
 import { REGION_TIER_PRICE, REGION_PAIRED_BUNDLE_PRICE, formatPrice, type PricingRegion } from '@/lib/geoPricing'
-import { addToCart } from '@/lib/cart'
+import { addToCart, useCartSlugs } from '@/lib/cart'
+import { InCartNote } from '@/components/builder/InCartNote'
 import type { PendingPersonalization } from '@/lib/orderRepository'
 import {
   saveDraftAction,
@@ -741,7 +742,8 @@ function BundleTemplateCard({
         </div>
       )}
       {tier && unitPrice !== null && (
-        <div className="mx-4 mt-2.5 mb-3.5 flex items-center gap-2">
+        <div className="mx-4 mt-2.5 mb-3.5">
+        <div className="flex items-center gap-2">
           <QuantityStepper
             value={qty}
             onDecrease={() => setQty((q) => Math.max(1, q - 1))}
@@ -760,6 +762,8 @@ function BundleTemplateCard({
               {justAdded ? ctaCopy.designMyGiftAddedCta : ctaCopy.designMyGiftCta(formatPrice(unitPrice * qty, region))}
             </span>
           </button>
+        </div>
+        <InCartNote slug={template.slug} className="mt-2" />
         </div>
       )}
     </div>
@@ -797,6 +801,8 @@ function TemplateSelectScreen({
   const [bundleTier, setBundleTier] = useState<BundleTier | null>(null)
   const singleUseLayout = filter === 'range' ? 'hidden' : filter === 'focused' ? 'stack' : 'carousel'
   const showBundleList = filter !== 'focused'
+  const cartSlugs = useCartSlugs()
+  const cartHasGesture = cartSlugs.some((slug) => singleUseGestures.some((g) => g.slug === slug))
   const bundleTemplates = bundleTier ? templates.filter((t) => bundleTierBySlug[t.slug] === bundleTier) : templates
   const attemptedGestureResume = useRef(false)
 
@@ -829,7 +835,7 @@ function TemplateSelectScreen({
 
   return (
     <div>
-      <PromoScrollPopup />
+      <PromoScrollPopup suppressed={filter === 'focused' || cartHasGesture} />
       <div className="flex items-center justify-between gap-2.5 px-4.5 pt-3.5 pb-1.5">
         <div className="flex items-center gap-2.5">
           <Link href="/" aria-label="Kindness Currency home">

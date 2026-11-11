@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-09",
+  "url": "http://localhost:3100",
+  "healthScore": 94,
+  "provisional": true,
+  "issues": [
+    { "id": "ISSUE-001", "title": "Sign-up wall appears only after pressing Pay", "severity": "medium", "category": "ux" },
+    { "id": "ISSUE-002", "title": "'Design My Gift' silently adds to cart, no confirmation", "severity": "medium", "category": "ux" },
+    { "id": "ISSUE-003", "title": "First '+' on gesture swallowed by irrelevant 3-for-2 modal", "severity": "medium", "category": "functional" },
+    { "id": "ISSUE-004", "title": "3-for-2 banner shown for gestures-only cart", "severity": "low", "category": "content" },
+    { "id": "ISSUE-005", "title": "/pricing omits gestures; docs and home copy disagree on free", "severity": "low", "category": "content" },
+    { "id": "ISSUE-006", "title": "Cart/checkout stretch edge to edge on desktop", "severity": "low", "category": "visual" }
+  ],
+  "categoryScores": { "console": 100, "links": 100, "visual": 97, "functional": 92, "ux": 78, "performance": 100, "content": 94, "accessibility": 100 }
+}
