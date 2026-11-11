@@ -10,7 +10,7 @@ export default async function FeedbackPage() {
   } = await supabase.auth.getUser()
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#FFF8F0]">
+    <div className="flex flex-1 flex-col bg-[#FFF8F0]">
       <SiteHeader />
       <div className="px-5.5 pt-2 pb-10">
         <h1
