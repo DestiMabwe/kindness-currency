@@ -98,7 +98,7 @@ export default async function HomePage() {
           <div className="mt-0.75 text-[12.5px] text-white/70">{ctaCopy.templatesSubheading}</div>
         </div>
         <div className="mt-4 flex gap-3.25 overflow-x-auto px-5.5 pb-1.5">
-          {templates.map((template) => {
+          {heroTemplates.map((template) => {
             const visuals = templateVisuals[template.slug as TemplateSlug]
             return (
               <Link
@@ -111,11 +111,6 @@ export default async function HomePage() {
                     <Image src={visuals.coverImageSrc} alt={template.name} fill sizes="172px" className="object-cover" />
                   ) : (
                     <TemplateCoverArt name={template.name} accent={visuals.accent} tint={visuals.tint} imageSrc={visuals.imageSrc} />
-                  )}
-                  {template.is_age_restricted && (
-                    <span className="absolute top-2 right-2 rounded-full border border-[#C2185B] bg-white/92 px-1.75 py-0.5 text-[9px] font-bold tracking-[0.08em] text-[#C2185B]">
-                      18+
-                    </span>
                   )}
                 </div>
                 <div className="p-3.75">
