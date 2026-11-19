@@ -9,6 +9,12 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn().mockResolvedValue({ auth: { getUser: () => Promise.resolve({ data: { user: null } }) } }),
 }))
 
+const { hasCookie } = vi.hoisted(() => ({ hasCookie: vi.fn().mockReturnValue(false) }))
+vi.mock('next/headers', () => ({ cookies: vi.fn().mockResolvedValue({ has: hasCookie }) }))
+vi.mock('@/components/give/RecipientAgeGate', () => ({
+  RecipientAgeGate: ({ setId }: { setId: string }) => <div data-testid="age-gate" data-set-id={setId} />,
+}))
+
 const { getCouponSetForRecipient, markOpened } = vi.hoisted(() => ({
   getCouponSetForRecipient: vi.fn(),
   markOpened: vi.fn().mockResolvedValue(undefined),
@@ -41,6 +47,7 @@ const couponSet = (overrides: Partial<Awaited<ReturnType<typeof getCouponSetForR
   sender_name: 'Alex',
   recipient_name: 'Mom',
   template_slug: 'mothers_day',
+  is_age_restricted: false,
   expiry_date: null,
   recipient_user_id: null,
   sender_message: null,
@@ -48,6 +55,43 @@ const couponSet = (overrides: Partial<Awaited<ReturnType<typeof getCouponSetForR
   reminder_frequency: null,
   coupons: [],
   ...overrides,
+})
+
+describe('GivePage age gate (18+ sets)', () => {
+  const restricted = () => couponSet({ template_slug: 'lovers', is_age_restricted: true, sender_message: 'Secret note', coupons: [{ id: 'c1', status: 'sent' as const, sort_order: 1 }] })
+
+  it('renders only the age gate — no gift content, no markOpened — when the cookie is missing', async () => {
+    hasCookie.mockReturnValue(false)
+    markOpened.mockClear()
+    getCouponSetForRecipient.mockResolvedValue(restricted())
+
+    const { container } = render(await GivePage({ params: Promise.resolve({ id: 'set-1' }) }))
+
+    expect(screen.getByTestId('age-gate')).toHaveAttribute('data-set-id', 'set-1')
+    expect(screen.queryByTestId('coupon-list')).not.toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/Alex|Mom|Secret note/)
+    expect(markOpened).not.toHaveBeenCalled()
+  })
+
+  it('renders the gift once the age cookie is present', async () => {
+    hasCookie.mockReturnValue(true)
+    getCouponSetForRecipient.mockResolvedValue(restricted())
+
+    render(await GivePage({ params: Promise.resolve({ id: 'set-1' }) }))
+
+    expect(screen.queryByTestId('age-gate')).not.toBeInTheDocument()
+    expect(screen.getByTestId('coupon-list')).toBeInTheDocument()
+  })
+
+  it('never gates a non-restricted gift', async () => {
+    hasCookie.mockReturnValue(false)
+    getCouponSetForRecipient.mockResolvedValue(couponSet())
+
+    render(await GivePage({ params: Promise.resolve({ id: 'set-1' }) }))
+
+    expect(screen.queryByTestId('age-gate')).not.toBeInTheDocument()
+    expect(screen.getByTestId('coupon-list')).toBeInTheDocument()
+  })
 })
 
 describe('GivePage', () => {

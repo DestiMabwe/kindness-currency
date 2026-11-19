@@ -43,6 +43,8 @@ export type BuilderState = {
    * filled, gate never cleared) would fast-path straight back into the editor for free.
    */
   editorUnlockedTemplateId: string | null
+  /** The age-restricted template id the sender confirmed 18+ for via AgeGate — sent as age_confirmed on save. */
+  ageConfirmedTemplateId: string | null
 }
 
 const DRAFT_STORAGE_KEY = 'kindness-currency:coupon-set-draft'
@@ -58,6 +60,7 @@ const initialState: BuilderState = {
   coupons: [],
   savedResult: null,
   editorUnlockedTemplateId: null,
+  ageConfirmedTemplateId: null,
 }
 
 export function couponsFromTemplate(template: TemplateWithCoupons): BuilderCoupon[] {
@@ -152,6 +155,8 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     [templateBySlug]
   )
 
+  const confirmAge = useCallback((templateId: string) => setState((s) => ({ ...s, ageConfirmedTemplateId: templateId })), [])
+
   const backToSelect = useCallback(() => setState((s) => ({ ...s, screen: 'select' })), [])
   const backToDetails = useCallback(() => setState((s) => ({ ...s, screen: 'details' })), [])
 
@@ -182,6 +187,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
       recipient_name: state.recipientName,
       ...(state.expiryDate ? { expiry_date: state.expiryDate } : {}),
       ...(state.senderMessage?.trim() ? { sender_message: state.senderMessage.trim() } : {}),
+      ...(state.ageConfirmedTemplateId === state.selectedTemplateId ? { age_confirmed: true } : {}),
       coupons: state.coupons.map((c) => ({
         service_title: c.serviceTitle,
         micro_copy: c.microCopy,
@@ -210,6 +216,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     hydrated,
     templateBySlug,
     loadTemplate,
+    confirmAge,
     backToSelect,
     backToDetails,
     setSenderName,

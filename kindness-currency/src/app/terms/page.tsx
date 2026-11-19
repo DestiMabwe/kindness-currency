@@ -43,11 +43,14 @@ export default function TermsPage() {
         <p>You agree not to use the Service to:</p>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>harass, threaten or deceive anyone, or send unwanted content;</li>
-          <li>create coupons that are unlawful, sexually explicit involving minors, or promote harm;</li>
+          <li>create coupons that are unlawful, promote harm, or involve minors in anything sexual;</li>
           <li>try to guess PINs, bypass redemption controls, or interfere with the Service;</li>
           <li>copy or resell the Service or its designs without permission.</li>
         </ul>
-        <p>We may remove content or suspend accounts that break these rules.</p>
+        <p>
+          Coupon sets marked 18+ contain adult themes, including sexually explicit language, and are for adults only: the sender and the recipient must
+          each confirm they are 18 or older. We may remove content or suspend accounts that break these rules.
+        </p>
       </LegalSection>
 
       <LegalSection heading="Your content">

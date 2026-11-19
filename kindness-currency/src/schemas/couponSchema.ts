@@ -64,6 +64,9 @@ export const SaveCouponSetInputSchema = CouponSetMutationSchema.extend({
   // unlock for an otherwise-free gesture — see requiresPaymentForSend in couponSetRepository.ts.
   // Irrelevant for bundle templates (always paid) and gestures that are paid from the start.
   gesture_unlocked: z.boolean().optional(),
+  // True iff the sender passed the builder's AgeGate for this template. Record-only: the repository
+  // stamps coupon_sets.age_confirmed_at after a successful save and never rejects a save over it.
+  age_confirmed: z.boolean().optional(),
 })
 
 // Derived types — never write parallel interfaces

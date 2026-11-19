@@ -334,6 +334,24 @@ describe('useCouponSetBuilder', () => {
     })
   })
 
+  describe('age confirmation in the save payload', () => {
+    it('sends age_confirmed only after confirmAge for the selected template', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+      expect(result.current.toSavePayload()).not.toHaveProperty('age_confirmed')
+
+      act(() => result.current.confirmAge(mothersDay.id))
+      expect(result.current.toSavePayload()).toMatchObject({ age_confirmed: true })
+    })
+
+    it('does not send age_confirmed for a confirmation made for a different template', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))
+      act(() => result.current.loadTemplate('mothers_day'))
+      act(() => result.current.confirmAge('some-other-template-id'))
+      expect(result.current.toSavePayload()).not.toHaveProperty('age_confirmed')
+    })
+  })
+
   describe('toSavePayload', () => {
     it('builds a save payload matching SaveCouponSetInputSchema', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))

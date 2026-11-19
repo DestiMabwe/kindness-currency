@@ -1,5 +1,8 @@
 'use server'
 
+import { cookies } from 'next/headers'
+import { z } from 'zod'
+import { ageGateCookieName, AGE_GATE_COOKIE_MAX_AGE_SECONDS } from '@/lib/ageGateCookie'
 import { createRedemptionEngine } from '@/lib/redemptionEngine'
 import { createCouponSetRepository } from '@/lib/couponSetRepository'
 import { createGiveRepository } from '@/lib/giveRepository'
@@ -21,6 +24,23 @@ export async function generatePinAction(couponId: string) {
   if (!byIp.allowed) return { success: false, error: ctaCopy.pinRateLimited } as const
 
   return createRedemptionEngine(supabase).generatePin({ couponId })
+}
+
+/** Recipient tapped "I'm 18+, Continue →" on an age-restricted gift. Sets the per-set httpOnly cookie
+ * the /give/[id] server component checks before sending any gift content. Self-declaration only. */
+export async function confirmRecipientAgeAction(setId: string) {
+  const parsed = z.string().uuid().safeParse(setId)
+  if (!parsed.success) return { success: false } as const
+
+  const cookieStore = await cookies()
+  cookieStore.set(ageGateCookieName(parsed.data), '1', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: `/give/${parsed.data}`,
+    maxAge: AGE_GATE_COOKIE_MAX_AGE_SECONDS,
+  })
+  return { success: true } as const
 }
 
 /** Polled by the recipient's PIN screen while a PIN is showing, to notice the sender's confirmation. */

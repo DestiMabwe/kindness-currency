@@ -162,7 +162,7 @@ The `coupons.status` enum remains `'sent' | 'viewed' | 'redeemed'`. `coupon_sets
 Renders the "Almost there — save your coupons" modal. Collects Full Name + Email, triggers Supabase Email OTP, and on verification calls the save mutation with the pending CouponSetBuilder state. Only mounts when the user clicks "Save My Coupons" or "Send with Love".
 
 ### Module 7 — AgeGate
-A React modal that fires when a user selects any template where `is_age_restricted = true`. Blocks template selection until the user confirms they are 18+. "Go Back" dismisses the modal without selecting the template. This is local React state only — no server-side age verification.
+A React modal that fires when a user selects any template where `is_age_restricted = true`. Blocks template selection until the user confirms they are 18+. "Go Back" dismisses the modal without selecting the template. The sender's confirmation is stored as a timestamp (`coupon_sets.age_confirmed_at`, record-only — it never blocks a save or a paid send). On the recipient page `/give/[id]`, an age-restricted set renders nothing but this modal until the visitor confirms; confirmation sets a per-set httpOnly cookie via a server action, and the page sends no gift content (names, message, coupons) and does not mark the gift opened until that cookie exists. This is self-declaration, not identity or date-of-birth verification.
 
 ### Module 8 — GiftReadyScreen
 Post-save screen shown to the sender. Displays:
@@ -381,7 +381,7 @@ Test external behaviour, not implementation. A good test asks "does the user see
 - Any auth or login requirement on the /give/[id] recipient page
 - Native mobile app
 - Coupon sharing mechanisms other than WhatsApp / Copy Link / Web Share API
-- Content moderation or server-side age verification
+- Content moderation, and identity / date-of-birth age verification (self-declared 18+ confirmation is in scope — see Module 7)
 - Custom template creation by users
 
 ---

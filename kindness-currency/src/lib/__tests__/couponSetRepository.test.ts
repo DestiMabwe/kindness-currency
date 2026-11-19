@@ -455,3 +455,58 @@ describe('CouponSetRepository', () => {
     })
   })
 })
+
+describe('CouponSetRepository age confirmation (record-only)', () => {
+  function makeAgeSupabase({ restricted = true, updateError = null as unknown } = {}) {
+    const eqUpdate = vi.fn().mockResolvedValue({ error: updateError })
+    const update = vi.fn().mockReturnValue({ eq: eqUpdate })
+    const templateChain = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: { slug: 'lovers', is_single_use: false, is_age_restricted: restricted }, error: null }),
+    }
+    const from = vi.fn((table: string) => (table === 'templates' ? templateChain : { update }))
+    const rpc = vi.fn().mockResolvedValue({ data: 'set-1', error: null })
+    return { supabase: { from, rpc }, rpc, update, eqUpdate }
+  }
+
+  it('stamps age_confirmed_at after a successful save of an age-restricted set', async () => {
+    const { supabase, update, eqUpdate } = makeAgeSupabase()
+    const result = await createCouponSetRepository(supabase as never).saveCouponSet({ ...validInput(), age_confirmed: true }, 'user-1', 'sent')
+
+    expect(result).toEqual({ success: true, id: 'set-1' })
+    expect(update).toHaveBeenCalledWith({ age_confirmed_at: expect.any(String) })
+    expect(eqUpdate).toHaveBeenCalledWith('id', 'set-1')
+  })
+
+  it('never passes age_confirmed into create_coupon_set (payment path untouched)', async () => {
+    const { supabase, rpc } = makeAgeSupabase()
+    await createCouponSetRepository(supabase as never).saveCouponSet({ ...validInput(), age_confirmed: true }, 'user-1', 'sent')
+
+    expect(rpc.mock.calls[0][1].p_set).not.toHaveProperty('age_confirmed')
+  })
+
+  it('still saves successfully when the sender flag is missing (stale draft) and stamps nothing', async () => {
+    const { supabase, update } = makeAgeSupabase()
+    const result = await createCouponSetRepository(supabase as never).saveCouponSet(validInput(), 'user-1', 'sent')
+
+    expect(result).toEqual({ success: true, id: 'set-1' })
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('still reports success when stamping fails', async () => {
+    const { supabase } = makeAgeSupabase({ updateError: { message: 'boom' } })
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await createCouponSetRepository(supabase as never).saveCouponSet({ ...validInput(), age_confirmed: true }, 'user-1', 'sent')
+    spy.mockRestore()
+
+    expect(result).toEqual({ success: true, id: 'set-1' })
+  })
+
+  it('does not stamp a non-restricted template even if the flag is sent', async () => {
+    const { supabase, update } = makeAgeSupabase({ restricted: false })
+    await createCouponSetRepository(supabase as never).saveCouponSet({ ...validInput(), age_confirmed: true }, 'user-1', 'sent')
+
+    expect(update).not.toHaveBeenCalled()
+  })
+})
