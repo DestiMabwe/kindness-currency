@@ -8,6 +8,7 @@ import {
   settlementPriceForSlug,
   resolveSettlementPrice,
   settlementLinesForCart,
+  settlementTotalForItems,
 } from '../pricing'
 import { REGION_PAIRED_BUNDLE_PRICE, REGION_GESTURE_UNLOCK_PRICE, SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR } from '../geoPricing'
 
@@ -177,5 +178,25 @@ describe('settlementLinesForCart', () => {
     const { total } = cartTotals(lines, SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR.INTL)
 
     expect(total).toBeCloseTo(179.99)
+  })
+})
+
+describe('settlementTotalForItems', () => {
+  it('returns the international ZAR charge for a US or UK visitor, not their displayed price', () => {
+    expect(settlementTotalForItems([{ slug: 'mothers_day', qty: 1 }], 'US')).toBe(54.99)
+    expect(settlementTotalForItems([{ slug: 'mothers_day', qty: 1 }], 'UK')).toBe(54.99)
+  })
+
+  it('returns the same rand amount a South African visitor sees displayed', () => {
+    expect(settlementTotalForItems([{ slug: 'mothers_day', qty: 1 }], 'ZA')).toBe(19.99)
+  })
+
+  it('applies the 3-for-2 discount to the ZAR charge', () => {
+    const items = [
+      { slug: 'mothers_day', qty: 2 },
+      { slug: 'lovers', qty: 1 },
+    ]
+    // INTL: 54.99 x 2 + 124.99, cheapest unit (54.99) free
+    expect(settlementTotalForItems(items, 'US')).toBeCloseTo(54.99 + 124.99, 2)
   })
 })

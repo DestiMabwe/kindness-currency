@@ -15,6 +15,8 @@ import {
   REGION_GESTURE_UNLOCK_PRICE,
   gesturePriceForRegion,
   settlementGesturePriceForBucket,
+  settlementBucketForRegion,
+  SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR,
   SETTLEMENT_TIER_PRICE_ZAR,
   SETTLEMENT_GESTURE_UNLOCK_PRICE_ZAR,
   type PricingRegion,
@@ -132,6 +134,14 @@ export function resolveSettlementPrice(slug: string, product: 'base' | 'gestureU
     return gesture && gesture.price === 0 ? SETTLEMENT_GESTURE_UNLOCK_PRICE_ZAR[bucket] : null
   }
   return settlementPriceForSlug(slug, bucket)
+}
+
+/** The exact ZAR amount Paystack will charge for these cart items in this display region — the same
+ * settlement lookup + cartTotals math initiateCartCheckout runs server-side, exposed so the cart can
+ * show it before the buyer pays. Display only: the server always recomputes the real charge itself. */
+export function settlementTotalForItems(items: CartLineItem[], region: PricingRegion): number {
+  const bucket = settlementBucketForRegion(region)
+  return cartTotals(settlementLinesForCart(items, bucket), SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR[bucket]).total
 }
 
 export function settlementLinesForCart(items: CartLineItem[], bucket: SettlementBucket): CartLine[] {

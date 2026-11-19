@@ -14,6 +14,7 @@ import { useCartLines, setCartQty, removeFromCart, linesForCart, cartTotals, typ
 import { initiateCartCheckoutAction } from '@/app/cart/actions'
 import { resumePaystackCheckout } from '@/lib/paystack/inline'
 import { formatPrice, REGION_PAIRED_BUNDLE_PRICE, type PricingRegion } from '@/lib/geoPricing'
+import { settlementTotalForItems } from '@/lib/pricing'
 
 const CHECKOUT_POPUP_ERROR = 'Could not open the payment window. Please try again.'
 
@@ -45,6 +46,10 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   const { subtotal, pairDiscount, discount, total, freeSlug, bookUnits } = cartTotals(lines, REGION_PAIRED_BUNDLE_PRICE[region])
   // Gestures never count toward 3-for-2, so any units beyond the coupon-book units are gestures.
   const hasGestureUnits = lines.reduce((sum, l) => sum + l.qty, 0) > bookUnits
+  // Paystack settles only in ZAR, so anyone outside South Africa sees prices in their local currency
+  // but is charged a rand amount — surfaced here (display only; the server recomputes the charge).
+  const chargedInZar = region !== 'ZA'
+  const zarTotal = formatPrice(settlementTotalForItems(cartLines, region), 'ZA')
 
   const handlePay = async () => {
     if (!isLoggedIn) {
@@ -101,6 +106,9 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
             <span>{formatPrice(total, region)}</span>
           </div>
         </div>
+        {chargedInZar && (
+          <div className="mt-4 text-[12.5px] leading-relaxed font-semibold text-[#1A1A2E]">{ctaCopy.chargeCurrencyNote(zarTotal)}</div>
+        )}
         <div className="mt-4 text-[12px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.cartCheckoutNote}</div>
         {!isLoggedIn && (
           <div className="mt-1.5 text-[12px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.cartCheckoutSignInNote}</div>
@@ -112,7 +120,7 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
           disabled={paying}
           className="mt-4 w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white disabled:opacity-50"
         >
-          {paying ? ctaCopy.sendPaymentRedirecting : ctaCopy.cartPayCta(formatPrice(total, region))}
+          {paying ? ctaCopy.sendPaymentRedirecting : ctaCopy.cartPayCta(chargedInZar ? zarTotal : formatPrice(total, region))}
         </button>
 
         {authOpen && <AuthGate redirectTo="/cart" onClose={() => setAuthOpen(false)} />}
@@ -206,6 +214,9 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
             </div>
           </div>
 
+          {chargedInZar && (
+            <div className="mt-3 text-[12px] leading-relaxed text-[#2C2C2C] opacity-70">{ctaCopy.chargeCurrencyNote(zarTotal)}</div>
+          )}
           <button
             type="button"
             onClick={() => setStep('checkout')}

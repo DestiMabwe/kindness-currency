@@ -41,7 +41,14 @@ import { MessagePill } from '@/components/builder/MessagePill'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { antiqueGold, antiqueGoldText, type SingleUseGesture, type SingleUseGestureSlug } from '@/lib/singleUseGestures'
-import { REGION_GESTURE_UNLOCK_PRICE, gesturePriceForRegion, formatPrice, type PricingRegion } from '@/lib/geoPricing'
+import {
+  REGION_GESTURE_UNLOCK_PRICE,
+  SETTLEMENT_GESTURE_UNLOCK_PRICE_ZAR,
+  gesturePriceForRegion,
+  formatPrice,
+  settlementBucketForRegion,
+  type PricingRegion,
+} from '@/lib/geoPricing'
 import { saveDraftAction, sendCouponSetAction, initiateSendCheckoutAction, verifyCheckoutAction } from '@/app/create/actions'
 import { resumePaystackCheckout } from '@/lib/paystack/inline'
 import { SERVICE_TITLE_MAX_LENGTH, MICRO_COPY_MAX_LENGTH, FINE_PRINT_MAX_LENGTH } from '@/schemas/couponSchema'
@@ -104,10 +111,13 @@ function clearPersistedGestureDraft() {
 // Send time, via the same Paystack redirect the paid-from-start gestures use (see performSave).
 function GestureUnlockConfirm({
   formattedPrice,
+  chargeNote,
   onConfirm,
   onDismiss,
 }: {
   formattedPrice: string
+  /** Set outside South Africa: discloses the ZAR amount Paystack will actually charge. */
+  chargeNote?: string
   onConfirm: () => void
   onDismiss: () => void
 }) {
@@ -131,6 +141,7 @@ function GestureUnlockConfirm({
           {ctaCopy.gestureUnlockConfirmHeading}
         </h2>
         <div className="mt-3 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-85">{ctaCopy.gestureUnlockConfirmBody}</div>
+        {chargeNote && <div className="mt-2 text-[13px] leading-relaxed font-semibold text-[#1A1A2E]">{chargeNote}</div>}
         <button
           type="button"
           onClick={onConfirm}
@@ -599,6 +610,11 @@ export function GestureFlow({
       {unlockConfirmOpen && (
         <GestureUnlockConfirm
           formattedPrice={formatPrice(REGION_GESTURE_UNLOCK_PRICE[region], region)}
+          chargeNote={
+            region === 'ZA'
+              ? undefined
+              : ctaCopy.chargeCurrencyNote(formatPrice(SETTLEMENT_GESTURE_UNLOCK_PRICE_ZAR[settlementBucketForRegion(region)], 'ZA'))
+          }
           onConfirm={() => {
             setUnlocked(true)
             setUnlockConfirmOpen(false)

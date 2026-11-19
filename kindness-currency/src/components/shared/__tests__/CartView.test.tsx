@@ -67,6 +67,29 @@ describe('CartView', () => {
     expect(screen.queryByText('$2.99')).not.toBeInTheDocument()
   })
 
+  it('discloses the ZAR charge, with the exact amount, to a visitor who sees dollars', () => {
+    addToCart('mothers_day', 1) // $2.99 displayed, R54.99 charged
+    render(<CartView isLoggedIn={true} region="US" />)
+
+    expect(screen.getAllByText(ctaCopy.chargeCurrencyNote('R54.99')).length).toBeGreaterThan(0)
+  })
+
+  it('shows the ZAR amount on the pay button for a non-South-African visitor, since that is what is charged', async () => {
+    addToCart('mothers_day', 1)
+    render(<CartView isLoggedIn={true} region="UK" />)
+
+    await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+
+    expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R54.99') })).toBeInTheDocument()
+  })
+
+  it('shows no currency note to a South African visitor, who is already shown the rand charge', () => {
+    addToCart('mothers_day', 1)
+    render(<CartView isLoggedIn={true} region="ZA" />)
+
+    expect(screen.queryByText(/charged .* in South African rand/)).not.toBeInTheDocument()
+  })
+
   it('tells the buyer one-time gestures do not count toward 3-for-2 only when the cart holds gestures', () => {
     addToCart('mothers_day', 1)
     const { unmount } = render(<CartView isLoggedIn={true} region="US" />)
@@ -99,7 +122,7 @@ describe('CartView', () => {
       render(<CartView isLoggedIn={true} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('$2.99') }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('R54.99') }))
 
       expect(resumePaystackCheckout).toHaveBeenCalledWith('access-code-1', expect.objectContaining({ onSuccess: expect.any(Function) }))
     })
@@ -109,7 +132,7 @@ describe('CartView', () => {
       render(<CartView isLoggedIn={true} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('$2.99') }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('R54.99') }))
 
       const handlers = resumePaystackCheckout.mock.calls[0][1] as { onSuccess: (r: { reference: string }) => void }
       handlers.onSuccess({ reference: 'kc_ref_1' })
@@ -122,13 +145,13 @@ describe('CartView', () => {
       render(<CartView isLoggedIn={true} region="US" />)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('$2.99') }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('R54.99') }))
 
       const handlers = resumePaystackCheckout.mock.calls[0][1] as { onCancel: () => void }
       handlers.onCancel()
 
       expect(push).not.toHaveBeenCalled()
-      await waitFor(() => expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('$2.99') })).not.toBeDisabled())
+      await waitFor(() => expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R54.99') })).not.toBeDisabled())
     })
   })
 })
