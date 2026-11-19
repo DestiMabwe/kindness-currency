@@ -181,6 +181,10 @@ export const ctaCopy = {
   cartCheckoutNote: "You'll pay securely via Paystack, then come back here to personalize each one.",
   cartCheckoutSignInNote: "You'll sign in with a quick email link or Google just before paying, so your gifts are saved to your account.",
   cartPayCta: (formattedTotal: string) => `Pay ${formattedTotal}`,
+  // Shown to every visitor outside South Africa: prices are displayed in their local currency, but
+  // Paystack settles only in ZAR, so the real charge is a (separately priced) rand amount.
+  chargeCurrencyNote: (formattedZarAmount: string) =>
+    `Prices are shown in your local currency for reference. You'll be charged ${formattedZarAmount} in South African rand (ZAR) at checkout.`,
   cartDoneHeading: "You're all set ♥",
   cartDoneBody: "Payment's confirmed — these are yours now. Personalize each one whenever you're ready.",
   cartDoneTotalLabel: 'Total paid',
