@@ -1,4 +1,7 @@
 import { notFound } from 'next/navigation'
+import { cookies } from 'next/headers'
+import { ageGateCookieName } from '@/lib/ageGateCookie'
+import { RecipientAgeGate } from '@/components/give/RecipientAgeGate'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 import { createGiveRepository, sortCouponsForDisplay } from '@/lib/giveRepository'
@@ -21,6 +24,14 @@ export default async function GivePage({ params }: { params: Promise<{ id: strin
   const giveData = await repo.getCouponSetForRecipient(id)
 
   if (!giveData) notFound()
+
+  // Server-enforced 18+ gate: for an age-restricted set with no age cookie, return before anything
+  // about the gift (names, message, coupons) is rendered, and before markOpened — so the sender
+  // isn't told it was "opened" when nothing was shown. Touches no payment code; /give is post-payment.
+  if (giveData.is_age_restricted) {
+    const cookieStore = await cookies()
+    if (!cookieStore.has(ageGateCookieName(id))) return <RecipientAgeGate setId={id} />
+  }
 
   const hasVisitedBefore = !!giveData.opened_at
   await repo.markOpened(id)

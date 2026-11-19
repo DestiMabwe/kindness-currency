@@ -92,13 +92,13 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
     async saveCouponSet(input: unknown, userId: string | null, status: CouponSetStatus): Promise<SaveCouponSetResult> {
       const parsed = SaveCouponSetInputSchema.safeParse(input)
       if (!parsed.success) return { success: false, error: GENERIC_ERROR }
-      const { coupons, expiry_date, sender_message, gesture_unlocked, ...setFields } = parsed.data
+      const { coupons, expiry_date, sender_message, gesture_unlocked, age_confirmed, ...setFields } = parsed.data
 
       const { data: template, error: templateError } = await supabase
         .from('templates')
-        .select('slug, is_single_use')
+        .select('slug, is_single_use, is_age_restricted')
         .eq('id', setFields.template_id)
-        .single<{ slug: string; is_single_use: boolean }>()
+        .single<{ slug: string; is_single_use: boolean; is_age_restricted: boolean }>()
       if (templateError || !template) return { success: false, error: GENERIC_ERROR }
 
       const requiresPayment = status === 'sent' && requiresPaymentForSend(template, gesture_unlocked)
@@ -122,6 +122,20 @@ export function createCouponSetRepository(supabase: SupabaseClient) {
         return { success: false, error: GENERIC_ERROR }
       }
       if (!setId) return { success: false, error: GENERIC_ERROR }
+
+      // Record-only and deliberately outside create_coupon_set(): a failure here must never undo or
+      // block a save that already succeeded (and may have consumed a paid entitlement).
+      if (age_confirmed && template.is_age_restricted) {
+        try {
+          const { error: stampError } = await supabase
+            .from('coupon_sets')
+            .update({ age_confirmed_at: new Date().toISOString() })
+            .eq('id', setId as string)
+          if (stampError) console.error('age_confirmed_at stamp failed', setId, stampError)
+        } catch (stampError) {
+          console.error('age_confirmed_at stamp failed', setId, stampError)
+        }
+      }
 
       return { success: true, id: setId as string }
     },

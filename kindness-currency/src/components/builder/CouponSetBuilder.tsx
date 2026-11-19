@@ -436,6 +436,7 @@ export function CouponSetBuilder({
   const confirmAgeGate = () => {
     if (!pendingAgeGate) return
     if (pendingAgeGate.action === 'select') {
+      builder.confirmAge(pendingAgeGate.template.id)
       proceedToTemplate(pendingAgeGate.template)
     } else {
       setSampleTemplate(pendingAgeGate.template)

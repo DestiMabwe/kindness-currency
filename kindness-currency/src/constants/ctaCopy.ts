@@ -31,6 +31,9 @@ export const ctaCopy = {
   recipientConversionButton: 'Create My Coupons →',
   ageGateConfirm: "I'm 18+, Continue →",
   ageGateDismiss: 'Go Back',
+  ageGateRecipientSubject: 'This gift',
+  ageGateDeclinedHeading: 'This gift is for adults',
+  ageGateDeclinedBody: "You need to be 18 or older to open it. If you're an adult, you can go back and confirm.",
   generatePinButton: 'Generate Redemption PIN',
   pinWrongError: (recipientName: string) =>
     `That PIN doesn't match or has expired. Ask ${recipientName} to generate a new one.`,

@@ -21,6 +21,8 @@ export type GiveCouponSet = {
   // deliberately not the narrower TemplateSlug type, which only covers bundle templates and would
   // misrepresent a gesture slug. See resolveGiftVisual in designTokens.ts, which accepts either.
   template_slug: string
+  /** Drives the server-enforced 18+ gate on /give/[id] — see RecipientAgeGate. */
+  is_age_restricted: boolean
   expiry_date: string | null
   recipient_user_id: string | null
   sender_message: string | null
@@ -38,7 +40,7 @@ type CouponSetRow = {
   sender_message: string | null
   opened_at: string | null
   reminder_frequency: ReminderFrequency | null
-  templates: { slug: string } | { slug: string }[] | null
+  templates: { slug: string; is_age_restricted: boolean } | { slug: string; is_age_restricted: boolean }[] | null
   coupons: GiveCoupon[]
 }
 
@@ -63,7 +65,7 @@ export function createGiveRepository(supabase: SupabaseClient) {
       const { data, error } = await supabase
         .from('coupon_sets')
         .select(
-          'id, sender_name, recipient_name, expiry_date, recipient_user_id, sender_message, opened_at, reminder_frequency, templates(slug), coupons(id, sort_order, service_title, micro_copy, fine_print, font_choice, background_color, background_effect, status)'
+          'id, sender_name, recipient_name, expiry_date, recipient_user_id, sender_message, opened_at, reminder_frequency, templates(slug, is_age_restricted), coupons(id, sort_order, service_title, micro_copy, fine_print, font_choice, background_color, background_effect, status)'
         )
         .eq('id', id)
         .single<CouponSetRow>()
@@ -87,6 +89,7 @@ export function createGiveRepository(supabase: SupabaseClient) {
         opened_at: data.opened_at,
         reminder_frequency: data.reminder_frequency,
         template_slug: template.slug,
+        is_age_restricted: template.is_age_restricted,
         coupons: [...data.coupons].sort((a, b) => a.sort_order - b.sort_order),
       }
     },
