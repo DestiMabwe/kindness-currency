@@ -4,7 +4,8 @@ import path from "node:path";
 // Baseline hardening on every response. Deliberately conservative: no script/connect CSP (a wrong
 // one would silently break the Paystack inline popup, Supabase or Google sign-in, and a strict one
 // needs per-request nonces), and Permissions-Policy leaves `payment` alone because Paystack's
-// checkout runs in an iframe.
+// checkout runs in an iframe. No Strict-Transport-Security here on purpose: Vercel already sends a
+// longer one (max-age=63072000) and setting our own would only shorten it.
 export const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   // Nobody should be framing this site (clickjacking, and lookalike pages wrapping it).
@@ -13,7 +14,6 @@ export const securityHeaders = [
   // /give/[uuid] is the secret link; never hand its path to other origins.
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-  { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
 ]
 
 const nextConfig: NextConfig = {
