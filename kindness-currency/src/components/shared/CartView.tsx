@@ -84,7 +84,7 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   if (step === 'checkout') {
     return (
       <div className="px-5.5 pt-2 pb-10">
-        <button type="button" onClick={() => setStep('cart')} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
+        <button type="button" onClick={() => setStep('cart')} className="-ml-3 flex h-11 w-11 items-center justify-center text-2xl text-[#1A1A2E]" aria-label="Back">
           ‹
         </button>
         <h1 className="mt-1 text-[23px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>

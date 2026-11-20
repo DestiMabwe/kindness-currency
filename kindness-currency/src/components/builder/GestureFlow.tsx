@@ -446,7 +446,7 @@ export function GestureFlow({
     <div className="pb-5">
       <div className="sticky top-0 z-30 border-b border-[#1A1A2E]/7 bg-[#FFF8F0]/92 backdrop-blur-sm">
         <div className="flex items-center gap-3 px-4.5 pt-3.5 pb-3">
-          <button type="button" onClick={() => setStep('details')} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
+          <button type="button" onClick={() => setStep('details')} className="-ml-3 flex h-11 w-11 items-center justify-center text-2xl text-[#1A1A2E]" aria-label="Back">
             ‹
           </button>
           <div className="min-w-0 flex-1">
