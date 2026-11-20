@@ -5,6 +5,7 @@ import { createTemplateRepository } from '@/lib/templateRepository'
 import { createCampaignBannerRepository } from '@/lib/campaignBannerRepository'
 import { CampaignBanner } from '@/components/shared/CampaignBanner'
 import { SiteHeader } from '@/components/shared/SiteHeader'
+import { HeroTintWash } from '@/components/shared/HeroTintWash'
 import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { CouponCardHero } from '@/components/coupon/CouponCardHero'
 import { templateVisuals, type TemplateSlug } from '@/constants/designTokens'
@@ -47,7 +48,10 @@ export default async function HomePage() {
 
       <SiteHeader />
 
-      <div className="kc-hero-wash relative overflow-hidden px-5.5 pt-3.5 pb-6.5">
+      <HeroTintWash
+        initialTint={templateVisuals[(heroTemplates[0]?.slug ?? 'mothers_day') as TemplateSlug].accent}
+        className="kc-hero-wash relative overflow-hidden px-5.5 pt-3.5 pb-6.5"
+      >
         <div aria-hidden="true" className="relative mb-3.5 flex h-[270px] items-center overflow-hidden">
           <div className="kc-marquee-track flex w-max items-center gap-6">
             {marqueeItems.map((template, i) => {
@@ -57,7 +61,12 @@ export default async function HomePage() {
                 template.template_coupons.find((c) => c.service_title === featuredTitle) ?? template.template_coupons[0]
               if (!coupon) return null
               return (
-                <div key={`${template.id}-${i}`} className="shrink-0" style={{ transform: 'scale(0.62)' }}>
+                <div
+                  key={`${template.id}-${i}`}
+                  data-hero-accent={visuals.accent}
+                  className="shrink-0"
+                  style={{ transform: 'scale(0.62)' }}
+                >
                   <CouponCardHero
                     serviceTitle={coupon.service_title}
                     microCopy={coupon.micro_copy}
@@ -125,7 +134,7 @@ export default async function HomePage() {
             ))}
           </ol>
         </div>
-      </div>
+      </HeroTintWash>
 
       <div className="bg-[#0a1f44] py-5">
         <div className="px-5.5">

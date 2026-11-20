@@ -25,29 +25,16 @@ body {
   outline-offset: 2px;
 }
 
-/* Slow-drifting wash through the 5 template accent colors, at low opacity over cream. */
-@keyframes kc-hero-wash {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
+/* Hero wash: a soft tint of the accent of the coupon card currently centered in the marquee
+   (--hero-tint is set by HeroTintWash), over cream. */
 .kc-hero-wash {
-  background-image: linear-gradient(
-    120deg,
-    rgba(131, 131, 228, 0.16),
-    rgba(194, 24, 91, 0.13),
-    rgba(255, 143, 0, 0.13),
-    rgba(123, 63, 97, 0.13),
-    rgba(46, 125, 107, 0.13),
-    rgba(131, 131, 228, 0.16)
-  );
-  background-size: 300% 300%;
+  background-color: color-mix(in srgb, var(--hero-tint, #c2185b) 14%, #fff8f0);
 }
 
 /* Auto-playing motion only runs when the visitor hasn't asked for less of it (WCAG 2.2.2). */
 @media (prefers-reduced-motion: no-preference) {
   .kc-hero-wash {
-    animation: kc-hero-wash 16s ease-in-out infinite alternate;
+    transition: background-color 1.4s ease;
   }
 }
 
