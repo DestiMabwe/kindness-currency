@@ -14,6 +14,18 @@ import { bundleTierBySlug } from '@/lib/bundleTiers'
 import { REGION_TIER_PRICE, formatPrice } from '@/lib/geoPricing'
 import { getRegion } from '@/lib/region'
 
+// Which coupon each hero marquee card shows, by template slug. Matched on title so reordering
+// coupons in the database doesn't change the hero; a template with no entry (or a title that no
+// longer exists) falls back to its first coupon.
+const heroCouponTitleBySlug: Partial<Record<string, string>> = {
+  mothers_day: 'Home-Cooked Meal',
+  valentines: 'Love Letter',
+  birthday: 'Birthday Meal, Your Choice',
+  besties: 'Ugly Cry Session',
+  'requested-by-him': 'Initiated Intimacy',
+  'requested-by-her': 'Total Logistics Takeover',
+}
+
 export default async function HomePage() {
   const supabase = createServiceClient()
   const templateRepo = createTemplateRepository(supabase)
@@ -40,7 +52,9 @@ export default async function HomePage() {
           <div className="kc-marquee-track flex w-max items-center gap-6">
             {marqueeItems.map((template, i) => {
               const visuals = templateVisuals[template.slug as TemplateSlug]
-              const coupon = template.template_coupons[0]
+              const featuredTitle = heroCouponTitleBySlug[template.slug]
+              const coupon =
+                template.template_coupons.find((c) => c.service_title === featuredTitle) ?? template.template_coupons[0]
               if (!coupon) return null
               return (
                 <div key={`${template.id}-${i}`} className="shrink-0" style={{ transform: 'scale(0.62)' }}>
@@ -87,6 +101,29 @@ export default async function HomePage() {
           >
             {ctaCopy.navAboutUs}
           </Link>
+        </div>
+        <div className="kc-rise mt-6" style={{ ['--kc-rise-delay' as string]: '0.42s' }}>
+          <h2 className="text-[11px] font-bold tracking-[0.12em] text-[#C2185B] uppercase">
+            {ctaCopy.homeHowItWorksHeading}
+          </h2>
+          <ol className="mt-3 flex flex-col gap-3.5">
+            {ctaCopy.homeHowItWorksSteps.map((step, i) => (
+              <li key={step.title} className="flex items-start gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1A1A2E] font-sans text-[13px] font-bold text-white"
+                >
+                  {i + 1}
+                </span>
+                <div>
+                  <div className="text-[16px] leading-tight font-bold text-[#1A1A2E]" style={{ fontFamily: 'var(--font-playfair)' }}>
+                    {step.title}
+                  </div>
+                  <p className="mt-0.5 text-[13.5px] leading-snug text-[#2C2C2C] opacity-78">{step.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
 

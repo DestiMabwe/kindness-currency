@@ -3,6 +3,21 @@ export const ctaCopy = {
   sendWithLove: 'Send with Love',
   saveMyCoupons: 'Save My Coupons',
   sendPaymentRedirecting: 'Redirecting you to checkout…',
+  homeHowItWorksHeading: 'How it works',
+  homeHowItWorksSteps: [
+    {
+      title: 'Personalize it',
+      body: 'Pick a single coupon or a full set, then make it yours in your own words.',
+    },
+    {
+      title: 'Send the link',
+      body: 'Use one link, shared with a lover, friend or family.',
+    },
+    {
+      title: 'They call it in',
+      body: "When they're ready, they tap a coupon and give you a one-time PIN. Enter it and the coupon is redeemed.",
+    },
+  ],
   previewAllCoupons: 'Preview All Coupons',
   previewSampleCoupons: 'How You Create Your Perfect Gift',
   howYouCreateStepPersonalize: 'Personalize',
@@ -50,7 +65,7 @@ export const ctaCopy = {
   navCreate: 'Create Coupons',
   navAboutUs: 'About Us',
   navProfile: 'Your Gifts',
-  navFeedback: 'Give Us Feedback',
+  navFeedback: 'Give Us Feedback & FAQs',
   navAdmin: 'Admin',
   navLogIn: 'Log In / Sign Up',
   navLogOut: 'Log Out',
@@ -58,6 +73,36 @@ export const ctaCopy = {
   feedbackSubtext: "Tell us what's working, what isn't, or what you wish Kindness Currency did.",
   feedbackSubmitButton: 'Send Feedback',
   feedbackThankYou: 'Thank you for helping us grow ♥',
+  faqHeading: 'Common questions',
+  faqItems: [
+    {
+      question: 'How does a coupon get redeemed?',
+      answer:
+        "When they're ready, they tap a coupon and get a one-time PIN, valid for 5 minutes. They give it to you, you enter it, and the coupon is redeemed.",
+    },
+    {
+      question: 'How much does it cost?',
+      answer: 'One-time, per coupon set, with no subscriptions. Single gestures come free as written.',
+    },
+    {
+      question: 'Is there a discount for sending more than one?',
+      answer:
+        "Send 3 or more coupon sets together and the cheapest one is free. One-time gestures don't count toward this.",
+    },
+    {
+      question: 'How do I pay?',
+      answer:
+        'Securely through Paystack. Outside South Africa, prices show in your local currency, but you are charged in South African rand (ZAR) at checkout.',
+    },
+    {
+      question: 'Can a coupon be redeemed more than once?',
+      answer: 'No. Each coupon is redeemed once, and then it is marked as redeemed.',
+    },
+    {
+      question: 'Do I need an account?',
+      answer: "You'll sign in with a quick email link or Google just before paying, so your gifts are saved to your account.",
+    },
+  ],
   profileHeading: 'Your Gifts',
   profileLoggedOutHeading: 'Log in to see your coupons',
   profileLoggedOutSubtext: "Open the menu and log in to view every coupon set you've sent.",
