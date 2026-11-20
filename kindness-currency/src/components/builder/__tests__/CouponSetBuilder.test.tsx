@@ -829,10 +829,17 @@ describe('coming soon section', () => {
   })
 
   describe('editing the message from the coupon editor', () => {
-    it('shows a labelled button to write a message, since the field starts empty by default', async () => {
+    it('always labels the message button "Edit your message", since the message is written on the details step', async () => {
       await goToEditor()
 
-      expect(screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel })).toHaveTextContent(ctaCopy.editMessageWriteLabel)
+      expect(screen.getByRole('button', { name: ctaCopy.editMessageEditLabel })).toHaveTextContent(ctaCopy.editMessageEditLabel)
+    })
+
+    it('puts the message button in the same row as Preview, not floating over the editor', async () => {
+      await goToEditor()
+
+      const previewRow = screen.getByRole('button', { name: ctaCopy.previewAllCoupons }).parentElement
+      expect(previewRow).toContainElement(screen.getByRole('button', { name: ctaCopy.editMessageEditLabel }))
     })
 
     it('shows a floating button to edit a custom message the sender wrote themselves', async () => {
@@ -851,7 +858,7 @@ describe('coming soon section', () => {
       saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       await goToEditor(true)
 
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.editMessageEditLabel }))
       await userEvent.type(screen.getByLabelText('Your message'), 'Written after the fact.')
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.editMessageSave }))
 

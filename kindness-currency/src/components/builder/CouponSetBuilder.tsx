@@ -578,7 +578,6 @@ export function CouponSetBuilder({
           templateName={selectedTemplate?.name ?? ''}
           senderName={builder.state.senderName}
           recipientName={builder.state.recipientName}
-          senderMessage={builder.state.senderMessage}
           coupons={builder.state.coupons}
           originalCoupons={selectedTemplate?.template_coupons ?? []}
           accent={visuals.accent}
@@ -1123,7 +1122,7 @@ export function DetailsFormScreen({
   return (
     <div>
       <div className="flex items-center gap-3 px-4.5 pt-3.5 pb-1.5">
-        <button type="button" onClick={onBack} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
+        <button type="button" onClick={onBack} className="-ml-3 flex h-11 w-11 items-center justify-center text-2xl text-[#1A1A2E]" aria-label="Back">
           ‹
         </button>
         <div className="flex-1 font-sans text-[13px] font-semibold tracking-[0.04em] text-[#2C2C2C] uppercase opacity-60">Step 2 of 3</div>
@@ -1140,7 +1139,9 @@ export function DetailsFormScreen({
       </div>
       <div className="flex flex-col gap-4 px-5.5 py-5.5">
         <label className="block">
-          <span className="text-[11px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-60">Your name</span>
+          <span className="text-[11px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-60">
+            Your name <span className="font-medium normal-case opacity-60">· required</span>
+          </span>
           <input
             value={senderName}
             onChange={(e) => onSenderChange(e.target.value)}
@@ -1150,7 +1151,9 @@ export function DetailsFormScreen({
           />
         </label>
         <label className="block">
-          <span className="text-[11px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-60">Their name</span>
+          <span className="text-[11px] font-semibold tracking-[0.08em] text-[#2C2C2C] uppercase opacity-60">
+            Their name <span className="font-medium normal-case opacity-60">· required</span>
+          </span>
           <input
             value={recipientName}
             onChange={(e) => onRecipientChange(e.target.value)}
@@ -1308,7 +1311,6 @@ function EditScreen({
   templateName,
   senderName,
   recipientName,
-  senderMessage,
   coupons,
   originalCoupons,
   accent,
@@ -1330,7 +1332,6 @@ function EditScreen({
   templateName: string
   senderName: string
   recipientName: string
-  senderMessage: string
   coupons: BuilderCoupon[]
   originalCoupons: TemplateCoupon[]
   accent: string
@@ -1366,7 +1367,7 @@ function EditScreen({
     <div className="pb-5">
       <div className="sticky top-0 z-30 border-b border-[#1A1A2E]/7 bg-[#FFF8F0]/92 backdrop-blur-sm">
         <div className="flex items-center gap-3 px-4.5 pt-3.5 pb-3">
-          <button type="button" onClick={onBack} className="p-1 text-xl text-[#1A1A2E]" aria-label="Back">
+          <button type="button" onClick={onBack} className="-ml-3 flex h-11 w-11 items-center justify-center text-2xl text-[#1A1A2E]" aria-label="Back">
             ‹
           </button>
           <div className="min-w-0 flex-1">
@@ -1408,11 +1409,13 @@ function EditScreen({
       </div>
 
       <div className="sticky bottom-0 z-40 mt-3.5 flex flex-col gap-2.5 border-t border-[#1A1A2E]/8 bg-[#FFF8F0]/94 px-4.5 pt-3.5 pb-4 backdrop-blur">
-        <MessagePill hasMessage={!!senderMessage.trim()} onClick={onEditMessage} />
         {saveError && <div className="text-center text-[12.5px] text-[#C2185B]">{saveError}</div>}
-        <button type="button" onClick={onPreview} className="w-full rounded-[13px] border-[1.5px] border-[#1A1A2E] p-3 font-sans text-sm font-semibold text-[#1A1A2E]">
-          {ctaCopy.previewAllCoupons}
-        </button>
+        <div className="flex gap-2.5">
+          <button type="button" onClick={onPreview} className="flex-1 rounded-[13px] border-[1.5px] border-[#1A1A2E] p-3 font-sans text-sm font-semibold text-[#1A1A2E]">
+            {ctaCopy.previewAllCoupons}
+          </button>
+          <MessagePill onClick={onEditMessage} />
+        </div>
         <div className="flex gap-2.5">
           <button
             type="button"
