@@ -109,9 +109,9 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
         {chargedInZar && (
           <div className="mt-4 text-[12.5px] leading-relaxed font-semibold text-[#1A1A2E]">{ctaCopy.chargeCurrencyNote(zarTotal)}</div>
         )}
-        <div className="mt-4 text-[12px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.cartCheckoutNote}</div>
+        <div className="mt-4 text-[12px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.cartCheckoutNote}</div>
         {!isLoggedIn && (
-          <div className="mt-1.5 text-[12px] leading-relaxed text-[#2C2C2C] opacity-55">{ctaCopy.cartCheckoutSignInNote}</div>
+          <div className="mt-1.5 text-[12px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.cartCheckoutSignInNote}</div>
         )}
         {payError && <div className="mt-3 text-center text-[12.5px] text-[#C2185B]">{payError}</div>}
         <button
