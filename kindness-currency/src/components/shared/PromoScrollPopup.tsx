@@ -4,20 +4,31 @@
 // DESIGN.md's Confirmation Modal / AgeGate / ComingSoonModal) rather than a centered dialog, for
 // visual consistency with every other modal in the product.
 //
-// Auto-triggers only — a fixed delay (fires deterministically regardless of whether/how a visitor
-// scrolls: touch swipes inside the gesture carousel, a short viewport, or reading before scrolling
-// all behave differently on scroll events but identically on a timer) and a low scroll distance as
-// an earlier fallback. Both respect the session dismiss and only ever fire once, so passive
-// browsing doesn't nag a visitor who already closed it.
+// Opens after the visitor's first add to cart — the moment "buy 3, get the cheapest free" is
+// actually relevant — not on page load or scroll, so it never interrupts someone who is still
+// just looking. A short delay lets the add button's own "Added ✓" confirmation play out first.
+// It respects the session dismiss and only ever opens once, and adding a one-time gesture (which
+// the offer excludes) never triggers it.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
+import { CART_ITEM_ADDED_EVENT } from '@/lib/cart'
+import { singleUseGestures } from '@/lib/singleUseGestures'
 
 const DISMISS_KEY = 'kindness-currency:promo-popup-dismissed'
-const TRIGGER_DELAY_MS = 3500
-const SCROLL_THRESHOLD_PX = 200
+// Just past the add button's 1.3s "Added ✓" state (CouponSetBuilder's handleAddToCart).
+const SHOW_AFTER_ADD_MS = 1400
+
+function slugFromAddEvent(event: Event): string | null {
+  if (!(event instanceof CustomEvent)) return null
+  const detail: unknown = event.detail
+  if (typeof detail === 'object' && detail !== null && 'slug' in detail && typeof detail.slug === 'string') {
+    return detail.slug
+  }
+  return null
+}
 
 // `suppressed` stops the auto-open while the visitor is shopping one-time gestures, which the
 // offer explicitly excludes. It doesn't consume the once-per-session auto-show.
@@ -40,15 +51,18 @@ export function PromoScrollPopup({ suppressed = false }: { suppressed?: boolean 
   }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(autoShow, TRIGGER_DELAY_MS)
-    const handleScroll = () => {
-      if (window.scrollY > SCROLL_THRESHOLD_PX) autoShow()
+    let timer: number | undefined
+    const handleAdded = (event: Event) => {
+      const slug = slugFromAddEvent(event)
+      if (slug && singleUseGestures.some((g) => g.slug === slug)) return
+      window.clearTimeout(timer)
+      timer = window.setTimeout(autoShow, SHOW_AFTER_ADD_MS)
     }
-    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener(CART_ITEM_ADDED_EVENT, handleAdded)
 
     return () => {
       window.clearTimeout(timer)
-      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener(CART_ITEM_ADDED_EVENT, handleAdded)
     }
   }, [autoShow])
 
