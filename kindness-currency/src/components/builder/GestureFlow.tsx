@@ -554,7 +554,7 @@ export function GestureFlow({
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-40 mt-3.5 flex flex-col gap-2.5 border-t border-[#1A1A2E]/8 bg-[#FFF8F0]/94 px-4.5 pt-3.5 pb-4 backdrop-blur">
+      <div className="sticky bottom-0 z-40 mt-16 flex flex-col gap-2.5 border-t border-[#1A1A2E]/8 bg-[#FFF8F0]/94 px-4.5 pt-3.5 pb-4 backdrop-blur">
         <MessagePill hasMessage={!!senderMessage.trim()} onClick={() => setEditMessageOpen(true)} />
         {saveError && <div className="text-center text-[12.5px] text-[#C2185B]">{saveError}</div>}
         <button
