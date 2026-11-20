@@ -151,11 +151,39 @@ describe('GestureFlow', () => {
     it('offers the gesture-specific message starter once unlocked', async () => {
       await unlockGesture(freeGesture)
 
-      const envelope = screen.getByRole('button', { name: ctaCopy.editMessageWriteLabel })
-      expect(envelope).toHaveTextContent(ctaCopy.editMessageWriteLabel)
+      const envelope = screen.getByRole('button', { name: ctaCopy.editMessageEditLabel })
+      expect(envelope).toHaveTextContent(ctaCopy.editMessageEditLabel)
       await userEvent.click(envelope)
 
       expect(screen.getByText(new RegExp(freeGesture.messageStarter!))).toBeInTheDocument()
+    })
+  })
+
+  describe('required names on the details step', () => {
+    it('marks both name fields as required', () => {
+      render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
+
+      expect(screen.getByText(/Your name/)).toHaveTextContent('required')
+      expect(screen.getByText(/Their name/)).toHaveTextContent('required')
+    })
+
+    it('stays on the details step until both names are filled in', async () => {
+      render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
+      const continueButton = screen.getByRole('button', { name: 'Personalise the coupons →' })
+
+      await userEvent.click(continueButton)
+      expect(screen.getByText('Add your name first ♥')).toBeInTheDocument()
+      expect(screen.getByText('Add their name first ♥')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: ctaCopy.sendWithLove })).not.toBeInTheDocument()
+
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.click(continueButton)
+      expect(screen.getByText('Add their name first ♥')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: ctaCopy.sendWithLove })).not.toBeInTheDocument()
+
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(continueButton)
+      expect(await screen.findByRole('button', { name: ctaCopy.sendWithLove })).toBeInTheDocument()
     })
   })
 
