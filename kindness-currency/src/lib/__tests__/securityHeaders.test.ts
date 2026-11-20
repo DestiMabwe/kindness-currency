@@ -21,6 +21,10 @@ describe('security headers', () => {
     expect(headerValue('Referrer-Policy')).toBe('strict-origin-when-cross-origin')
   })
 
+  it("leaves HSTS to Vercel, whose default is longer than anything we'd set", () => {
+    expect(headerValue('Strict-Transport-Security')).toBeUndefined()
+  })
+
   it("doesn't restrict `payment`, which Paystack's iframe checkout needs", () => {
     expect(headerValue('Permissions-Policy')).not.toMatch(/payment/)
   })
