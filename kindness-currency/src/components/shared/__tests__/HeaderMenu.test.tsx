@@ -17,7 +17,7 @@ describe('HeaderMenu', () => {
     expect(screen.queryByRole('link', { name: 'Templates' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'About Us' })).toHaveAttribute('href', '/about')
     expect(screen.getByRole('link', { name: 'Your Gifts' })).toHaveAttribute('href', '/profile')
-    expect(screen.getByRole('link', { name: 'Give Us Feedback' })).toHaveAttribute('href', '/feedback')
+    expect(screen.getByRole('link', { name: 'Give Us Feedback & FAQs' })).toHaveAttribute('href', '/feedback')
   })
 
   it('does not show an Admin link for a non-admin viewer', async () => {
