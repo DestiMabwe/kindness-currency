@@ -55,12 +55,17 @@ export function useCartSlugs(): string[] {
   return useCartLines().map((l) => l.slug)
 }
 
+/** Fired by addToCart only (not remove / qty changes), with `{ slug }` as the event detail — for
+ * things that react to a real add, like the 3-for-2 popup. */
+export const CART_ITEM_ADDED_EVENT = 'kc-cart-item-added'
+
 export function addToCart(slug: string, qty: number = 1) {
   const current = readCartLines()
   const existing = current.find((l) => l.slug === slug)
   writeCartLines(
     existing ? current.map((l) => (l.slug === slug ? { ...l, qty: l.qty + qty } : l)) : [...current, { slug, qty }]
   )
+  window.dispatchEvent(new CustomEvent(CART_ITEM_ADDED_EVENT, { detail: { slug } }))
 }
 
 export function removeFromCart(slug: string) {
