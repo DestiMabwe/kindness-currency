@@ -105,7 +105,7 @@ export const ctaCopy = {
   ],
   profileHeading: 'Your Gifts',
   profileLoggedOutHeading: 'Log in to see your coupons',
-  profileLoggedOutSubtext: "Open the menu and log in to view every coupon set you've sent.",
+  profileLoggedOutSubtext: "Log in to view every coupon set you've sent.",
   profileEmptyState: "You haven't sent any coupon sets yet.",
   earlyAccessNamePlaceholder: 'Your name',
   earlyAccessEmailPlaceholder: 'Email address',
