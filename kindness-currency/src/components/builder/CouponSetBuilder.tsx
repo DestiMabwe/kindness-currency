@@ -1407,8 +1407,7 @@ function EditScreen({
         ))}
       </div>
 
-      <div className="sticky bottom-0 z-40 mt-16 flex flex-col gap-2.5 border-t border-[#1A1A2E]/8 bg-[#FFF8F0]/94 px-4.5 pt-3.5 pb-4 backdrop-blur">
-        <MessagePill hasMessage={!!senderMessage.trim()} onClick={onEditMessage} />
+      <div className="sticky bottom-0 z-40 mt-3.5 flex flex-col gap-2.5 border-t border-[#1A1A2E]/8 bg-[#FFF8F0]/94 px-4.5 pt-3.5 pb-4 backdrop-blur">
         {saveError && <div className="text-center text-[12.5px] text-[#C2185B]">{saveError}</div>}
         <button type="button" onClick={onPreview} className="w-full rounded-[13px] border-[1.5px] border-[#1A1A2E] p-3 font-sans text-sm font-semibold text-[#1A1A2E]">
           {ctaCopy.previewAllCoupons}
@@ -1431,6 +1430,7 @@ function EditScreen({
             {ctaCopy.sendWithLove}
           </button>
         </div>
+        <MessagePill hasMessage={!!senderMessage.trim()} onClick={onEditMessage} />
       </div>
     </div>
   )
