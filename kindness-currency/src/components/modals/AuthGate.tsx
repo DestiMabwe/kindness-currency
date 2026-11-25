@@ -44,6 +44,9 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // Stays true after a successful signInWithOAuth call on purpose: the browser is mid-redirect to
+  // Google, so the button should keep showing progress until the page actually unloads.
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [noAccount, setNoAccount] = useState(false)
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
 
@@ -136,19 +139,28 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
   }
 
   const handleGoogleSignIn = async () => {
+    if (googleLoading) return
     setError('')
-    // No email yet at this point (Google collects it after redirect) — IP-only check.
-    const rateLimit = await checkAuthRateLimitAction()
-    if (!rateLimit.allowed) {
-      setError(rateLimit.error)
-      return
-    }
-    const supabase = createClient()
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: callbackUrl() },
-    })
-    if (oauthError) {
+    setGoogleLoading(true)
+    try {
+      // No email yet at this point (Google collects it after redirect) — IP-only check.
+      const rateLimit = await checkAuthRateLimitAction()
+      if (!rateLimit.allowed) {
+        setGoogleLoading(false)
+        setError(rateLimit.error)
+        return
+      }
+      const supabase = createClient()
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: callbackUrl() },
+      })
+      if (oauthError) {
+        setGoogleLoading(false)
+        setError('Something went wrong signing in with Google. Please try again.')
+      }
+    } catch {
+      setGoogleLoading(false)
       setError('Something went wrong signing in with Google. Please try again.')
     }
   }
@@ -192,15 +204,21 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="mt-4.5 flex w-full items-center justify-center gap-2.5 rounded-2xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 font-sans text-[15px] font-bold text-[#1A1A2E]"
+                disabled={googleLoading || submitting}
+                aria-busy={googleLoading}
+                className="mt-4.5 flex w-full items-center justify-center gap-2.5 rounded-2xl border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 font-sans text-[15px] font-bold text-[#1A1A2E] transition-transform active:scale-[0.98] disabled:opacity-60"
               >
+                {googleLoading ? (
+                  <span aria-hidden="true" className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-[#1A1A2E]/20 border-t-[#1A1A2E]" />
+                ) : (
                 <svg aria-hidden="true" viewBox="0 0 18 18" width="18" height="18">
                   <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.87 2.7-6.62Z" />
                   <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.83.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18Z" />
                   <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.32Z" />
                   <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58Z" />
                 </svg>
-                Continue with Google
+                )}
+                {googleLoading ? ctaCopy.authModalGoogleLoading : 'Continue with Google'}
               </button>
               <div className="mt-3.5 flex items-center gap-2.5 text-[11.5px] font-semibold text-[#2C2C2C] opacity-50">
                 <span className="h-px flex-1 bg-[#1A1A2E]/14" />
@@ -250,7 +268,7 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || googleLoading}
                 className="mt-4 w-full rounded-2xl bg-[#C2185B] p-3.5 font-sans text-[15px] font-bold text-white disabled:opacity-50"
               >
                 {mode === 'signup' ? ctaCopy.authModalSignupSubmit : ctaCopy.authModalLoginSubmit}

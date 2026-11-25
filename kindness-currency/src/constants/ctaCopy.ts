@@ -39,6 +39,7 @@ export const ctaCopy = {
   authModalTabLogin: 'Log In',
   authModalSignupSubmit: 'Email me a magic link',
   authModalLoginSubmit: 'Log In',
+  authModalGoogleLoading: 'Redirecting to Google…',
   recipientRedeemButton: 'Redeem This ♥',
   postRedemptionState: 'This has been redeemed with love',
   recipientConversionHeading: 'Loved this gift?',

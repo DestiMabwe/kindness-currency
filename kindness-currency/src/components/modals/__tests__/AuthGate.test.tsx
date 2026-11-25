@@ -170,6 +170,27 @@ describe('AuthGate', () => {
       })
     })
 
+    it('shows a disabled loading state on the Google button while redirecting', async () => {
+      signInWithOAuth.mockReturnValue(new Promise(() => {}))
+      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+
+      const loading = await screen.findByRole('button', { name: 'Redirecting to Google…' })
+      expect(loading).toBeDisabled()
+      expect(loading).toHaveAttribute('aria-busy', 'true')
+    })
+
+    it('restores the Google button and shows an error if Google sign-in fails', async () => {
+      signInWithOAuth.mockResolvedValue({ error: { message: 'boom' } })
+      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+
+      expect(await screen.findByText('Something went wrong signing in with Google. Please try again.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeEnabled()
+    })
+
     it('logs in immediately from an email with no inbox round trip', async () => {
       devInstantLoginAction.mockResolvedValue({ success: true, tokenHash: 'hashed-token-1' })
       verifyOtp.mockResolvedValue({ error: null })
