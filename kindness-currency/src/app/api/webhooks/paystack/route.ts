@@ -1,7 +1,16 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { z } from 'zod'
 import { createOrderRepository } from '@/lib/orderRepository'
+
+// checkoutService only ever creates ZAR orders (Paystack settles in ZAR).
+const ORDER_CURRENCY = 'ZAR'
+
+const ChargeSuccessEventSchema = z.object({
+  event: z.literal('charge.success'),
+  data: z.object({ reference: z.string().min(1), amount: z.number(), currency: z.string() }),
+})
 
 /**
  * Paystack's source of truth for fulfillment (the checkout return page is a fast-path fallback in
@@ -24,14 +33,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  const event = JSON.parse(rawBody) as { event?: string; data?: { reference?: string } }
-  if (event.event !== 'charge.success' || !event.data?.reference) {
-    return NextResponse.json({ received: true })
-  }
+  const parsed = ChargeSuccessEventSchema.safeParse(JSON.parse(rawBody))
+  if (!parsed.success) return NextResponse.json({ received: true })
+  const { reference, amount, currency } = parsed.data.data
 
   const orders = createOrderRepository(createServiceClient())
-  const order = await orders.getOrderByReference(event.data.reference)
+  const order = await orders.getOrderByReference(reference)
   if (!order) return NextResponse.json({ received: true })
+
+  // Never fulfil an order for less than it was priced at (or in another currency). 200, not 4xx:
+  // Paystack would retry a mismatch forever and it can't self-correct, so we log it and move on.
+  if (amount !== order.amount_cents || currency !== ORDER_CURRENCY) {
+    console.error(`Paystack webhook amount/currency mismatch for ${reference}: got ${amount} ${currency}, expected ${order.amount_cents} ${ORDER_CURRENCY}`)
+    return NextResponse.json({ received: true })
+  }
 
   const won = await orders.markOrderPaid(order.id)
   if (won) await orders.grantPurchasedInstances(order.id, order.user_id, order.cart_snapshot)

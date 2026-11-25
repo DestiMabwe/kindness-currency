@@ -20,6 +20,10 @@ function signedRequest(body: unknown, secret = SECRET) {
   })
 }
 
+function chargeSuccess(data: Record<string, unknown> = {}) {
+  return { event: 'charge.success', data: { reference: 'kc_1', amount: 5000, currency: 'ZAR', ...data } }
+}
+
 describe('POST /api/webhooks/paystack', () => {
   beforeEach(() => {
     vi.resetModules()
@@ -60,10 +64,10 @@ describe('POST /api/webhooks/paystack', () => {
   })
 
   it('marks the order paid and grants instances on a valid charge.success', async () => {
-    getOrderByReference.mockResolvedValue({ id: 'order-1', user_id: 'user-1', cart_snapshot: [{ slug: 'mothers_day', qty: 1 }] })
+    getOrderByReference.mockResolvedValue({ id: 'order-1', user_id: 'user-1', amount_cents: 5000, cart_snapshot: [{ slug: 'mothers_day', qty: 1 }] })
     markOrderPaid.mockResolvedValue(true)
     const { POST } = await import('../route')
-    const request = signedRequest({ event: 'charge.success', data: { reference: 'kc_1' } })
+    const request = signedRequest(chargeSuccess())
 
     const response = await POST(request)
 
@@ -73,12 +77,12 @@ describe('POST /api/webhooks/paystack', () => {
   })
 
   it('does not grant instances twice for the same order on a duplicate webhook delivery', async () => {
-    getOrderByReference.mockResolvedValue({ id: 'order-1', user_id: 'user-1', cart_snapshot: [{ slug: 'mothers_day', qty: 1 }] })
+    getOrderByReference.mockResolvedValue({ id: 'order-1', user_id: 'user-1', amount_cents: 5000, cart_snapshot: [{ slug: 'mothers_day', qty: 1 }] })
     // markOrderPaid's conditional update returns false once the order is already 'paid' —
     // simulating the second delivery arriving after the first already won the race.
     markOrderPaid.mockResolvedValue(false)
     const { POST } = await import('../route')
-    const request = signedRequest({ event: 'charge.success', data: { reference: 'kc_1' } })
+    const request = signedRequest(chargeSuccess())
 
     const response = await POST(request)
 
@@ -89,11 +93,36 @@ describe('POST /api/webhooks/paystack', () => {
   it('returns 200 without error when the reference matches no known order', async () => {
     getOrderByReference.mockResolvedValue(null)
     const { POST } = await import('../route')
-    const request = signedRequest({ event: 'charge.success', data: { reference: 'kc_unknown' } })
+    const request = signedRequest(chargeSuccess({ reference: 'kc_unknown' }))
 
     const response = await POST(request)
 
     expect(response.status).toBe(200)
     expect(markOrderPaid).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a lower amount than the order', { amount: 100 }],
+    ['a different currency', { currency: 'USD' }],
+  ])('does not fulfil an order when charge.success reports %s', async (_label, override) => {
+    getOrderByReference.mockResolvedValue({ id: 'order-1', user_id: 'user-1', amount_cents: 5000, cart_snapshot: [{ slug: 'mothers_day', qty: 1 }] })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { POST } = await import('../route')
+
+    const response = await POST(signedRequest(chargeSuccess(override)))
+
+    expect(response.status).toBe(200)
+    expect(markOrderPaid).not.toHaveBeenCalled()
+    expect(grantPurchasedInstances).not.toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
+  it('ignores a charge.success payload with no amount without touching the database', async () => {
+    const { POST } = await import('../route')
+
+    const response = await POST(signedRequest({ event: 'charge.success', data: { reference: 'kc_1' } }))
+
+    expect(response.status).toBe(200)
+    expect(getOrderByReference).not.toHaveBeenCalled()
   })
 })

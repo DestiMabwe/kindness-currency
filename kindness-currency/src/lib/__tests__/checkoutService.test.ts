@@ -13,8 +13,9 @@ vi.mock('@/lib/supabase/service', () => ({ createServiceClient: vi.fn().mockRetu
 vi.mock('@/lib/origin', () => ({ getOrigin: vi.fn().mockResolvedValue('https://kindnesscurrency.app') }))
 
 const initializeTransaction = vi.fn()
+const verifyTransaction = vi.fn()
 vi.mock('@/lib/paystack/client', () => ({
-  createPaystackClient: vi.fn().mockReturnValue({ initializeTransaction }),
+  createPaystackClient: vi.fn().mockReturnValue({ initializeTransaction, verifyTransaction }),
 }))
 
 const getRegion = vi.fn()
@@ -26,6 +27,10 @@ describe('checkoutService', () => {
     createPendingOrder.mockReset().mockResolvedValue({ success: true, orderId: 'order-1' })
     initializeTransaction.mockReset().mockResolvedValue({ success: true, authorizationUrl: 'https://paystack.test/pay', accessCode: 'abc' })
     getRegion.mockReset()
+    verifyTransaction.mockReset()
+    orders.getOrderByReference.mockReset()
+    orders.markOrderPaid.mockReset()
+    orders.grantPurchasedInstances.mockReset()
     process.env.PAYSTACK_SECRET_KEY = 'sk_test_xxx'
   })
 
@@ -129,6 +134,39 @@ describe('checkoutService', () => {
 
       expect(result.success).toBe(false)
       expect(initializeTransaction).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('verifyAndFulfillCheckout', () => {
+    const pendingOrder = { id: 'order-1', user_id: 'user-1', status: 'pending', amount_cents: 5000, cart_snapshot: [{ slug: 'mothers_day', qty: 1 }] }
+
+    it('fulfils the order when Paystack reports a successful charge for the exact amount in ZAR', async () => {
+      orders.getOrderByReference.mockResolvedValue(pendingOrder)
+      orders.markOrderPaid.mockResolvedValue(true)
+      verifyTransaction.mockResolvedValue({ success: true, status: 'success', reference: 'kc_1', amountCents: 5000, currency: 'ZAR' })
+      const { verifyAndFulfillCheckout } = await import('../checkoutService')
+
+      const result = await verifyAndFulfillCheckout('kc_1')
+
+      expect(result).toEqual({ paid: true, cartSnapshot: pendingOrder.cart_snapshot, amountCents: 5000 })
+      expect(orders.grantPurchasedInstances).toHaveBeenCalledWith('order-1', 'user-1', pendingOrder.cart_snapshot)
+    })
+
+    it.each([
+      ['a lower amount than the order', { amountCents: 100, currency: 'ZAR' }],
+      ['a different currency', { amountCents: 5000, currency: 'USD' }],
+    ])('does not fulfil the order when Paystack reports %s', async (_label, charged) => {
+      orders.getOrderByReference.mockResolvedValue(pendingOrder)
+      verifyTransaction.mockResolvedValue({ success: true, status: 'success', reference: 'kc_1', ...charged })
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const { verifyAndFulfillCheckout } = await import('../checkoutService')
+
+      const result = await verifyAndFulfillCheckout('kc_1')
+
+      expect(result).toEqual({ paid: false })
+      expect(orders.markOrderPaid).not.toHaveBeenCalled()
+      expect(orders.grantPurchasedInstances).not.toHaveBeenCalled()
+      errorSpy.mockRestore()
     })
   })
 })
