@@ -8,6 +8,7 @@
 import Link from 'next/link'
 import { useCartSlugs, useOrderHistory, linesForSlugs, cartTotals } from '@/lib/cart'
 import { resolveGiftVisual } from '@/constants/designTokens'
+import { ctaCopy } from '@/constants/ctaCopy'
 import { formatPrice, REGION_PAIRED_BUNDLE_PRICE, type PricingRegion } from '@/lib/geoPricing'
 import type { PendingPersonalization } from '@/lib/orderRepository'
 
@@ -39,12 +40,19 @@ export function ProfileCartSection({
             Paid for, waiting on you — pick one up whenever you&apos;re ready.
           </div>
           <div className="mt-3 flex flex-col gap-2">
-            {purchasedLines.map((line) => {
+            {purchasedLines.flatMap((line) =>
+              // One row per purchased unit, numbered, so several of the same set can be told apart.
+              Array.from({ length: line.count }, (_, i) => ({ line, gift: i + 1 }))
+            ).map(({ line, gift }) => {
               const { accent, motif } = resolveGiftVisual(line.slug)
+              const href =
+                line.count > 1
+                  ? `/create?template=${encodeURIComponent(line.slug)}&gift=${gift}`
+                  : `/create?template=${encodeURIComponent(line.slug)}`
               return (
                 <Link
-                  key={line.slug}
-                  href={`/create?template=${encodeURIComponent(line.slug)}`}
+                  key={`${line.slug}-${gift}`}
+                  href={href}
                   className="flex items-center gap-2.5 rounded-xl border border-transparent bg-white px-3 py-2.5 text-[13px] font-semibold text-[#1A1A2E] transition-colors hover:border-[#1A1A2E]/12"
                 >
                   <div
@@ -55,8 +63,7 @@ export function ProfileCartSection({
                     {motif}
                   </div>
                   <span className="min-w-0 truncate">
-                    {line.name}
-                    {line.count > 1 && <span className="ml-1.5 font-normal opacity-60">× {line.count}</span>}
+                    {line.count > 1 ? ctaCopy.giftOfLabel(line.name, gift, line.count) : line.name}
                   </span>
                   <span className="ml-auto shrink-0 pl-3 text-[#2E7D6B]">Personalize →</span>
                 </Link>

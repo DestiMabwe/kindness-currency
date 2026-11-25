@@ -1216,6 +1216,53 @@ describe('coming soon section', () => {
       expect(screen.queryByText('Pick a template')).not.toBeInTheDocument()
     })
 
+    it('labels the screen with the gift number when several identical units were purchased', async () => {
+      render(
+        <CouponSetBuilder
+          templates={[template(), otherTemplate]}
+          region="US"
+          initialTemplateSlug="mothers_day"
+          initialGiftNumber={2}
+          pendingPersonalizations={[{ slug: 'mothers_day', count: 3 }]}
+        />
+      )
+
+      expect(await screen.findByText(/Mom's Promise Tokens \(Gift 2 of 3\)/)).toBeInTheDocument()
+    })
+
+    it('shows no gift label for a single purchased unit even if a gift number is passed', async () => {
+      render(
+        <CouponSetBuilder
+          templates={[template(), otherTemplate]}
+          region="US"
+          initialTemplateSlug="mothers_day"
+          initialGiftNumber={1}
+          pendingPersonalizations={[{ slug: 'mothers_day', count: 1 }]}
+        />
+      )
+
+      expect(await screen.findByText("Who's it for?")).toBeInTheDocument()
+      expect(screen.queryByText(/Gift 1 of/)).not.toBeInTheDocument()
+    })
+
+    it('keeps the original gift number when resuming the in-progress draft from a different gift link', async () => {
+      seedInProgressDraft()
+      const draft = JSON.parse(window.localStorage.getItem(DRAFT_KEY) as string)
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draft, giftNumber: 1 }))
+      render(
+        <CouponSetBuilder
+          templates={[template(), otherTemplate]}
+          region="US"
+          initialTemplateSlug="mothers_day"
+          initialGiftNumber={3}
+          pendingPersonalizations={[{ slug: 'mothers_day', count: 3 }]}
+        />
+      )
+
+      expect(await screen.findByText(/Mom's Promise Tokens \(Gift 1 of 3\)/)).toBeInTheDocument()
+      expect(screen.queryByText(/Gift 3 of 3/)).not.toBeInTheDocument()
+    })
+
     // Regression: ISSUE-001 — Personalize on a purchased gesture landed on the plain /create gallery
     // Found by /qa on 2026-11-25
     it('opens the gesture flow when the slug is a single-use gesture, not a bundle template', async () => {

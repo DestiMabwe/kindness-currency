@@ -14,18 +14,20 @@ describe('ProfileCartSection', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('shows a grouped count for multiple unconsumed instances of the same coupon book, never as separate rows', () => {
+  it('lists several unconsumed instances of the same coupon book as separate numbered rows, each deep-linking to its own gift', () => {
     render(<ProfileCartSection region="US" pendingPersonalizations={[{ slug: 'birthday', count: 3 }]} />)
 
-    expect(screen.getByText('Birthday Joy Tokens')).toBeInTheDocument()
-    expect(screen.getByText('× 3')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Birthday Joy Tokens \(Gift 1 of 3\)/ })).toHaveAttribute('href', '/create?template=birthday&gift=1')
+    expect(screen.getByRole('link', { name: /Birthday Joy Tokens \(Gift 2 of 3\)/ })).toHaveAttribute('href', '/create?template=birthday&gift=2')
+    expect(screen.getByRole('link', { name: /Birthday Joy Tokens \(Gift 3 of 3\)/ })).toHaveAttribute('href', '/create?template=birthday&gift=3')
+    expect(screen.queryByText('× 3')).not.toBeInTheDocument()
   })
 
-  it('does not show a count badge for a single unconsumed instance', () => {
+  it('shows no gift number for a single unconsumed instance', () => {
     render(<ProfileCartSection region="US" pendingPersonalizations={[{ slug: 'mothers_day', count: 1 }]} />)
 
     expect(screen.getByText("Mom's Promise Tokens")).toBeInTheDocument()
-    expect(screen.queryByText('× 1')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Gift 1 of/)).not.toBeInTheDocument()
   })
 
   it('deep-links "Personalize" straight into the specific purchased coupon book', () => {
@@ -46,8 +48,8 @@ describe('ProfileCartSection', () => {
     )
 
     expect(screen.getByText("Mom's Promise Tokens")).toBeInTheDocument()
-    expect(screen.getByText('Birthday Joy Tokens')).toBeInTheDocument()
-    expect(screen.getByText('× 2')).toBeInTheDocument()
+    expect(screen.getByText('Birthday Joy Tokens (Gift 1 of 2)')).toBeInTheDocument()
+    expect(screen.getByText('Birthday Joy Tokens (Gift 2 of 2)')).toBeInTheDocument()
   })
 
   it('puts "Ready to personalize" before the cart preview — it is the more actionable, time-sensitive item', () => {

@@ -45,6 +45,12 @@ export type BuilderState = {
   editorUnlockedTemplateId: string | null
   /** The age-restricted template id the sender confirmed 18+ for via AgeGate — sent as age_confirmed on save. */
   ageConfirmedTemplateId: string | null
+  /**
+   * Which of several identical purchased units the sender is working on (1-based, as numbered on
+   * Profile). Display-only: units of one template are interchangeable and a send always consumes
+   * the oldest one — this just lets the screens say "Gift 2 of 3" so the sender can tell them apart.
+   */
+  giftNumber: number | null
 }
 
 const DRAFT_STORAGE_KEY = 'kindness-currency:coupon-set-draft'
@@ -61,6 +67,7 @@ const initialState: BuilderState = {
   savedResult: null,
   editorUnlockedTemplateId: null,
   ageConfirmedTemplateId: null,
+  giftNumber: null,
 }
 
 export function couponsFromTemplate(template: TemplateWithCoupons): BuilderCoupon[] {
@@ -122,7 +129,7 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
   const templateBySlug = useCallback((slug: TemplateSlug) => templates.find((t) => t.slug === slug), [templates])
 
   const loadTemplate = useCallback(
-    (slug: TemplateSlug) => {
+    (slug: TemplateSlug, giftNumber?: number | null) => {
       const template = templateBySlug(slug)
       if (!template) return
       setState((s) => {
@@ -148,6 +155,8 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
           // flow's messageStarter pattern.
           senderMessage: isSameTemplate ? s.senderMessage : '',
           editorUnlockedTemplateId: isSameTemplate ? s.editorUnlockedTemplateId : null,
+          // One draft at a time: resuming the in-progress template keeps the gift it was started as.
+          giftNumber: isSameTemplate ? s.giftNumber : (giftNumber ?? null),
           screen: editorAlreadyUnlocked && namesFilled ? 'edit' : 'details',
         }
       })
