@@ -44,6 +44,7 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [noAccount, setNoAccount] = useState(false)
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
 
   const callbackUrl = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`
@@ -60,6 +61,7 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
     }
     setSubmitting(true)
     setError('')
+    setNoAccount(false)
 
     if (mode === 'login') {
       // Dev-only shortcut: skips the inbox round trip so local testing doesn't need real email
@@ -99,14 +101,15 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
       })
       setSubmitting(false)
       if (otpError) {
-        // shouldCreateUser: false failing is overwhelmingly "no account for this email" — the one
-        // other real case a sender can hit here is a rate limit, which gets its own message so it
-        // doesn't read as "we don't know you" when really it just means "wait a minute".
-        setError(
-          otpError.code === 'over_email_send_rate_limit' || /rate limit/i.test(otpError.message ?? '')
-            ? describeSendError(otpError)
-            : "We couldn't find an account for that email. Want to sign up instead?"
-        )
+        // Only Supabase's "signups not allowed" response (what shouldCreateUser: false returns for
+        // an unknown email) means "no account". Anything else — rate limit, bad email, server
+        // failure — gets its own honest message instead of wrongly telling someone we don't know them.
+        if (otpError.code === 'otp_disabled' || /signups? not allowed/i.test(otpError.message ?? '')) {
+          setError("We couldn't find an account for that email. Want to sign up instead?")
+          setNoAccount(true)
+        } else {
+          setError(describeSendError(otpError))
+        }
         return
       }
       setStep('otp')
@@ -172,6 +175,7 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
               onChange={(next) => {
                 setMode(next)
                 setError('')
+                setNoAccount(false)
               }}
               options={[
                 { value: 'signup', label: ctaCopy.authModalTabSignup, id: 'auth-gate-tab-signup', panelId: 'auth-gate-panel' },
@@ -229,6 +233,19 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
                 <div role="alert" className="mt-2 text-[12.5px] text-[#C2185B]">
                   {error}
                 </div>
+              )}
+              {noAccount && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signup')
+                    setError('')
+                    setNoAccount(false)
+                  }}
+                  className="mt-1 text-[13px] font-bold text-[#C2185B] underline"
+                >
+                  Switch to Sign Up
+                </button>
               )}
               <button
                 type="button"
