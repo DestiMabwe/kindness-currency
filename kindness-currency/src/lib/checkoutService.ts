@@ -10,7 +10,10 @@ import { settlementBucketForRegion, SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR } from '@
 
 export type InitiateCheckoutResult = { success: true; accessCode: string } | { success: false; error: string }
 
-const GENERIC_ERROR = 'Something went wrong starting checkout. Please try again.'
+// Paystack only ever settles this merchant account in ZAR.
+const ORDER_CURRENCY = 'ZAR'
+
+const GENERIC_ERROR ='Something went wrong starting checkout. Please try again.'
 
 function requirePaystackSecretKey(): string {
   const key = process.env.PAYSTACK_SECRET_KEY
@@ -37,7 +40,7 @@ async function createOrderAndInitialize(params: {
     userId: params.userId,
     email: params.email,
     amountCents: params.amountCents,
-    currency: 'ZAR',
+    currency: ORDER_CURRENCY,
     reference,
     cartSnapshot: params.cartSnapshot,
   })
@@ -50,7 +53,7 @@ async function createOrderAndInitialize(params: {
   const initialized = await paystack.initializeTransaction({
     email: params.email,
     amountCents: params.amountCents,
-    currency: 'ZAR',
+    currency: ORDER_CURRENCY,
     reference,
     callbackUrl,
   })
@@ -138,6 +141,12 @@ export async function verifyAndFulfillCheckout(reference: string): Promise<Verif
   const paystack = createPaystackClient(requirePaystackSecretKey())
   const verified = await paystack.verifyTransaction(reference)
   if (!verified.success || verified.status !== 'success') return { paid: false }
+
+  // Same guard as the webhook: never fulfil for less than the order was priced at, or in another currency.
+  if (verified.amountCents !== order.amount_cents || verified.currency !== ORDER_CURRENCY) {
+    console.error(`Paystack verify amount/currency mismatch for ${reference}: got ${verified.amountCents} ${verified.currency}, expected ${order.amount_cents} ${ORDER_CURRENCY}`)
+    return { paid: false }
+  }
 
   const won = await orders.markOrderPaid(order.id)
   if (won) await orders.grantPurchasedInstances(order.id, order.user_id, order.cart_snapshot)
