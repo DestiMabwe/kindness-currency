@@ -7,8 +7,9 @@ import { isAdminEmail } from '@/lib/adminAuth'
 import { CouponSetBuilder } from '@/components/builder/CouponSetBuilder'
 import { getRegion } from '@/lib/region'
 
-export default async function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string }> }) {
-  const { template } = await searchParams
+export default async function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; gift?: string }> }) {
+  const { template, gift } = await searchParams
+  const giftNumber = Number.parseInt(gift ?? '', 10)
   const supabase = createServiceClient()
   const templateRepo = createTemplateRepository(supabase)
   const comingSoonRepo = createComingSoonTemplateRepository(supabase)
@@ -37,6 +38,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
       region={region}
       pendingPersonalizations={groupUnconsumedInstances(unconsumedInstances)}
       initialTemplateSlug={template ?? null}
+      initialGiftNumber={Number.isInteger(giftNumber) && giftNumber > 0 ? giftNumber : null}
     />
   )
 }

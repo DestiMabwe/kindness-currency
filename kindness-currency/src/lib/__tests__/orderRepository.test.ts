@@ -145,3 +145,45 @@ describe('OrderRepository', () => {
     })
   })
 })
+
+describe('OrderRepository discount columns', () => {
+  function makeRepo() {
+    const single = vi.fn().mockResolvedValue({ data: { id: 'order-1' }, error: null })
+    const select = vi.fn().mockReturnValue({ single })
+    const insert = vi.fn().mockReturnValue({ select })
+    const from = vi.fn().mockReturnValue({ insert })
+    return { insert, repo: createOrderRepository({ from } as never) }
+  }
+  const base = { userId: 'user-1', email: 'a@example.com', amountCents: 999, currency: 'ZAR', reference: 'kc_1', cartSnapshot: [{ slug: 'mothers_day', qty: 1 }] }
+
+  it('records the code and discount snapshot on the order when one was used', async () => {
+    const { insert, repo } = makeRepo()
+    await repo.createPendingOrder({ ...base, discountCodeId: 'code-1', discountCents: 1000 })
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ discount_code_id: 'code-1', discount_cents: 1000 }))
+  })
+
+  it('leaves the discount columns out entirely for an ordinary order', async () => {
+    const { insert, repo } = makeRepo()
+    await repo.createPendingOrder(base)
+    expect(insert.mock.calls[0][0]).not.toHaveProperty('discount_code_id')
+    expect(insert.mock.calls[0][0]).not.toHaveProperty('discount_cents')
+  })
+})
+
+describe('OrderRepository.redeemDiscountForOrder', () => {
+  it('maps the database refusals to the same wording the cart shows', async () => {
+    const used = createOrderRepository({ rpc: vi.fn().mockResolvedValue({ error: { message: 'CODE_ALREADY_USED' } }) } as never)
+    const gone = createOrderRepository({ rpc: vi.fn().mockResolvedValue({ error: { message: 'CODE_EXHAUSTED' } }) } as never)
+
+    expect(await used.redeemDiscountForOrder('order-1', true)).toEqual({ success: false, error: "You've already used that code." })
+    expect(await gone.redeemDiscountForOrder('order-1', true)).toEqual({ success: false, error: 'That code has been fully used.' })
+  })
+
+  it('passes the strict flag through to the database function', async () => {
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+    const repo = createOrderRepository({ rpc } as never)
+
+    expect(await repo.redeemDiscountForOrder('order-1', false)).toEqual({ success: true })
+    expect(rpc).toHaveBeenCalledWith('redeem_discount_for_order', { p_order_id: 'order-1', p_strict: false })
+  })
+})

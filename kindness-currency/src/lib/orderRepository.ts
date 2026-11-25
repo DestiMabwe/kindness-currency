@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { CartLineItem } from '@/lib/pricing'
+import { DISCOUNT_ERRORS } from '@/lib/discount'
 
 export type CreatePendingOrderInput = {
   userId: string
@@ -8,6 +9,9 @@ export type CreatePendingOrderInput = {
   currency: string
   reference: string
   cartSnapshot: CartLineItem[]
+  /** Set when a discount code was applied; amountCents is then the already-discounted charge. */
+  discountCodeId?: string
+  discountCents?: number
 }
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
@@ -42,6 +46,8 @@ export function createOrderRepository(supabase: SupabaseClient) {
           paystack_reference: input.reference,
           cart_snapshot: input.cartSnapshot,
           status: 'pending',
+          // Only sent when a code was used, so an ordinary checkout never depends on these columns.
+          ...(input.discountCodeId ? { discount_code_id: input.discountCodeId, discount_cents: input.discountCents ?? 0 } : {}),
         })
         .select('id')
         .single<{ id: string }>()
@@ -79,6 +85,26 @@ export function createOrderRepository(supabase: SupabaseClient) {
 
       if (error) return false
       return !!data
+    },
+
+    /** Marks a still-pending order failed — used when a free order's discount code is refused at
+     * redemption (already used / exhausted), so no paid-looking row is left behind. */
+    async markOrderFailed(orderId: string): Promise<void> {
+      await supabase.from('orders').update({ status: 'failed' }).eq('id', orderId).eq('status', 'pending')
+    },
+
+    /**
+     * Records that an order used its discount code (no-op if it has none, or already recorded).
+     * strict=true is for free orders: refuses an already-used or exhausted code. strict=false is for
+     * Paystack orders, where the buyer has already paid: it records the use and never refuses. See
+     * redeem_discount_for_order in the discount codes migration.
+     */
+    async redeemDiscountForOrder(orderId: string, strict: boolean): Promise<{ success: true } | { success: false; error: string }> {
+      const { error } = await supabase.rpc('redeem_discount_for_order', { p_order_id: orderId, p_strict: strict })
+      if (!error) return { success: true }
+      if (error.message?.includes('CODE_ALREADY_USED')) return { success: false, error: DISCOUNT_ERRORS.alreadyUsed }
+      if (error.message?.includes('CODE_EXHAUSTED')) return { success: false, error: DISCOUNT_ERRORS.exhausted }
+      return { success: false, error: DISCOUNT_ERRORS.generic }
     },
 
     /**

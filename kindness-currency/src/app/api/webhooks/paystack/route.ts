@@ -49,7 +49,10 @@ export async function POST(request: Request) {
   }
 
   const won = await orders.markOrderPaid(order.id)
-  if (won) await orders.grantPurchasedInstances(order.id, order.user_id, order.cart_snapshot)
+  if (won) {
+    await orders.grantPurchasedInstances(order.id, order.user_id, order.cart_snapshot)
+    await orders.redeemDiscountForOrder(order.id, false)
+  }
 
   return NextResponse.json({ received: true })
 }

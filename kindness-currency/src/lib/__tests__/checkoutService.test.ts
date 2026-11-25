@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // their display currency.
 
 const createPendingOrder = vi.fn()
-const orders = { createPendingOrder, getOrderByReference: vi.fn(), markOrderPaid: vi.fn(), grantPurchasedInstances: vi.fn() }
+const orders = { createPendingOrder, getOrderByReference: vi.fn(), markOrderPaid: vi.fn(), grantPurchasedInstances: vi.fn(), redeemDiscountForOrder: vi.fn() }
 vi.mock('@/lib/orderRepository', () => ({ createOrderRepository: vi.fn().mockReturnValue(orders) }))
 vi.mock('@/lib/supabase/service', () => ({ createServiceClient: vi.fn().mockReturnValue({}) }))
 vi.mock('@/lib/origin', () => ({ getOrigin: vi.fn().mockResolvedValue('https://kindnesscurrency.app') }))
@@ -31,6 +31,7 @@ describe('checkoutService', () => {
     orders.getOrderByReference.mockReset()
     orders.markOrderPaid.mockReset()
     orders.grantPurchasedInstances.mockReset()
+    orders.redeemDiscountForOrder.mockReset()
     process.env.PAYSTACK_SECRET_KEY = 'sk_test_xxx'
   })
 

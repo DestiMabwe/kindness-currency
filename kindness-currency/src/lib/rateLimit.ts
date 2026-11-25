@@ -8,6 +8,9 @@ export const RATE_LIMITS = {
   authByIp: { limit: 10, windowSeconds: 10 * 60 },
   authByEmail: { limit: 3, windowSeconds: 10 * 60 },
   checkoutByUser: { limit: 10, windowSeconds: 60 },
+  // Code guesses (cart preview + checkout with a code): far tighter than checkout itself, since each
+  // try is a probe at someone else's code, not a purchase.
+  discountCodeByUser: { limit: 10, windowSeconds: 10 * 60 },
   sendByUser: { limit: 20, windowSeconds: 60 * 60 },
   sendByIp: { limit: 5, windowSeconds: 60 * 60 },
   // Recipient taps "Generate Redemption PIN" with no login: capped per coupon (so a link-holder
