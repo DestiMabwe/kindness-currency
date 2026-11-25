@@ -500,6 +500,7 @@ export function CouponSetBuilder({
           onSelect={handleSelectTemplate}
           onPreviewSample={handlePreviewSample}
           onFeatureInterest={setFeatureInterestModal}
+          initialGestureSlug={initialTemplateSlug}
         />
       )}
 
@@ -782,7 +783,9 @@ function TemplateSelectScreen({
   onSelect,
   onPreviewSample,
   onFeatureInterest,
+  initialGestureSlug,
 }: {
+  initialGestureSlug: string | null
   templates: TemplateWithCoupons[]
   singleUseTemplateIdBySlug: Record<string, string>
   comingSoonTemplates: ComingSoonTemplate[]
@@ -809,11 +812,14 @@ function TemplateSelectScreen({
   // Resumes straight into GestureFlow if a gesture draft is still in progress — the sender may
   // have never left (e.g. an auth redirect mid Save/Send reloaded this whole page). Deferred to an
   // effect rather than a lazy useState initializer for the same hydration-safety reason
-  // useCouponSetBuilder's own draft rehydration is.
+  // useCouponSetBuilder's own draft rehydration is. A "Personalize" deep link (?template=slug) for a
+  // purchased gesture lands here too: gestures aren't in `templates`, so the parent's bundle
+  // deep-link effect can't match them — the link slug wins over a stale persisted draft.
   useEffect(() => {
     if (attemptedGestureResume.current) return
     attemptedGestureResume.current = true
-    const slug = peekPersistedGestureSlug()
+    const linked = singleUseGestures.find((g) => g.slug === initialGestureSlug)
+    const slug = linked?.slug ?? peekPersistedGestureSlug()
     if (!slug) return
     const match = singleUseGestures.find((g) => g.slug === slug)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount rehydration from localStorage, not a render-time update

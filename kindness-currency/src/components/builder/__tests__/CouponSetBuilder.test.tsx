@@ -1216,6 +1216,15 @@ describe('coming soon section', () => {
       expect(screen.queryByText('Pick a template')).not.toBeInTheDocument()
     })
 
+    // Regression: ISSUE-001 — Personalize on a purchased gesture landed on the plain /create gallery
+    // Found by /qa on 2026-11-25
+    it('opens the gesture flow when the slug is a single-use gesture, not a bundle template', async () => {
+      render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" initialTemplateSlug="relief" />)
+
+      expect(await screen.findByText("Who's it for?")).toBeInTheDocument()
+      expect(screen.queryByText('Pick a template')).not.toBeInTheDocument()
+    })
+
     it('does nothing and stays on the gallery when the slug does not match any real template', async () => {
       render(<CouponSetBuilder templates={[template(), otherTemplate]} region="US" initialTemplateSlug="not-a-real-slug" />)
 
