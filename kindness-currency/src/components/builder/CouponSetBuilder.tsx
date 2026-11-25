@@ -70,6 +70,8 @@ export type CouponSetBuilderProps = {
    * jumps straight past Step 1 into that template instead of leaving the sender to re-find it in
    * the gallery themselves. */
   initialTemplateSlug?: string | null
+  /** Set from /create?gift=<n> on Profile's per-unit links — which identical purchased unit this is. */
+  initialGiftNumber?: number | null
 }
 
 type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
@@ -99,6 +101,7 @@ export function CouponSetBuilder({
   region,
   pendingPersonalizations = [],
   initialTemplateSlug = null,
+  initialGiftNumber = null,
 }: CouponSetBuilderProps) {
   const router = useRouter()
   const builder = useCouponSetBuilder(templates)
@@ -107,6 +110,9 @@ export function CouponSetBuilder({
   const singleUseTemplateIdBySlug = Object.fromEntries(singleUseTemplates.map((t) => [t.slug, t.id]))
   const pendingCountBySlug = Object.fromEntries(pendingPersonalizations.map((p) => [p.slug, p.count]))
   const attemptedInitialTemplate = useRef(false)
+  // The "Gift k of N" number from the Profile link, applied to whichever template that link opens
+  // (including via the age gate / switch-warning detours). Null for every manual selection.
+  const linkedGiftNumber = useRef<number | null>(null)
   const [pendingAgeGate, setPendingAgeGate] = useState<PendingAgeGate | null>(null)
   const [pendingTemplateSwitch, setPendingTemplateSwitch] = useState<TemplateWithCoupons | null>(null)
   const [sampleTemplate, setSampleTemplate] = useState<TemplateWithCoupons | null>(null)
@@ -400,7 +406,7 @@ export function CouponSetBuilder({
       setPendingTemplateSwitch(template)
       return
     }
-    builder.loadTemplate(template.slug as TemplateSlug)
+    builder.loadTemplate(template.slug as TemplateSlug, linkedGiftNumber.current)
   }
 
   const handleSelectTemplate = (template: TemplateWithCoupons) => {
@@ -421,6 +427,7 @@ export function CouponSetBuilder({
     if (attemptedInitialTemplate.current || !builder.hydrated || !initialTemplateSlug) return
     attemptedInitialTemplate.current = true
     const match = templates.find((t) => t.slug === initialTemplateSlug)
+    linkedGiftNumber.current = initialGiftNumber
     if (match) handleSelectTemplate(match)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSelectTemplate is stable per render and would cause an infinite loop if included
   }, [builder.hydrated, initialTemplateSlug, templates])
@@ -457,9 +464,16 @@ export function CouponSetBuilder({
   // proceeds with the newly tapped template, discarding the in-progress one's customization.
   const confirmTemplateSwitch = () => {
     if (!pendingTemplateSwitch) return
-    builder.loadTemplate(pendingTemplateSwitch.slug as TemplateSlug)
+    builder.loadTemplate(pendingTemplateSwitch.slug as TemplateSlug, linkedGiftNumber.current)
     setPendingTemplateSwitch(null)
   }
+
+  // "Night Out (Gift 2 of 3)" — only when there really are several identical units to tell apart.
+  const selectedSlug = builder.state.selectedTemplateSlug
+  const giftTotal = selectedSlug ? (pendingCountBySlug[selectedSlug] ?? 0) : 0
+  const giftNumber = builder.state.giftNumber
+  const giftScreenName = (name: string) =>
+    giftNumber !== null && giftTotal > 1 && giftNumber <= giftTotal ? ctaCopy.giftOfLabel(name, giftNumber, giftTotal) : name
 
   const selectedTemplate = builder.templateBySlug(builder.state.selectedTemplateSlug as TemplateSlug)
   const visuals = builder.state.selectedTemplateSlug ? templateVisuals[builder.state.selectedTemplateSlug] : null
@@ -555,7 +569,7 @@ export function CouponSetBuilder({
 
       {builder.state.screen === 'details' && (
         <DetailsFormScreen
-          templateName={selectedTemplate?.name ?? ''}
+          templateName={giftScreenName(selectedTemplate?.name ?? '')}
           senderName={builder.state.senderName}
           recipientName={builder.state.recipientName}
           expiryDate={builder.state.expiryDate}
@@ -576,7 +590,7 @@ export function CouponSetBuilder({
 
       {builder.state.screen === 'edit' && visuals && (
         <EditScreen
-          templateName={selectedTemplate?.name ?? ''}
+          templateName={giftScreenName(selectedTemplate?.name ?? '')}
           senderName={builder.state.senderName}
           recipientName={builder.state.recipientName}
           coupons={builder.state.coupons}
@@ -824,7 +838,7 @@ function TemplateSelectScreen({
     const match = singleUseGestures.find((g) => g.slug === slug)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount rehydration from localStorage, not a render-time update
     if (match) setChosenGesture(match)
-  }, [])
+  }, [initialGestureSlug])
 
   if (chosenGesture) {
     return (

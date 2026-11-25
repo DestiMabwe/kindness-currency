@@ -212,6 +212,7 @@ export const ctaCopy = {
   qtyDecreaseLabel: (name: string) => `Decrease quantity for ${name}`,
   qtyIncreaseLabel: (name: string) => `Increase quantity for ${name}`,
   pendingToPersonalizeBadge: (count: number) => (count === 1 ? '1 to personalize' : `${count} to personalize`),
+  giftOfLabel: (name: string, gift: number, total: number) => `${name} (Gift ${gift} of ${total})`,
   cartLinkLabel: (count: number) => `Cart (${count})`,
   cartHeading: 'Your Cart',
   cartEmptyMessage: 'Nothing here yet.',
