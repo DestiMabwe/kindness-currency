@@ -7,5 +7,6 @@ export const flags = {
   bulkCreation: false, // Phase 3
   customBranding: false, // Phase 3
   analyticsDashboard: false, // Phase 3
+  discountCodes: true, // approved 2026-11-25 — percentage-off codes at cart checkout; 100% = free order, no Paystack call
   reminderEmails: true, // approved 2026-08-29 — sends reminder emails for the recipient's chosen cadence; see /api/cron/send-reminders
 } as const

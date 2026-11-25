@@ -39,6 +39,7 @@ export const ctaCopy = {
   authModalTabLogin: 'Log In',
   authModalSignupSubmit: 'Email me a magic link',
   authModalLoginSubmit: 'Log In',
+  authModalGoogleLoading: 'Redirecting to Google…',
   recipientRedeemButton: 'Redeem This ♥',
   postRedemptionState: 'This has been redeemed with love',
   recipientConversionHeading: 'Loved this gift?',
@@ -227,6 +228,13 @@ export const ctaCopy = {
   cartCheckoutNote: "You'll pay securely via Paystack, then come back here to personalize each one.",
   cartCheckoutSignInNote: "You'll sign in with a quick email link or Google just before paying, so your gifts are saved to your account.",
   cartPayCta: (formattedTotal: string) => `Pay ${formattedTotal}`,
+  cartFreeCta: 'Claim for free →',
+  cartCodeLabel: 'Discount code',
+  cartCodePlaceholder: 'Enter code',
+  cartCodeApply: 'Apply code',
+  cartCodeApplying: 'Checking…',
+  cartCodeRemove: 'Remove code',
+  cartCodeAppliedLine: (code: string, percentOff: number) => `Code ${code} (${percentOff}% off)`,
   // Shown to every visitor outside South Africa: prices are displayed in their local currency, but
   // Paystack settles only in ZAR, so the real charge is a (separately priced) rand amount.
   chargeCurrencyNote: (formattedZarAmount: string) =>

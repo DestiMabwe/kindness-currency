@@ -4,7 +4,8 @@ import { createHmac } from 'node:crypto'
 const getOrderByReference = vi.fn()
 const markOrderPaid = vi.fn()
 const grantPurchasedInstances = vi.fn()
-const createOrderRepository = vi.fn().mockReturnValue({ getOrderByReference, markOrderPaid, grantPurchasedInstances })
+const redeemDiscountForOrder = vi.fn()
+const createOrderRepository = vi.fn().mockReturnValue({ getOrderByReference, markOrderPaid, grantPurchasedInstances, redeemDiscountForOrder })
 vi.mock('@/lib/orderRepository', () => ({ createOrderRepository }))
 vi.mock('@/lib/supabase/service', () => ({ createServiceClient: vi.fn().mockReturnValue({}) }))
 
@@ -30,6 +31,7 @@ describe('POST /api/webhooks/paystack', () => {
     getOrderByReference.mockReset()
     markOrderPaid.mockReset()
     grantPurchasedInstances.mockReset()
+    redeemDiscountForOrder.mockReset()
     process.env.PAYSTACK_SECRET_KEY = SECRET
   })
 
@@ -74,6 +76,8 @@ describe('POST /api/webhooks/paystack', () => {
     expect(response.status).toBe(200)
     expect(markOrderPaid).toHaveBeenCalledWith('order-1')
     expect(grantPurchasedInstances).toHaveBeenCalledWith('order-1', 'user-1', [{ slug: 'mothers_day', qty: 1 }])
+    // The order's discount code (if any) is recorded as used once the payment is confirmed.
+    expect(redeemDiscountForOrder).toHaveBeenCalledWith('order-1', false)
   })
 
   it('does not grant instances twice for the same order on a duplicate webhook delivery', async () => {
@@ -88,6 +92,7 @@ describe('POST /api/webhooks/paystack', () => {
 
     expect(response.status).toBe(200)
     expect(grantPurchasedInstances).not.toHaveBeenCalled()
+    expect(redeemDiscountForOrder).not.toHaveBeenCalled()
   })
 
   it('returns 200 without error when the reference matches no known order', async () => {

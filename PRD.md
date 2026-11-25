@@ -348,6 +348,8 @@ CREATE TABLE campaign_banners (
 ### Monetisation Watermark
 Phase 1 only: a "Made with Kindness Currency" watermark in the footer of /give/[id]. No payment infrastructure in v1. Home page copy uses "Start free." not "100% free, always."
 
+**Update (2026-11-25):** payments now exist (Paystack checkout — see PRICING.md), and **discount codes** are approved beyond the original v1 scope (flag: `discountCodes` in `src/lib/flags.ts`). A code is a percentage off (1–100%) entered at cart checkout; 100% creates a paid order with no Paystack call. It stacks on top of 3-for-2 and the couple's bundle discount, is applied server-side only, is one use per person per code, with optional max uses and expiry. Codes are created in the database (`discount_codes`); there is no admin screen yet. Tester gifts are identified by the code's `label` on the order.
+
 ---
 
 ## Testing Decisions

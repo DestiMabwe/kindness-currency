@@ -11,10 +11,12 @@ import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { QuantityStepper } from '@/components/builder/QuantityStepper'
 import { useCartLines, setCartQty, removeFromCart, linesForCart, cartTotals, type CartLine } from '@/lib/cart'
-import { initiateCartCheckoutAction } from '@/app/cart/actions'
+import { initiateCartCheckoutAction, previewDiscountCodeAction } from '@/app/cart/actions'
 import { resumePaystackCheckout } from '@/lib/paystack/inline'
 import { formatPrice, REGION_PAIRED_BUNDLE_PRICE, type PricingRegion } from '@/lib/geoPricing'
 import { settlementTotalForItems } from '@/lib/pricing'
+import { applyPercentDiscount } from '@/lib/discount'
+import { flags } from '@/lib/flags'
 
 const CHECKOUT_POPUP_ERROR = 'Could not open the payment window. Please try again.'
 
@@ -40,6 +42,10 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   const [authOpen, setAuthOpen] = useState(false)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState('')
+  const [codeInput, setCodeInput] = useState('')
+  const [appliedCode, setAppliedCode] = useState<{ code: string; percentOff: number } | null>(null)
+  const [codeError, setCodeError] = useState('')
+  const [applyingCode, setApplyingCode] = useState(false)
 
   const lines = linesForCart(cartLines, region)
 
@@ -49,7 +55,38 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   // Paystack settles only in ZAR, so anyone outside South Africa sees prices in their local currency
   // but is charged a rand amount — surfaced here (display only; the server recomputes the charge).
   const chargedInZar = region !== 'ZA'
-  const zarTotal = formatPrice(settlementTotalForItems(cartLines, region), 'ZA')
+  // Display only — the server re-validates the code and recomputes the real charge. Both figures use
+  // the same applyPercentDiscount the server does, so the preview can't drift from what's charged.
+  const percentOff = appliedCode?.percentOff ?? 0
+  // Whole cents first, same as the server — float math on 19.99 * 50 would round the other way.
+  const codeDiscount = Math.round((Math.round(total * 100) * percentOff) / 100) / 100
+  const totalAfterCode = total - codeDiscount
+  const zarFinalCents = applyPercentDiscount(Math.round(settlementTotalForItems(cartLines, region) * 100), percentOff).finalCents
+  const zarTotal = formatPrice(zarFinalCents / 100, 'ZA')
+  const isFree = appliedCode !== null && zarFinalCents === 0
+
+  const handleApplyCode = async () => {
+    if (!codeInput.trim()) return
+    if (!isLoggedIn) {
+      setAuthOpen(true)
+      return
+    }
+    setApplyingCode(true)
+    setCodeError('')
+    const result = await previewDiscountCodeAction(codeInput)
+    setApplyingCode(false)
+    if (!result.success) {
+      setCodeError(result.error)
+      return
+    }
+    setAppliedCode({ code: result.code, percentOff: result.percentOff })
+    setCodeInput('')
+  }
+
+  const handleRemoveCode = () => {
+    setAppliedCode(null)
+    setCodeError('')
+  }
 
   const handlePay = async () => {
     if (!isLoggedIn) {
@@ -58,10 +95,15 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
     }
     setPaying(true)
     setPayError('')
-    const result = await initiateCartCheckoutAction(cartLines)
+    const result = await initiateCartCheckoutAction(cartLines, appliedCode?.code)
     if (!result.success) {
       setPaying(false)
       setPayError(result.error)
+      return
+    }
+    if ('free' in result) {
+      // A 100%-off code: the order is already paid and fulfilled, so there's no payment window.
+      router.push(`/cart/complete?reference=${encodeURIComponent(result.reference)}`)
       return
     }
     try {
@@ -101,12 +143,56 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
               <span>{formatPrice(line.price * line.qty, region)}</span>
             </div>
           ))}
+          {appliedCode && (
+            <div className="mt-1 flex items-center justify-between text-[13px] font-semibold text-[#2E7D6B]">
+              <span>{ctaCopy.cartCodeAppliedLine(appliedCode.code, appliedCode.percentOff)}</span>
+              <span>-{formatPrice(codeDiscount, region)}</span>
+            </div>
+          )}
           <div className="mt-2 flex items-center justify-between border-t border-[#1A1A2E]/8 pt-2 text-[15px] font-bold text-[#1A1A2E]">
             <span>Total</span>
-            <span>{formatPrice(total, region)}</span>
+            <span>{formatPrice(totalAfterCode, region)}</span>
           </div>
         </div>
-        {chargedInZar && (
+        {flags.discountCodes && (
+          <div className="mt-4">
+            {appliedCode ? (
+              <button type="button" onClick={handleRemoveCode} className="text-[12.5px] font-bold text-[#C2185B] underline">
+                {ctaCopy.cartCodeRemove}
+              </button>
+            ) : (
+              <div>
+                <div className="flex gap-2">
+                  <input
+                    value={codeInput}
+                    onChange={(e) => {
+                      setCodeInput(e.target.value)
+                      setCodeError('')
+                    }}
+                    placeholder={ctaCopy.cartCodePlaceholder}
+                    aria-label={ctaCopy.cartCodeLabel}
+                    autoCapitalize="characters"
+                    className="min-w-0 flex-1 rounded-[14px] border-[1.5px] border-[#1A1A2E]/14 bg-white p-3 text-[14px] text-[#1A1A2E] uppercase outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCode}
+                    disabled={applyingCode || !codeInput.trim()}
+                    className="shrink-0 rounded-[14px] border-[1.5px] border-[#C2185B] px-4 text-[13.5px] font-bold text-[#C2185B] disabled:opacity-50"
+                  >
+                    {applyingCode ? ctaCopy.cartCodeApplying : ctaCopy.cartCodeApply}
+                  </button>
+                </div>
+                {codeError && (
+                  <div role="alert" className="mt-1.5 text-[12.5px] text-[#C2185B]">
+                    {codeError}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {chargedInZar && !isFree && (
           <div className="mt-4 text-[12.5px] leading-relaxed font-semibold text-[#1A1A2E]">{ctaCopy.chargeCurrencyNote(zarTotal)}</div>
         )}
         <div className="mt-4 text-[12px] leading-relaxed text-[#2C2C2C] opacity-72">{ctaCopy.cartCheckoutNote}</div>
@@ -120,7 +206,7 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
           disabled={paying}
           className="mt-4 w-full rounded-2xl bg-[#C2185B] p-3.5 text-center font-sans text-[15px] font-bold text-white disabled:opacity-50"
         >
-          {paying ? ctaCopy.sendPaymentRedirecting : ctaCopy.cartPayCta(chargedInZar ? zarTotal : formatPrice(total, region))}
+          {paying ? ctaCopy.sendPaymentRedirecting : isFree ? ctaCopy.cartFreeCta : ctaCopy.cartPayCta(chargedInZar ? zarTotal : formatPrice(totalAfterCode, region))}
         </button>
 
         {authOpen && <AuthGate redirectTo="/cart" onClose={() => setAuthOpen(false)} />}

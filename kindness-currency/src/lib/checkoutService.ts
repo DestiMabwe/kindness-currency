@@ -1,14 +1,22 @@
 import { randomUUID } from 'node:crypto'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createOrderRepository } from '@/lib/orderRepository'
+import { createDiscountCodeRepository } from '@/lib/discountCodeRepository'
+import { applyPercentDiscount } from '@/lib/discount'
 import { createPaystackClient } from '@/lib/paystack/client'
 import { getOrigin } from '@/lib/origin'
 import { getRegion } from '@/lib/region'
+import { flags } from '@/lib/flags'
 import { CartCheckoutInputSchema } from '@/schemas/checkoutSchema'
 import { cartTotals, settlementLinesForCart, resolveSettlementPrice, type CartLineItem } from '@/lib/pricing'
 import { settlementBucketForRegion, SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR } from '@/lib/geoPricing'
 
 export type InitiateCheckoutResult = { success: true; accessCode: string } | { success: false; error: string }
+
+/** The cart's result: same as a normal checkout, plus `free: true` when a 100%-off code made the
+ * order cost nothing — it's already paid and fulfilled, so there's no Paystack window to open and
+ * the caller goes straight to /cart/complete with this reference. */
+export type InitiateCartCheckoutResult = InitiateCheckoutResult | { success: true; free: true; reference: string }
 
 // Paystack only ever settles this merchant account in ZAR.
 const ORDER_CURRENCY = 'ZAR'
@@ -29,6 +37,8 @@ async function createOrderAndInitialize(params: {
   amountCents: number
   cartSnapshot: CartLineItem[]
   callbackPath: string
+  /** Already-validated discount: amountCents is the discounted charge; this is what to record. */
+  discount?: { codeId: string; discountCents: number }
 }): Promise<InitiateCheckoutResult> {
   if (params.amountCents <= 0) return { success: false, error: GENERIC_ERROR }
 
@@ -43,6 +53,8 @@ async function createOrderAndInitialize(params: {
     currency: ORDER_CURRENCY,
     reference,
     cartSnapshot: params.cartSnapshot,
+    discountCodeId: params.discount?.codeId,
+    discountCents: params.discount?.discountCents,
   })
   if (!created.success) return { success: false, error: created.error }
 
@@ -63,6 +75,48 @@ async function createOrderAndInitialize(params: {
 }
 
 /**
+ * A 100%-off order: nothing to charge, so no Paystack call at all. The order is created pending
+ * (amount 0), the code is redeemed strictly (no money has moved, so an already-used or exhausted
+ * code is refused outright, with the code row locked against a concurrent buyer), and only then is
+ * it marked paid and fulfilled through the same markOrderPaid/grantPurchasedInstances pair a
+ * Paystack order uses. If redemption is refused the order is marked failed so nothing is granted.
+ */
+async function createFreeOrder(params: {
+  userId: string
+  email: string
+  cartSnapshot: CartLineItem[]
+  discount: { codeId: string; discountCents: number }
+}): Promise<InitiateCartCheckoutResult> {
+  const orders = createOrderRepository(createServiceClient())
+  const reference = `kc_free_${randomUUID()}`
+
+  const created = await orders.createPendingOrder({
+    userId: params.userId,
+    email: params.email,
+    amountCents: 0,
+    currency: ORDER_CURRENCY,
+    reference,
+    cartSnapshot: params.cartSnapshot,
+    discountCodeId: params.discount.codeId,
+    discountCents: params.discount.discountCents,
+  })
+  if (!created.success) return { success: false, error: created.error }
+
+  const redeemed = await orders.redeemDiscountForOrder(created.orderId, true)
+  if (!redeemed.success) {
+    await orders.markOrderFailed(created.orderId)
+    return { success: false, error: redeemed.error }
+  }
+
+  const won = await orders.markOrderPaid(created.orderId)
+  if (won) {
+    const granted = await orders.grantPurchasedInstances(created.orderId, params.userId, params.cartSnapshot)
+    if (!granted.success) return { success: false, error: GENERIC_ERROR }
+  }
+  return { success: true, free: true, reference }
+}
+
+/**
  * The cart's multi-line checkout — the charge amount is always recomputed here from {slug, qty}
  * pairs against the live settlement tables (3-for-2 + paired-bundle math included), never taken
  * from the caller. Rejects the whole request if any line's slug doesn't resolve to a real,
@@ -78,7 +132,10 @@ export async function initiateCartCheckout(params: {
   email: string
   items: CartLineItem[]
   callbackPath: string
-}): Promise<InitiateCheckoutResult> {
+  /** Optional code the buyer typed. Only the text is trusted from the client — it's looked up,
+   * validated and turned into a percentage here, then applied on top of 3-for-2 and bundle math. */
+  discountCode?: string
+}): Promise<InitiateCartCheckoutResult> {
   const parsed = CartCheckoutInputSchema.safeParse(params.items)
   if (!parsed.success) return { success: false, error: GENERIC_ERROR }
 
@@ -87,12 +144,34 @@ export async function initiateCartCheckout(params: {
   if (lines.length !== parsed.data.length) return { success: false, error: GENERIC_ERROR }
 
   const { total } = cartTotals(lines, SETTLEMENT_PAIRED_BUNDLE_PRICE_ZAR[bucket])
+  const totalCents = Math.round(total * 100)
+
+  if (!flags.discountCodes || !params.discountCode?.trim()) {
+    return createOrderAndInitialize({
+      userId: params.userId,
+      email: params.email,
+      amountCents: totalCents,
+      cartSnapshot: parsed.data,
+      callbackPath: params.callbackPath,
+    })
+  }
+
+  const validated = await createDiscountCodeRepository(createServiceClient()).validateForUser(params.discountCode, params.userId)
+  if (!validated.success) return { success: false, error: validated.error }
+
+  const { discountCents, finalCents } = applyPercentDiscount(totalCents, validated.code.percentOff)
+  const discount = { codeId: validated.code.id, discountCents }
+
+  if (finalCents === 0) {
+    return createFreeOrder({ userId: params.userId, email: params.email, cartSnapshot: parsed.data, discount })
+  }
   return createOrderAndInitialize({
     userId: params.userId,
     email: params.email,
-    amountCents: Math.round(total * 100),
+    amountCents: finalCents,
     cartSnapshot: parsed.data,
     callbackPath: params.callbackPath,
+    discount,
   })
 }
 
@@ -149,6 +228,9 @@ export async function verifyAndFulfillCheckout(reference: string): Promise<Verif
   }
 
   const won = await orders.markOrderPaid(order.id)
-  if (won) await orders.grantPurchasedInstances(order.id, order.user_id, order.cart_snapshot)
+  if (won) {
+    await orders.grantPurchasedInstances(order.id, order.user_id, order.cart_snapshot)
+    await orders.redeemDiscountForOrder(order.id, false)
+  }
   return { paid: true, cartSnapshot: order.cart_snapshot, amountCents: order.amount_cents }
 }

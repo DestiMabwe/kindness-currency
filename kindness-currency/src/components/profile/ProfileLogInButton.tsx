@@ -20,7 +20,7 @@ export function ProfileLogInButton() {
       >
         {ctaCopy.navLogIn}
       </button>
-      {authOpen && <AuthGate initialMode="login" onClose={() => setAuthOpen(false)} />}
+      {authOpen && <AuthGate initialMode="login" redirectTo="/profile" onClose={() => setAuthOpen(false)} />}
     </>
   )
 }

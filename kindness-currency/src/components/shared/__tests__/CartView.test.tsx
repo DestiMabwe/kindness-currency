@@ -11,8 +11,12 @@ vi.mock('next/navigation', () => ({
 }))
 
 const initiateCartCheckoutAction = vi.fn()
+const previewDiscountCodeAction = vi.fn()
 vi.mock('@/app/cart/actions', () => ({
-  initiateCartCheckoutAction: (items: unknown) => initiateCartCheckoutAction(items),
+  // Forward the code only when there is one, so existing assertions on a plain checkout stay exact.
+  initiateCartCheckoutAction: (items: unknown, code?: string) =>
+    code === undefined ? initiateCartCheckoutAction(items) : initiateCartCheckoutAction(items, code),
+  previewDiscountCodeAction: (code: string) => previewDiscountCodeAction(code),
 }))
 
 const resumePaystackCheckout = vi.fn()
@@ -25,6 +29,7 @@ describe('CartView', () => {
     window.localStorage.clear()
     push.mockReset()
     initiateCartCheckoutAction.mockReset()
+    previewDiscountCodeAction.mockReset()
     resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
   })
 
@@ -152,6 +157,88 @@ describe('CartView', () => {
 
       expect(push).not.toHaveBeenCalled()
       await waitFor(() => expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R54.99') })).not.toBeDisabled())
+    })
+  })
+  describe('discount codes', () => {
+    async function openCheckout() {
+      addToCart('mothers_day', 1) // R19.99 for a South African visitor
+      render(<CartView isLoggedIn={true} region="ZA" />)
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+    }
+
+    it('shows the discount line and the reduced total once a valid code is applied', async () => {
+      previewDiscountCodeAction.mockResolvedValue({ success: true, code: 'HALF', percentOff: 50 })
+      await openCheckout()
+
+      await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'half')
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
+
+      expect(await screen.findByText(ctaCopy.cartCodeAppliedLine('HALF', 50))).toBeInTheDocument()
+      expect(previewDiscountCodeAction).toHaveBeenCalledWith('half')
+      expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R9.99') })).toBeInTheDocument()
+    })
+
+    it('shows the refusal reason and keeps the full price when a code is rejected', async () => {
+      previewDiscountCodeAction.mockResolvedValue({ success: false, error: 'That code has expired.' })
+      await openCheckout()
+
+      await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'old')
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('That code has expired.')
+      expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R19.99') })).toBeInTheDocument()
+    })
+
+    it('lets the buyer remove an applied code and go back to the full price', async () => {
+      previewDiscountCodeAction.mockResolvedValue({ success: true, code: 'HALF', percentOff: 50 })
+      await openCheckout()
+      await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'half')
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
+      await screen.findByText(ctaCopy.cartCodeAppliedLine('HALF', 50))
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeRemove }))
+
+      expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R19.99') })).toBeInTheDocument()
+    })
+
+    it('sends the applied code with checkout and opens the payment window for a partial discount', async () => {
+      previewDiscountCodeAction.mockResolvedValue({ success: true, code: 'HALF', percentOff: 50 })
+      initiateCartCheckoutAction.mockResolvedValue({ success: true, accessCode: 'access-1' })
+      await openCheckout()
+      await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'half')
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
+      await screen.findByText(ctaCopy.cartCodeAppliedLine('HALF', 50))
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartPayCta('R9.99') }))
+
+      await waitFor(() => expect(resumePaystackCheckout).toHaveBeenCalledWith('access-1', expect.anything()))
+      expect(initiateCartCheckoutAction).toHaveBeenCalledWith([{ slug: 'mothers_day', qty: 1 }], 'HALF')
+    })
+
+    it('offers a free claim for a 100% code and goes straight to the confirmation, skipping Paystack', async () => {
+      previewDiscountCodeAction.mockResolvedValue({ success: true, code: 'TESTER', percentOff: 100 })
+      initiateCartCheckoutAction.mockResolvedValue({ success: true, free: true, reference: 'kc_free_1' })
+      await openCheckout()
+      await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'tester')
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
+
+      await userEvent.click(await screen.findByRole('button', { name: ctaCopy.cartFreeCta }))
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith('/cart/complete?reference=kc_free_1'))
+      expect(resumePaystackCheckout).not.toHaveBeenCalled()
+    })
+
+    it('shows the checkout error when the code stops working between preview and pay', async () => {
+      previewDiscountCodeAction.mockResolvedValue({ success: true, code: 'TESTER', percentOff: 100 })
+      initiateCartCheckoutAction.mockResolvedValue({ success: false, error: 'That code has been fully used.' })
+      await openCheckout()
+      await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'tester')
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
+
+      await userEvent.click(await screen.findByRole('button', { name: ctaCopy.cartFreeCta }))
+
+      expect(await screen.findByText('That code has been fully used.')).toBeInTheDocument()
+      expect(push).not.toHaveBeenCalled()
     })
   })
 })

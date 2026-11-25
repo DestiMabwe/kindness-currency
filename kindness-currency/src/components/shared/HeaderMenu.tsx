@@ -107,6 +107,9 @@ export function HeaderMenu({ isLoggedIn, isAdmin = false }: HeaderMenuProps) {
       {authOpen && (
         <AuthGate
           initialMode="login"
+          // Return to the page the menu was opened on (cart, a gift, profile…), not AuthGate's /create default.
+          // Pathname only: query params like ?reference= or ?authError= must not be replayed after login.
+          redirectTo={window.location.pathname}
           onClose={() => {
             setAuthOpen(false)
             setOpen(false)
