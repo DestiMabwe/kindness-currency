@@ -242,7 +242,7 @@ describe('AuthGate', () => {
 
       it('shows a sign-up nudge when no account exists for that email, without creating one', async () => {
         vi.stubEnv('NODE_ENV', 'production')
-        signInWithOtp.mockResolvedValue({ error: { message: 'Unable to validate email address: not found' } })
+        signInWithOtp.mockResolvedValue({ error: { message: 'Signups not allowed for otp', code: 'otp_disabled' } })
         render(<AuthGate onClose={vi.fn()} initialMode="login" />)
 
         await userEvent.type(screen.getByLabelText('Email address'), 'nobody@example.com')
