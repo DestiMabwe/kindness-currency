@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { GiftReminderRow } from '../GiftReminderRow'
 import { pendingReminderKey } from '../ReminderFrequencyPicker'
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
+
 const setReminderFrequencyAction = vi.fn()
 vi.mock('@/app/give/[id]/actions', () => ({
   setReminderFrequencyAction: (setId: string, frequency: unknown) => setReminderFrequencyAction(setId, frequency),

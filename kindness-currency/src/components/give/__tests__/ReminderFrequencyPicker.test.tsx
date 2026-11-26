@@ -3,7 +3,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ReminderFrequencyPicker } from '../ReminderFrequencyPicker'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+const routerPush = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: routerPush }) }))
 
 const setReminderFrequencyAction = vi.fn()
 vi.mock('@/app/give/[id]/actions', () => ({
@@ -23,6 +24,7 @@ const baseProps = {
 }
 
 beforeEach(() => {
+  routerPush.mockReset()
   setReminderFrequencyAction.mockReset()
   setReminderFrequencyAction.mockResolvedValue({ success: true })
   linkAction.mockReset()
@@ -71,13 +73,14 @@ describe('ReminderFrequencyPicker', () => {
     expect(onClose).toHaveBeenCalledWith()
   })
 
-  it('prompts account-linking instead of saving when choosing a cadence while logged out', async () => {
+  it('sends a logged-out viewer to log in, and back to the gift, instead of saving a cadence', async () => {
     const onClose = vi.fn()
     render(<ReminderFrequencyPicker {...baseProps} isLoggedIn={false} alreadyLinked={false} onClose={onClose} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Once a month' }))
 
-    expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+    expect(routerPush).toHaveBeenCalledWith('/login?next=%2Fgive%2Fset-1')
+    expect(window.localStorage.getItem('kindness-currency:pending-reminder:set-1')).toBe('monthly')
     expect(setReminderFrequencyAction).not.toHaveBeenCalled()
     expect(onClose).not.toHaveBeenCalled()
   })
@@ -90,6 +93,6 @@ describe('ReminderFrequencyPicker', () => {
 
     expect(linkAction).toHaveBeenCalledWith('set-1')
     expect(setReminderFrequencyAction).toHaveBeenCalledWith('set-1', 'monthly')
-    expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
+    expect(routerPush).not.toHaveBeenCalled()
   })
 })

@@ -5,6 +5,7 @@ import { HeaderMenu } from '../HeaderMenu'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
+  usePathname: () => '/cart',
 }))
 
 describe('HeaderMenu', () => {
@@ -36,13 +37,18 @@ describe('HeaderMenu', () => {
     expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/admin')
   })
 
-  it('shows Log In / Sign Up when logged out and Log Out when logged in', async () => {
-    const { rerender } = render(<HeaderMenu isLoggedIn={false} />)
+  it('links Log In / Sign Up to the login page, which brings you back to the page you were on', async () => {
+    render(<HeaderMenu isLoggedIn={false} />)
     await userEvent.click(screen.getByRole('button', { name: 'Open menu' }))
-    expect(screen.getByRole('button', { name: 'Log In / Sign Up' })).toBeInTheDocument()
 
-    rerender(<HeaderMenu isLoggedIn={true} />)
+    expect(screen.getByRole('link', { name: 'Log In / Sign Up' })).toHaveAttribute('href', '/login?mode=login&next=%2Fcart')
+  })
+
+  it('shows Log Out instead of Log In / Sign Up once logged in', async () => {
+    render(<HeaderMenu isLoggedIn={true} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+
     expect(screen.getByRole('button', { name: 'Log Out' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Log In / Sign Up' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Log In / Sign Up' })).not.toBeInTheDocument()
   })
 })

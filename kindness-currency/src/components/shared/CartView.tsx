@@ -6,7 +6,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { QuantityStepper } from '@/components/builder/QuantityStepper'
@@ -27,12 +26,10 @@ import { formatPrice, REGION_PAIRED_BUNDLE_PRICE, type PricingRegion } from '@/l
 import { settlementTotalForItems } from '@/lib/pricing'
 import { applyPercentDiscount } from '@/lib/discount'
 import { flags } from '@/lib/flags'
-import { AuthLinkFailedBanner } from '@/components/shared/AuthLinkFailedBanner'
-import { useAuthLinkFailed } from '@/hooks/useAuthLinkFailed'
+import { loginHref } from '@/lib/authRedirect'
 
 const CHECKOUT_POPUP_ERROR = 'Could not open the payment window. Please try again.'
 
-const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
 
 type Step = 'cart' | 'checkout'
 
@@ -51,9 +48,6 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   const router = useRouter()
   const cartLines = useCartLines()
   const [step, setStep] = useState<Step>('cart')
-  const [authOpen, setAuthOpen] = useState(false)
-  const { failed: authLinkFailed, dismiss: dismissAuthLinkFailed } = useAuthLinkFailed()
-  const [resumeAuthOpen, setResumeAuthOpen] = useState(false)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState('')
   const [codeInput, setCodeInput] = useState('')
@@ -94,8 +88,8 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
     setCodeInput('')
   }
 
-  // A code typed before login is restored the moment the buyer is logged in — whether that's the
-  // same tab (AuthGate's in-place code entry refreshes isLoggedIn) or a reload from the magic link.
+  // A code typed before login is restored as soon as the buyer is back on the cart logged in — after
+  // typing the emailed code on /login, or after tapping the emailed link.
   // It reopens checkout too, since that's the only step with the code field, and stops there: the
   // buyer still taps Pay themselves.
   useEffect(() => {
@@ -111,13 +105,16 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
     restore()
   }, [isLoggedIn])
 
+  // Signing in is its own page now; /login sends the buyer back here, and the effect above restores
+  // whatever they had typed (it only waits on isLoggedIn being true when this page loads again).
+  const goToLogin = () => router.push(loginHref('/cart'))
+
   const handleApplyCode = async () => {
     if (!codeInput.trim()) return
     if (!isLoggedIn) {
-      // Held in localStorage so the code outlives the trip to the inbox and back — the magic-link
-      // path reloads this page, and even the in-place code path shouldn't make anyone retype it.
+      // Held in localStorage so the code outlives the trip to the login page (and the inbox) and back.
       savePendingDiscountCode(codeInput.trim())
-      setAuthOpen(true)
+      goToLogin()
       return
     }
     await applyCode(codeInput)
@@ -130,7 +127,7 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
 
   const handlePay = async () => {
     if (!isLoggedIn) {
-      setAuthOpen(true)
+      goToLogin()
       return
     }
     setPaying(true)
@@ -248,29 +245,15 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
         >
           {paying ? ctaCopy.sendPaymentRedirecting : isFree ? ctaCopy.cartFreeCta : ctaCopy.cartPayCta(chargedInZar ? zarTotal : formatPrice(totalAfterCode, region))}
         </button>
-
-        {authOpen && <AuthGate redirectTo="/cart" onClose={() => setAuthOpen(false)} />}
       </div>
     )
   }
 
   return (
     <div className="px-5.5 pt-2 pb-10">
-      {authLinkFailed && (
-        <div className="-mx-4">
-          <AuthLinkFailedBanner
-            onRetry={() => {
-              dismissAuthLinkFailed()
-              setResumeAuthOpen(true)
-            }}
-            onDismiss={dismissAuthLinkFailed}
-          />
-        </div>
-      )}
       <h1 className="mt-2 text-[23px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
         {ctaCopy.cartHeading}
       </h1>
-      {resumeAuthOpen && <AuthGate redirectTo="/cart" resumeFromFailedLink onClose={() => setResumeAuthOpen(false)} />}
 
       {lines.length === 0 ? (
         <div className="mt-4 text-[13.5px] text-[#2C2C2C] opacity-72">

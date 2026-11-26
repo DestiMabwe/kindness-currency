@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CartView } from '../CartView'
@@ -122,6 +122,16 @@ describe('CartView', () => {
       expect(screen.queryByText(ctaCopy.cartCheckoutSignInNote)).not.toBeInTheDocument()
     })
 
+    it('sends a logged-out buyer to log in, and back to the cart, when they tap Pay', async () => {
+      render(<CartView isLoggedIn={false} region="US" />)
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+
+      await userEvent.click(screen.getByRole('button', { name: /^Pay / }))
+
+      expect(push).toHaveBeenCalledWith('/login?next=%2Fcart')
+      expect(initiateCartCheckoutAction).not.toHaveBeenCalled()
+    })
+
     it('opens the Paystack popup with the server-issued access code instead of navigating away', async () => {
       initiateCartCheckoutAction.mockResolvedValue({ success: true, accessCode: 'access-code-1' })
       render(<CartView isLoggedIn={true} region="US" />)
@@ -159,36 +169,6 @@ describe('CartView', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R54.99') })).not.toBeDisabled())
     })
   })
-  describe('after a sign-in link failed', () => {
-    afterEach(() => {
-      window.history.pushState({}, '', '/')
-    })
-
-    it('tells a visitor the link failed, even with an empty cart, and strips the flag from the URL', () => {
-      window.history.pushState({}, '', '/cart?authError=1')
-      render(<CartView isLoggedIn={false} region="US" />)
-
-      expect(screen.getByText(ctaCopy.authLinkFailedBannerText)).toBeInTheDocument()
-      expect(window.location.search).toBe('')
-    })
-
-    it('reopens sign-in from the banner, explaining what happened when this browser never started it', async () => {
-      window.history.pushState({}, '', '/cart?authError=1')
-      render(<CartView isLoggedIn={false} region="US" />)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.authLinkFailedRetryButton }))
-
-      expect(await screen.findByRole('status', {}, { timeout: 5000 })).toHaveTextContent(ctaCopy.authModalResumeNoticeNoEmail)
-      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
-    })
-
-    it('shows nothing extra on a plain visit', () => {
-      render(<CartView isLoggedIn={false} region="US" />)
-
-      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
-    })
-  })
-
   describe('discount codes', () => {
     async function openCheckout() {
       addToCart('mothers_day', 1) // R19.99 for a South African visitor
@@ -209,7 +189,7 @@ describe('CartView', () => {
     })
 
     describe('surviving login', () => {
-      it('remembers a code typed while logged out, and opens sign-in instead of applying it', async () => {
+      it('remembers a code typed while logged out, and sends the buyer to log in instead of applying it', async () => {
         addToCart('mothers_day', 1)
         render(<CartView isLoggedIn={false} region="ZA" />)
         await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
@@ -217,7 +197,7 @@ describe('CartView', () => {
         await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'WELCOME10')
         await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
 
-        expect(await screen.findByRole('dialog', {}, { timeout: 5000 })).toBeInTheDocument()
+        expect(push).toHaveBeenCalledWith('/login?next=%2Fcart')
         expect(readPendingDiscountCode()).toBe('WELCOME10')
         expect(previewDiscountCodeAction).not.toHaveBeenCalled()
       })

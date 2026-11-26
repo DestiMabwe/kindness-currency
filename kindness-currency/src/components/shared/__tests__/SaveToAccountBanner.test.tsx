@@ -3,11 +3,13 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SaveToAccountBanner } from '../SaveToAccountBanner'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+const routerPush = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: routerPush }) }))
 
 const linkAction = vi.fn()
 
 beforeEach(() => {
+  routerPush.mockReset()
   linkAction.mockReset()
   window.localStorage.clear()
 })
@@ -44,12 +46,12 @@ describe('SaveToAccountBanner', () => {
     expect(screen.getByText('Add this to your account')).toBeInTheDocument()
   })
 
-  it('opens AuthGate and marks a pending link when clicked while logged out', async () => {
+  it('sends a logged-out visitor to log in, marking a pending link, when clicked', async () => {
     renderBanner({ isLoggedIn: false })
 
     await userEvent.click(screen.getByText('Save this to your account'))
 
-    expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+    expect(routerPush).toHaveBeenCalledWith('/login?next=%2Fgive%2Fset-1')
     expect(window.localStorage.getItem('kindness-currency:pending-link:recipient:set-1')).toBe('true')
     expect(linkAction).not.toHaveBeenCalled()
   })
@@ -61,7 +63,7 @@ describe('SaveToAccountBanner', () => {
     await userEvent.click(screen.getByText('Add this to your account'))
 
     expect(linkAction).toHaveBeenCalledWith('set-1')
-    expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
+    expect(routerPush).not.toHaveBeenCalled()
   })
 
   it('hides the banner once linking succeeds', async () => {
