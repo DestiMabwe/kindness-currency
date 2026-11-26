@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CartView } from '../CartView'
-import { addToCart } from '@/lib/cart'
+import { addToCart, readPendingDiscountCode, savePendingDiscountCode } from '@/lib/cart'
 import { ctaCopy } from '@/constants/ctaCopy'
 
 const push = vi.fn()
@@ -159,6 +159,36 @@ describe('CartView', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R54.99') })).not.toBeDisabled())
     })
   })
+  describe('after a sign-in link failed', () => {
+    afterEach(() => {
+      window.history.pushState({}, '', '/')
+    })
+
+    it('tells a visitor the link failed, even with an empty cart, and strips the flag from the URL', () => {
+      window.history.pushState({}, '', '/cart?authError=1')
+      render(<CartView isLoggedIn={false} region="US" />)
+
+      expect(screen.getByText(ctaCopy.authLinkFailedBannerText)).toBeInTheDocument()
+      expect(window.location.search).toBe('')
+    })
+
+    it('reopens sign-in from the banner, explaining what happened when this browser never started it', async () => {
+      window.history.pushState({}, '', '/cart?authError=1')
+      render(<CartView isLoggedIn={false} region="US" />)
+
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.authLinkFailedRetryButton }))
+
+      expect(await screen.findByRole('status', {}, { timeout: 5000 })).toHaveTextContent(ctaCopy.authModalResumeNoticeNoEmail)
+      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
+    })
+
+    it('shows nothing extra on a plain visit', () => {
+      render(<CartView isLoggedIn={false} region="US" />)
+
+      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
+    })
+  })
+
   describe('discount codes', () => {
     async function openCheckout() {
       addToCart('mothers_day', 1) // R19.99 for a South African visitor
@@ -176,6 +206,69 @@ describe('CartView', () => {
       expect(await screen.findByText(ctaCopy.cartCodeAppliedLine('HALF', 50))).toBeInTheDocument()
       expect(previewDiscountCodeAction).toHaveBeenCalledWith('half')
       expect(screen.getByRole('button', { name: ctaCopy.cartPayCta('R9.99') })).toBeInTheDocument()
+    })
+
+    describe('surviving login', () => {
+      it('remembers a code typed while logged out, and opens sign-in instead of applying it', async () => {
+        addToCart('mothers_day', 1)
+        render(<CartView isLoggedIn={false} region="ZA" />)
+        await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+
+        await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'WELCOME10')
+        await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
+
+        expect(await screen.findByRole('dialog', {}, { timeout: 5000 })).toBeInTheDocument()
+        expect(readPendingDiscountCode()).toBe('WELCOME10')
+        expect(previewDiscountCodeAction).not.toHaveBeenCalled()
+      })
+
+      it('lands a logged-in buyer back on checkout with their remembered code already applied', async () => {
+        previewDiscountCodeAction.mockResolvedValue({ success: true, code: 'WELCOME10', percentOff: 10 })
+        addToCart('mothers_day', 1)
+        savePendingDiscountCode('WELCOME10')
+
+        render(<CartView isLoggedIn={true} region="ZA" />)
+
+        expect(await screen.findByText(ctaCopy.cartCodeAppliedLine('WELCOME10', 10))).toBeInTheDocument()
+        expect(previewDiscountCodeAction).toHaveBeenCalledWith('WELCOME10')
+        expect(readPendingDiscountCode()).toBeNull()
+        expect(initiateCartCheckoutAction).not.toHaveBeenCalled()
+        expect(resumePaystackCheckout).not.toHaveBeenCalled()
+      })
+
+      it('keeps a remembered code that turns out to be invalid in the field with the reason, so it can be fixed', async () => {
+        previewDiscountCodeAction.mockResolvedValue({ success: false, error: 'That code has expired.' })
+        addToCart('mothers_day', 1)
+        savePendingDiscountCode('OLDCODE')
+
+        render(<CartView isLoggedIn={true} region="ZA" />)
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('That code has expired.')
+        expect(screen.getByLabelText(ctaCopy.cartCodeLabel)).toHaveValue('OLDCODE')
+        expect(readPendingDiscountCode()).toBeNull()
+      })
+
+      it('applies the remembered code in the same tab when the buyer becomes logged in without a reload', async () => {
+        previewDiscountCodeAction.mockResolvedValue({ success: true, code: 'WELCOME10', percentOff: 10 })
+        addToCart('mothers_day', 1)
+        const { rerender } = render(<CartView isLoggedIn={false} region="ZA" />)
+        await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta }))
+        await userEvent.type(screen.getByLabelText(ctaCopy.cartCodeLabel), 'WELCOME10')
+        await userEvent.click(screen.getByRole('button', { name: ctaCopy.cartCodeApply }))
+
+        rerender(<CartView isLoggedIn={true} region="ZA" />)
+
+        expect(await screen.findByText(ctaCopy.cartCodeAppliedLine('WELCOME10', 10))).toBeInTheDocument()
+      })
+
+      it('does nothing special for a logged-in buyer with no remembered code', async () => {
+        addToCart('mothers_day', 1)
+
+        render(<CartView isLoggedIn={true} region="ZA" />)
+
+        expect(screen.getByRole('button', { name: ctaCopy.cartCheckoutCta })).toBeInTheDocument()
+        expect(previewDiscountCodeAction).not.toHaveBeenCalled()
+      })
     })
 
     it('shows the refusal reason and keeps the full price when a code is rejected', async () => {

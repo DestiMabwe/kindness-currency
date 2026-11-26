@@ -3,6 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SaveToAccountBanner } from '../SaveToAccountBanner'
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+
 const linkAction = vi.fn()
 
 beforeEach(() => {
@@ -78,6 +80,19 @@ describe('SaveToAccountBanner', () => {
     renderBanner({ isLoggedIn: true })
 
     expect(linkAction).toHaveBeenCalledWith('set-1')
+    expect(window.localStorage.getItem('kindness-currency:pending-link:recipient:set-1')).toBeNull()
+  })
+
+  it('completes a pending link in place when the visitor logs in without the page reloading', async () => {
+    window.localStorage.setItem('kindness-currency:pending-link:recipient:set-1', 'true')
+    linkAction.mockResolvedValue({ success: true })
+    const props = { setId: 'set-1', alreadyLinked: false, linkAction, redirectTo: '/give/set-1', storageScope: 'recipient' as const }
+    const { rerender } = render(<SaveToAccountBanner {...props} isLoggedIn={false} />)
+    expect(linkAction).not.toHaveBeenCalled()
+
+    rerender(<SaveToAccountBanner {...props} isLoggedIn={true} />)
+
+    await waitFor(() => expect(linkAction).toHaveBeenCalledWith('set-1'))
     expect(window.localStorage.getItem('kindness-currency:pending-link:recipient:set-1')).toBeNull()
   })
 

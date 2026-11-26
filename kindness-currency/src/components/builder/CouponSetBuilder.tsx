@@ -12,6 +12,8 @@ import { BundleTierPills } from '@/components/builder/BundleTierPills'
 import { PromoScrollPopup } from '@/components/shared/PromoScrollPopup'
 import { CartIcon } from '@/components/shared/CartIcon'
 import { HeaderMenu } from '@/components/shared/HeaderMenu'
+import { AuthLinkFailedBanner } from '@/components/shared/AuthLinkFailedBanner'
+import { useAuthLinkFailed } from '@/hooks/useAuthLinkFailed'
 import { MessagePill } from '@/components/builder/MessagePill'
 import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
@@ -125,23 +127,10 @@ export function CouponSetBuilder({
   const [detailsError, setDetailsError] = useState('')
   const [authOpen, setAuthOpen] = useState(false)
   const [resumedDraftDismissed, setResumedDraftDismissed] = useState(false)
-  const [authLinkFailed, setAuthLinkFailed] = useState(false)
+  const { failed: authLinkFailed, dismiss: dismissAuthLinkFailed } = useAuthLinkFailed()
+  const [resumeAuth, setResumeAuth] = useState(false)
   const attemptedResume = useRef(false)
   const attemptedSaveResume = useRef(false)
-
-  // /auth/callback flags a failed sign-in-link exchange with ?authError=1 (expired/already-used
-  // code, or the link opened on a different device than the one that requested it) rather than
-  // silently landing the sender back here looking logged in when they're not. Read once on mount
-  // and strip the flag so refreshing doesn't keep re-showing it.
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const url = new URL(window.location.href)
-    if (url.searchParams.get('authError') !== '1') return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount sync from the URL, not a render-time update
-    setAuthLinkFailed(true)
-    url.searchParams.delete('authError')
-    window.history.replaceState({}, '', url.toString())
-  }, [])
 
   // 'draft' (Save My Coupons) is always free. 'sent' (Send with Love) requires payment for every
   // paid template — if sendCouponSetAction comes back paymentRequired, this redirects to Paystack
@@ -519,29 +508,14 @@ export function CouponSetBuilder({
       )}
 
       {authLinkFailed && (
-        <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#C2185B]/25 bg-white px-4 py-3.5">
-          <div className="flex flex-col gap-1 text-left">
-            <span className="text-[12.5px] font-semibold text-[#1A1A2E]">{ctaCopy.authLinkFailedBannerText}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthLinkFailed(false)
-                setAuthOpen(true)
-              }}
-              className="w-fit text-[12.5px] font-semibold text-[#C2185B]"
-            >
-              {ctaCopy.authLinkFailedRetryButton}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAuthLinkFailed(false)}
-            aria-label="Dismiss"
-            className="shrink-0 p-1 text-[15px] text-[#2C2C2C] opacity-50"
-          >
-            ✕
-          </button>
-        </div>
+        <AuthLinkFailedBanner
+          onRetry={() => {
+            dismissAuthLinkFailed()
+            setResumeAuth(true)
+            setAuthOpen(true)
+          }}
+          onDismiss={dismissAuthLinkFailed}
+        />
       )}
 
       {builder.resumedDraft && !resumedDraftDismissed && (builder.state.screen === 'details' || builder.state.screen === 'edit') && (
@@ -634,7 +608,16 @@ export function CouponSetBuilder({
         />
       )}
 
-      {authOpen && <AuthGate redirectTo="/create" onClose={() => setAuthOpen(false)} />}
+      {authOpen && (
+        <AuthGate
+          redirectTo="/create"
+          resumeFromFailedLink={resumeAuth}
+          onClose={() => {
+            setAuthOpen(false)
+            setResumeAuth(false)
+          }}
+        />
+      )}
 
       {sampleTemplate && <HowYouCreateOverlay template={sampleTemplate} onClose={() => setSampleTemplate(null)} />}
 

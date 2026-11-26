@@ -1,0 +1,32 @@
+<!--
+  Paste this same body into BOTH Supabase dashboard templates
+  (Authentication → Emails): "Confirm signup" and "Magic Link".
+  New emails get the first, returning emails get the second — if only one has {{ .Token }},
+  half of your users never see a code.
+
+  Subject (both): Your Kindness Currency code: {{ .Token }}
+-->
+<div style="background:#FFF8F0;padding:32px 16px;font-family:'DM Sans',Arial,Helvetica,sans-serif;color:#1A1A2E;">
+  <div style="max-width:420px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px 28px;text-align:center;">
+    <h1 style="margin:0 0 8px;font-family:Georgia,'Playfair Display',serif;font-style:italic;font-size:24px;line-height:1.25;color:#1A1A2E;">
+      Your sign-in code
+    </h1>
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:#2C2C2C;">
+      Type this code back in Kindness Currency to sign in. It works for one hour.
+    </p>
+    <div style="margin:0 auto 20px;padding:14px 12px;background:#FFF8F0;border-radius:14px;font-size:32px;font-weight:700;letter-spacing:8px;color:#C2185B;">
+      {{ .Token }}
+    </div>
+    <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#2C2C2C;">
+      Prefer a link? On the same phone or computer you started on, tap:
+    </p>
+    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 22px;background:#C2185B;color:#ffffff;text-decoration:none;border-radius:14px;font-size:14px;font-weight:700;">
+      Sign in
+    </a>
+    <p style="margin:20px 0 0;font-size:12px;line-height:1.5;color:#2C2C2C;opacity:0.7;">
+      Use either the code or the link, not both: opening the link uses up the code. If the link says it didn't work,
+      go back to the tab where you started and ask for a new code.
+      Didn't ask for this? You can ignore this email.
+    </p>
+  </div>
+</div>

@@ -48,8 +48,8 @@ export function SaveToAccountBanner({ setId, isLoggedIn, alreadyLinked, linkActi
     window.localStorage.removeItem(pendingLinkKey(storageScope, setId))
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time completion of a link the user already started before the auth redirect, not a render-time sync
     void performLink()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to finish a link the user already started before the auth redirect
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- finishes a link started before login, on mount (after a redirect) or when isLoggedIn flips (in-place code entry); the flag is removed first so it can't run twice
+  }, [isLoggedIn])
 
   const handleClick = () => {
     if (isLoggedIn) {

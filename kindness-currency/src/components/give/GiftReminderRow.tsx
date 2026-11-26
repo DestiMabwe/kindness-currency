@@ -44,8 +44,8 @@ export function GiftReminderRow({
       await setReminderFrequencyAction(setId, pendingFrequency)
       setFrequency(pendingFrequency)
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to finish a reminder choice made before the auth redirect
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- finishes a reminder choice made before login, on mount (after a redirect) or when isLoggedIn flips (in-place code entry); the flag is removed first so it can't run twice
+  }, [isLoggedIn])
 
   return (
     <>

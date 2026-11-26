@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { devInstantLoginAction, checkAuthRateLimitAction } from '@/app/auth/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
@@ -14,7 +15,33 @@ export type AuthGateProps = {
   redirectTo?: string
   /** Which framing to open with — the person can still switch. Defaults to 'signup'. */
   initialMode?: 'signup' | 'login'
+  /** Called after a code is verified in place (no page navigation), so the caller can resume what it was doing. */
+  onAuthenticated?: () => void
+  /** Set after /auth/callback reported a failed link. Reopens on the code step with the email this
+   * browser remembers, or on the email form (with an explanation) if it never started the sign-in. */
+  resumeFromFailedLink?: boolean
 }
+
+// Remembered so a failed link can reopen on the code step. Email only, in localStorage — never the URL.
+const PENDING_AUTH_EMAIL_KEY = 'kindness-currency:pending-auth-email'
+
+function readPendingAuthEmail(): string | null {
+  if (typeof window === 'undefined') return null
+  return window.localStorage.getItem(PENDING_AUTH_EMAIL_KEY)
+}
+
+function savePendingAuthEmail(email: string) {
+  window.localStorage.setItem(PENDING_AUTH_EMAIL_KEY, email)
+}
+
+function clearPendingAuthEmail() {
+  window.localStorage.removeItem(PENDING_AUTH_EMAIL_KEY)
+}
+
+const OTP_LENGTH = 6
+// Supabase allows one email per address per 60s (auth max_frequency); a shorter cooldown would unlock
+// a button whose next tap is guaranteed to fail with a rate-limit error.
+const RESEND_COOLDOWN_SECONDS = 60
 
 // Deliberately loose (no length caps, no TLD allowlist) — this only needs to catch the obvious
 // "forgot the @" / "forgot the domain" typos before they cost a network round trip, not fully
@@ -38,11 +65,27 @@ function describeSendError(error: SendErrorLike): string {
   return 'Something went wrong sending your link. Please try again.'
 }
 
-export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signup' }: AuthGateProps) {
-  const [step, setStep] = useState<'form' | 'otp'>('form')
-  const [mode, setMode] = useState<'signup' | 'login'>(initialMode)
+export function AuthGate({
+  onClose,
+  redirectTo = '/create',
+  initialMode = 'signup',
+  onAuthenticated,
+  resumeFromFailedLink = false,
+}: AuthGateProps) {
+  const router = useRouter()
+  const [rememberedEmail] = useState(() => (resumeFromFailedLink ? readPendingAuthEmail() : null))
+  const [step, setStep] = useState<'form' | 'otp'>(rememberedEmail ? 'otp' : 'form')
+  const [code, setCode] = useState('')
+  const [fixingEmail, setFixingEmail] = useState(false)
+  // Resend is gated by a deadline rather than a decrementing counter, so a backgrounded tab
+  // (where timers throttle) still shows the true time left when it wakes.
+  const [cooldownEndsAt, setCooldownEndsAt] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  const cooldown = Math.max(0, Math.ceil((cooldownEndsAt - now) / 1000))
+  // The account already exists once the first code went out, so a resumed resend must not try to create it again.
+  const [mode, setMode] = useState<'signup' | 'login'>(rememberedEmail ? 'login' : initialMode)
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(rememberedEmail ?? '')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   // Stays true after a successful signInWithOAuth call on purpose: the browser is mid-redirect to
@@ -52,6 +95,48 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
   const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
 
   const callbackUrl = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`
+
+  // Login only ever signs in existing accounts; signup creates one and stores the name.
+  const otpOptions = () =>
+    mode === 'login'
+      ? { emailRedirectTo: callbackUrl(), shouldCreateUser: false }
+      : { emailRedirectTo: callbackUrl(), data: { full_name: name.trim() } }
+
+  useEffect(() => {
+    if (cooldownEndsAt <= Date.now()) return
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [cooldownEndsAt])
+
+  const startCooldown = () => {
+    const current = Date.now()
+    setNow(current)
+    setCooldownEndsAt(current + RESEND_COOLDOWN_SECONDS * 1000)
+  }
+
+  const goToCodeStep = () => {
+    savePendingAuthEmail(email.trim())
+    startCooldown()
+    setStep('otp')
+  }
+
+  const handleResend = async () => {
+    if (cooldown > 0) return
+    const trimmedEmail = email.trim()
+    setError('')
+    const rateLimit = await checkAuthRateLimitAction(trimmedEmail)
+    if (!rateLimit.allowed) {
+      setError(rateLimit.error)
+      return
+    }
+    const supabase = createClient()
+    const { error: otpError } = await supabase.auth.signInWithOtp({ email: trimmedEmail, options: otpOptions() })
+    if (otpError) {
+      setError(describeSendError(otpError))
+      return
+    }
+    startCooldown()
+  }
 
   const handleSubmit = async () => {
     const trimmedEmail = email.trim()
@@ -101,7 +186,7 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
       const supabase = createClient()
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        options: { emailRedirectTo: callbackUrl(), shouldCreateUser: false },
+        options: otpOptions(),
       })
       setSubmitting(false)
       if (otpError) {
@@ -116,7 +201,7 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
         }
         return
       }
-      setStep('otp')
+      goToCodeStep()
       return
     }
 
@@ -129,14 +214,31 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
     const supabase = createClient()
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmedEmail,
-      options: { emailRedirectTo: callbackUrl(), data: { full_name: name.trim() } },
+      options: otpOptions(),
     })
     setSubmitting(false)
     if (otpError) {
       setError(describeSendError(otpError))
       return
     }
-    setStep('otp')
+    goToCodeStep()
+  }
+
+  const handleCodeChange = async (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, OTP_LENGTH)
+    setCode(digits)
+    if (digits.length < OTP_LENGTH) return
+    const supabase = createClient()
+    const { error: verifyError } = await supabase.auth.verifyOtp({ email: email.trim(), token: digits, type: 'email' })
+    if (verifyError) {
+      setCode('')
+      setError(ctaCopy.authModalCodeError)
+      return
+    }
+    clearPendingAuthEmail()
+    router.refresh()
+    onAuthenticated?.()
+    onClose()
   }
 
   const handleGoogleSignIn = async () => {
@@ -182,6 +284,11 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
       >
         {step === 'form' ? (
           <div>
+            {resumeFromFailedLink && !rememberedEmail && (
+              <div role="status" className="mb-3 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-[12.5px] leading-relaxed text-[#1A1A2E]">
+                {ctaCopy.authModalResumeNoticeNoEmail}
+              </div>
+            )}
             <TabPills
               ariaLabel="Sign up or log in"
               value={mode}
@@ -247,6 +354,7 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
                     setError('')
                   }}
                   type="email"
+                  autoFocus={fixingEmail}
                   placeholder="Email address"
                   aria-label="Email address"
                   className="w-full rounded-[14px] border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-[15px] text-[#1A1A2E] outline-none"
@@ -287,10 +395,52 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
           <div className="py-1.5 text-center">
             <div aria-hidden="true" className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FF8F00] text-2xl text-white">✉</div>
             <h2 id="auth-gate-heading" className="mt-4 text-[23px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
-              Check your inbox
+              {ctaCopy.authModalCodeHeading}
             </h2>
             <div className="mt-2 text-[13px] leading-relaxed text-[#2C2C2C] opacity-72">
-              We sent a magic link to <b>{email}</b>. Tap it to verify — no password needed.
+              We sent a 6-digit code to <b>{email}</b>. Type it here, or tap the link in the email — no password needed.
+            </div>
+            {resumeFromFailedLink && rememberedEmail && (
+              <div role="status" className="mt-3 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-left text-[12.5px] leading-relaxed text-[#1A1A2E]">
+                {ctaCopy.authModalResumeNotice}
+              </div>
+            )}
+            <input
+              value={code}
+              onChange={(e) => handleCodeChange(e.target.value)}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={OTP_LENGTH}
+              aria-label="6-digit code"
+              className="mt-4 w-full rounded-[14px] border-[1.5px] border-[#1A1A2E]/14 bg-white p-3.5 text-center text-[22px] tracking-[0.4em] text-[#1A1A2E] outline-none"
+            />
+            {error && (
+              <div role="alert" className="mt-2 text-[12.5px] text-[#C2185B]">
+                {error}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={cooldown > 0}
+              className="mt-3 text-[13px] font-bold text-[#C2185B] underline disabled:no-underline disabled:opacity-50"
+            >
+              {cooldown > 0 ? `${ctaCopy.authModalResend} (${cooldown}s)` : ctaCopy.authModalResend}
+            </button>
+            <div className="mt-3 text-[13px] text-[#2C2C2C]">
+              {ctaCopy.authModalFixEmailPrompt}{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setCode('')
+                  setError('')
+                  setFixingEmail(true)
+                  setStep('form')
+                }}
+                className="font-bold text-[#C2185B] underline"
+              >
+                {ctaCopy.authModalFixEmailAction}
+              </button>
             </div>
             <div className="mt-4 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-left text-[12.5px] leading-relaxed text-[#1A1A2E]">
               <b>Don't see it? Check your spam or junk folder.</b> These emails sometimes land there
