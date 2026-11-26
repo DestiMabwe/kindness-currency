@@ -20,7 +20,7 @@
 // sendCouponSetAction the bundle flow uses (templateId comes from the real single-use `templates`
 // row seeded for this gesture's slug — see CouponSetBuilder's singleUseTemplateIdBySlug). No
 // upfront login check, mirroring the bundle flow: a free draft or an unmodified free gesture needs
-// no account at all, same as an anonymous /give/[id] recipient. AuthGate only opens if performSave
+// no account at all, same as an anonymous /give/[id] recipient. Sending someone to log in only happens if performSave
 // comes back paymentRequired — the one point that genuinely needs a userId/email for Paystack —
 // since every real auth path here is a full page redirect, not an inline verification.
 // The in-progress draft persists to localStorage — keyed by gesture slug, hydrated in an effect
@@ -30,7 +30,8 @@
 // them tap Save/Send twice.
 
 import { useEffect, useRef, useState } from 'react'
-import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
+import { loginHref } from '@/lib/authRedirect'
 import { GoldCoupon } from '@/components/builder/GoldCoupon'
 import { ColorSwatchPicker, DetailsFormScreen, EffectPillPicker, EditMessageModal } from '@/components/builder/CouponSetBuilder'
 import { PreviewOverlay } from '@/components/coupon/PreviewOverlay'
@@ -55,7 +56,6 @@ import { SERVICE_TITLE_MAX_LENGTH, MICRO_COPY_MAX_LENGTH, FINE_PRINT_MAX_LENGTH 
 import type { BackgroundEffect } from '@/schemas/couponSchema'
 import type { BuilderCoupon, SavedResult } from '@/hooks/useCouponSetBuilder'
 
-const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
 
 type Step = 'details' | 'personalize' | 'done'
 
@@ -79,7 +79,7 @@ type PersistedGestureDraft = {
 }
 
 const GESTURE_DRAFT_KEY = 'kindness-currency:gesture-draft'
-// Set right before opening AuthGate from Save/Send, so the auth redirect's reload knows to finish
+// Set right before sending someone to log in from Save/Send, so coming back knows to finish
 // the save automatically once the sender is logged in — mirrors CouponSetBuilder's own
 // PENDING_SAVE_INTENT_KEY for the bundle flow.
 const GESTURE_PENDING_SAVE_INTENT_KEY = 'kindness-currency:gesture-pending-save-intent'
@@ -190,8 +190,10 @@ export function GestureFlow({
   const [unlocked, setUnlocked] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [authOpen, setAuthOpen] = useState(false)
   const [savedResult, setSavedResult] = useState<SavedResult | null>(null)
+  const router = useRouter()
+  // Signing in is its own page; the pending-save flag and the draft in localStorage bring the sender back to this step.
+  const goToLogin = () => router.push(loginHref('/create'))
   const hydrated = useRef(false)
   const attemptedSaveResume = useRef(false)
 
@@ -299,11 +301,11 @@ export function GestureFlow({
       if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, intent)
       // Payment is the one thing that genuinely requires an account (Paystack checkout needs a
       // userId/email to attribute the order to) — this is the only point in the flow that should
-      // ever interrupt with AuthGate, not Save/Send generally (a free draft or an unmodified free
+      // ever interrupt with a login, not Save/Send generally (a free draft or an unmodified free
       // gesture needs no account at all, same as an anonymous /give/[id] recipient).
       if (!isLoggedIn) {
         setSaving(false)
-        setAuthOpen(true)
+        goToLogin()
         return
       }
       const checkout = await initiateSendCheckoutAction(gesture.slug, unlocked ? 'gestureUnlock' : 'base')
@@ -358,18 +360,18 @@ export function GestureFlow({
   }
 
   // Saving or sending always requires an account: check login first, and if the sender isn't
-  // logged in, remember what they were doing and open AuthGate. The resume effect below finishes
+  // logged in, remember what they were doing and send them to log in. The resume effect below finishes
   // the save automatically once they're back and logged in.
   const handleSaveOrSend = (intent: 'draft' | 'sent') => {
     if (!isLoggedIn) {
       if (typeof window !== 'undefined') window.localStorage.setItem(GESTURE_PENDING_SAVE_INTENT_KEY, intent)
-      setAuthOpen(true)
+      goToLogin()
       return
     }
     void performSave(intent)
   }
 
-  // Completes a save the sender started before AuthGate or a Paystack checkout interrupted them —
+  // Completes a save the sender started before logging in or a Paystack checkout interrupted them —
   // mirrors CouponSetBuilder's identical resume effect. A `?reference=` in the URL means this is
   // specifically a return from Paystack, verified first before resuming; an unpaid result stops
   // here with an explanatory error instead of silently bouncing them to another checkout. Gated on
@@ -398,6 +400,10 @@ export function GestureFlow({
           setSaveError("Your payment wasn't completed, so this wasn't sent. Feel free to try again.")
           return
         }
+      } else if (intent === 'sent') {
+        // Back from the login page, not from Paystack: stop one tap short. Sending opens the payment
+        // window, and a window opened without a tap is often blocked on phones.
+        return
       }
       void performSave(intent)
     }
@@ -610,7 +616,6 @@ export function GestureFlow({
         />
       )}
 
-      {authOpen && <AuthGate redirectTo="/create" onClose={() => setAuthOpen(false)} />}
 
       {unlockConfirmOpen && (
         <GestureUnlockConfirm

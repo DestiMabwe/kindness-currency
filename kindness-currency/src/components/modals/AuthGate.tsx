@@ -6,20 +6,17 @@ import { createClient } from '@/lib/supabase/client'
 import { devInstantLoginAction, checkAuthRateLimitAction } from '@/app/auth/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { flags } from '@/lib/flags'
-import { useDialogA11y } from '@/hooks/useDialogA11y'
+import { safeNextPath } from '@/lib/authRedirect'
 import { TabPills } from '@/components/shared/TabPills'
 
 export type AuthGateProps = {
-  onClose: () => void
-  /** Where to land after auth completes and the callback route exchanges the code. Defaults to /create. */
-  redirectTo?: string
+  /** Page to go to once signed in (path only — anything else becomes "/"). Also what the emailed link returns to. */
+  next?: string
   /** Which framing to open with — the person can still switch. Defaults to 'signup'. */
   initialMode?: 'signup' | 'login'
-  /** Called after a code is verified in place (no page navigation), so the caller can resume what it was doing. */
-  onAuthenticated?: () => void
-  /** Set after /auth/callback reported a failed link. Reopens on the code step with the email this
+  /** Set after /auth/callback reported a failed link. Opens on the code step with the email this
    * browser remembers, or on the email form (with an explanation) if it never started the sign-in. */
-  resumeFromFailedLink?: boolean
+  authFailed?: boolean
 }
 
 // Remembered so a failed link can reopen on the code step. Email only, in localStorage — never the URL.
@@ -65,15 +62,10 @@ function describeSendError(error: SendErrorLike): string {
   return 'Something went wrong sending your link. Please try again.'
 }
 
-export function AuthGate({
-  onClose,
-  redirectTo = '/create',
-  initialMode = 'signup',
-  onAuthenticated,
-  resumeFromFailedLink = false,
-}: AuthGateProps) {
+export function AuthGate({ next: rawNext, initialMode = 'signup', authFailed = false }: AuthGateProps) {
   const router = useRouter()
-  const [rememberedEmail] = useState(() => (resumeFromFailedLink ? readPendingAuthEmail() : null))
+  const next = safeNextPath(rawNext)
+  const [rememberedEmail] = useState(() => (authFailed ? readPendingAuthEmail() : null))
   const [step, setStep] = useState<'form' | 'otp'>(rememberedEmail ? 'otp' : 'form')
   const [code, setCode] = useState('')
   const [fixingEmail, setFixingEmail] = useState(false)
@@ -92,9 +84,8 @@ export function AuthGate({
   // Google, so the button should keep showing progress until the page actually unloads.
   const [googleLoading, setGoogleLoading] = useState(false)
   const [noAccount, setNoAccount] = useState(false)
-  const dialogRef = useDialogA11y<HTMLDivElement>(true, onClose)
 
-  const callbackUrl = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`
+  const callbackUrl = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
 
   // Login only ever signs in existing accounts; signup creates one and stores the name.
   const otpOptions = () =>
@@ -170,7 +161,7 @@ export function AuthGate({
           setError("We couldn't find an account for that email. Want to sign up instead?")
           return
         }
-        window.location.assign(redirectTo)
+        window.location.assign(next)
         return
       }
 
@@ -236,9 +227,7 @@ export function AuthGate({
       return
     }
     clearPendingAuthEmail()
-    router.refresh()
-    onAuthenticated?.()
-    onClose()
+    router.replace(next)
   }
 
   const handleGoogleSignIn = async () => {
@@ -269,22 +258,11 @@ export function AuthGate({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[85] flex items-end bg-[#1A1A2E]/55 backdrop-blur-[3px]"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="auth-gate-heading"
-        className="w-full rounded-t-[26px] rounded-b-[36px] bg-[#FFF8F0] px-6 pt-6.5 pb-7.5"
-      >
+    <div className="w-full rounded-[26px] bg-[#FFF8F0] px-6 pt-6.5 pb-7.5">
+      <div>
         {step === 'form' ? (
           <div>
-            {resumeFromFailedLink && !rememberedEmail && (
+            {authFailed && !rememberedEmail && (
               <div role="status" className="mb-3 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-[12.5px] leading-relaxed text-[#1A1A2E]">
                 {ctaCopy.authModalResumeNoticeNoEmail}
               </div>
@@ -387,9 +365,6 @@ export function AuthGate({
                 {mode === 'signup' ? ctaCopy.authModalSignupSubmit : ctaCopy.authModalLoginSubmit}
               </button>
             </div>
-            <button type="button" onClick={onClose} className="mt-2 w-full p-1.5 text-[13.5px] font-semibold text-[#2C2C2C] opacity-70">
-              Not yet
-            </button>
           </div>
         ) : (
           <div className="py-1.5 text-center">
@@ -400,7 +375,7 @@ export function AuthGate({
             <div className="mt-2 text-[13px] leading-relaxed text-[#2C2C2C] opacity-72">
               We sent a 6-digit code to <b>{email}</b>. Type it here, or tap the link in the email — no password needed.
             </div>
-            {resumeFromFailedLink && rememberedEmail && (
+            {authFailed && rememberedEmail && (
               <div role="status" className="mt-3 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-left text-[12.5px] leading-relaxed text-[#1A1A2E]">
                 {ctaCopy.authModalResumeNotice}
               </div>
@@ -443,13 +418,10 @@ export function AuthGate({
               </button>
             </div>
             <div className="mt-4 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-left text-[12.5px] leading-relaxed text-[#1A1A2E]">
-              <b>Don't see it? Check your spam or junk folder.</b> These emails sometimes land there
-              instead of your main inbox — search for &quot;Kindness Currency&quot; if it's hard to
+              <b>Don&apos;t see it? Check your spam or junk folder.</b> These emails sometimes land there
+              instead of your main inbox — search for &quot;Kindness Currency&quot; if it&apos;s hard to
               spot.
             </div>
-            <button type="button" onClick={onClose} className="mt-5 w-full p-1.5 text-[13.5px] font-semibold text-[#2C2C2C] opacity-70">
-              Close
-            </button>
           </div>
         )}
       </div>

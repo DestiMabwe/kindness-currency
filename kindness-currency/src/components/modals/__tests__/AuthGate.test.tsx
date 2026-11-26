@@ -23,7 +23,8 @@ vi.mock('@/app/auth/actions', () => ({
 }))
 
 const routerRefresh = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: routerRefresh }) }))
+const routerReplace = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: routerRefresh, replace: routerReplace }) }))
 
 const locationAssign = vi.fn()
 Object.defineProperty(window, 'location', {
@@ -40,18 +41,25 @@ describe('AuthGate', () => {
     devInstantLoginAction.mockReset()
     locationAssign.mockReset()
     routerRefresh.mockReset()
+    routerReplace.mockReset()
     window.localStorage.clear()
     checkAuthRateLimitAction.mockReset().mockResolvedValue({ allowed: true })
   })
 
+  it('renders as part of the page, not as a dialog that can vanish on navigation', () => {
+    render(<AuthGate />)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^(Not yet|Close)$/ })).not.toBeInTheDocument()
+  })
+
   it('renders the exact auth modal heading and subtext', () => {
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
     expect(screen.getByText('Almost there — save your coupons')).toBeInTheDocument()
   })
 
   it('hides Continue with Google (and its "or" divider) while the googleSignIn flag is off, keeping email sign-in', () => {
     mockFlags.googleSignIn = false
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument()
     expect(screen.queryByText('or')).not.toBeInTheDocument()
@@ -60,7 +68,7 @@ describe('AuthGate', () => {
   })
 
   it('requires an email before submitting', async () => {
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
 
@@ -70,7 +78,7 @@ describe('AuthGate', () => {
 
   it('sends the OTP with an environment-aware redirect and the full name in user metadata', async () => {
     signInWithOtp.mockResolvedValue({ error: null })
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     await userEvent.type(screen.getByLabelText('Full name'), 'Alex Rivera')
     await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
@@ -79,15 +87,15 @@ describe('AuthGate', () => {
     expect(signInWithOtp).toHaveBeenCalledWith({
       email: 'alex@example.com',
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fcreate`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=%2F`,
         data: { full_name: 'Alex Rivera' },
       },
     })
   })
 
-  it('encodes a custom redirectTo into the callback URL', async () => {
+  it('encodes a custom next path into the callback URL', async () => {
     signInWithOtp.mockResolvedValue({ error: null })
-    render(<AuthGate onClose={vi.fn()} redirectTo="/give/set-1" />)
+    render(<AuthGate next="/give/set-1" />)
 
     await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
@@ -101,7 +109,7 @@ describe('AuthGate', () => {
 
   it('shows the "check your inbox" step after a successful send', async () => {
     signInWithOtp.mockResolvedValue({ error: null })
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
@@ -114,7 +122,7 @@ describe('AuthGate', () => {
   // the "check your inbox" step must make checking spam/junk unmissable, not a buried aside.
   it('makes checking spam/junk unmissable on the "check your inbox" step', async () => {
     signInWithOtp.mockResolvedValue({ error: null })
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
@@ -125,39 +133,50 @@ describe('AuthGate', () => {
   describe('code entry step', () => {
     async function reachCodeStep(props: Partial<React.ComponentProps<typeof AuthGate>> = {}) {
       signInWithOtp.mockResolvedValue({ error: null })
-      render(<AuthGate onClose={vi.fn()} {...props} />)
+      render(<AuthGate {...props} />)
       await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
       return screen.findByLabelText('6-digit code')
     }
 
-    it('verifies a correct code in place: refreshes the session, tells the caller, never navigates', async () => {
+    it('verifies a correct code, then goes to the page the person came from — without a full reload', async () => {
       verifyOtp.mockResolvedValue({ error: null })
-      const onAuthenticated = vi.fn()
-      const onClose = vi.fn()
-      const codeInput = await reachCodeStep({ onAuthenticated, onClose })
+      const codeInput = await reachCodeStep({ next: '/cart' })
 
       await userEvent.type(codeInput, '123456')
 
       expect(verifyOtp).toHaveBeenCalledWith({ email: 'alex@example.com', token: '123456', type: 'email' })
-      await vi.waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1))
-      expect(routerRefresh).toHaveBeenCalled()
-      expect(onClose).toHaveBeenCalled()
+      await vi.waitFor(() => expect(routerReplace).toHaveBeenCalledWith('/cart'))
       expect(locationAssign).not.toHaveBeenCalled()
     })
 
-    it('shows a soft error and clears the field for a wrong or expired code, without closing', async () => {
+    it('goes to the home page when no next path was given', async () => {
+      verifyOtp.mockResolvedValue({ error: null })
+      const codeInput = await reachCodeStep()
+
+      await userEvent.type(codeInput, '123456')
+
+      await vi.waitFor(() => expect(routerReplace).toHaveBeenCalledWith('/'))
+    })
+
+    it('never navigates to an off-site next path, even if one is passed in', async () => {
+      verifyOtp.mockResolvedValue({ error: null })
+      const codeInput = await reachCodeStep({ next: '//evil.com' })
+
+      await userEvent.type(codeInput, '123456')
+
+      await vi.waitFor(() => expect(routerReplace).toHaveBeenCalledWith('/'))
+    })
+
+    it('shows a soft error and clears the field for a wrong or expired code, staying put', async () => {
       verifyOtp.mockResolvedValue({ error: { message: 'Token has expired or is invalid' } })
-      const onAuthenticated = vi.fn()
-      const onClose = vi.fn()
-      const codeInput = await reachCodeStep({ onAuthenticated, onClose })
+      const codeInput = await reachCodeStep({ next: '/cart' })
 
       await userEvent.type(codeInput, '000000')
 
       expect(await screen.findByRole('alert')).toHaveTextContent("That code didn't work — check it or send a new one")
       expect(codeInput).toHaveValue('')
-      expect(onAuthenticated).not.toHaveBeenCalled()
-      expect(onClose).not.toHaveBeenCalled()
+      expect(routerReplace).not.toHaveBeenCalled()
     })
 
     it('only allows a new code after a 60-second cooldown (Supabase allows one email per address per minute), then sends it through the rate-limit check', async () => {
@@ -186,14 +205,14 @@ describe('AuthGate', () => {
 
     describe('after a sign-in link failed', () => {
       it('reopens on the code step with the remembered email and an immediately available resend', async () => {
-        const first = render(<AuthGate onClose={vi.fn()} />)
+        const first = render(<AuthGate />)
         await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
         signInWithOtp.mockResolvedValue({ error: null })
         await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
         await screen.findByLabelText('6-digit code')
         first.unmount()
 
-        render(<AuthGate onClose={vi.fn()} resumeFromFailedLink />)
+        render(<AuthGate authFailed />)
 
         expect(await screen.findByLabelText('6-digit code')).toBeInTheDocument()
         expect(screen.getByText('alex@example.com')).toBeInTheDocument()
@@ -202,7 +221,7 @@ describe('AuthGate', () => {
       })
 
       it('falls back to the email form with an explanation when this browser never started the sign-in', () => {
-        render(<AuthGate onClose={vi.fn()} resumeFromFailedLink />)
+        render(<AuthGate authFailed />)
 
         expect(screen.getByLabelText('Email address')).toBeInTheDocument()
         expect(screen.queryByLabelText('6-digit code')).not.toBeInTheDocument()
@@ -213,10 +232,10 @@ describe('AuthGate', () => {
         verifyOtp.mockResolvedValue({ error: null })
         const codeInput = await reachCodeStep()
         await userEvent.type(codeInput, '123456')
-        await vi.waitFor(() => expect(routerRefresh).toHaveBeenCalled())
+        await vi.waitFor(() => expect(routerReplace).toHaveBeenCalled())
         cleanup()
 
-        render(<AuthGate onClose={vi.fn()} resumeFromFailedLink />)
+        render(<AuthGate authFailed />)
 
         expect(screen.getAllByLabelText('Email address').length).toBeGreaterThan(0)
         expect(screen.queryAllByLabelText('6-digit code')).toHaveLength(0)
@@ -236,7 +255,7 @@ describe('AuthGate', () => {
 
   it('shows a generic error and stays on the form for an unrecognized failure', async () => {
     signInWithOtp.mockResolvedValue({ error: { message: 'internal server error', code: 'unexpected_failure' } })
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
@@ -246,7 +265,7 @@ describe('AuthGate', () => {
   })
 
   it('rejects an obviously malformed email before ever calling Supabase', async () => {
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     await userEvent.type(screen.getByLabelText('Email address'), 'notanemail')
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
@@ -257,7 +276,7 @@ describe('AuthGate', () => {
 
   it('shows a specific rate-limit message instead of the generic failure text', async () => {
     signInWithOtp.mockResolvedValue({ error: { message: 'Email rate limit exceeded', code: 'over_email_send_rate_limit' } })
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
@@ -268,7 +287,7 @@ describe('AuthGate', () => {
 
   it('distinguishes a rate limit from an invalid email, even though both are 4xx failures', async () => {
     signInWithOtp.mockResolvedValue({ error: { message: 'Unable to validate email address: invalid format', code: 'email_address_invalid' } })
-    render(<AuthGate onClose={vi.fn()} />)
+    render(<AuthGate />)
 
     // A format Supabase itself rejects but this component's own light client-side check doesn't
     // (the regex only screens the obvious cases) still needs to reach the network and come back
@@ -281,7 +300,7 @@ describe('AuthGate', () => {
 
   describe('login mode', () => {
     it('opens in login mode when initialMode is "login", hiding the name field but keeping email + Google', () => {
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       expect(screen.getByText('Welcome back')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
@@ -292,19 +311,19 @@ describe('AuthGate', () => {
 
     it('signs in with Google from login mode', async () => {
       signInWithOAuth.mockResolvedValue({ error: null })
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
 
       expect(signInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback?next=%2Fcreate` },
+        options: { redirectTo: `${window.location.origin}/auth/callback?next=%2F` },
       })
     })
 
     it('shows a disabled loading state on the Google button while redirecting', async () => {
       signInWithOAuth.mockReturnValue(new Promise(() => {}))
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
 
@@ -315,7 +334,7 @@ describe('AuthGate', () => {
 
     it('restores the Google button and shows an error if Google sign-in fails', async () => {
       signInWithOAuth.mockResolvedValue({ error: { message: 'boom' } })
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
 
@@ -326,19 +345,19 @@ describe('AuthGate', () => {
     it('logs in immediately from an email with no inbox round trip', async () => {
       devInstantLoginAction.mockResolvedValue({ success: true, tokenHash: 'hashed-token-1' })
       verifyOtp.mockResolvedValue({ error: null })
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
 
       expect(devInstantLoginAction).toHaveBeenCalledWith('alex@example.com')
       expect(verifyOtp).toHaveBeenCalledWith({ token_hash: 'hashed-token-1', type: 'magiclink' })
-      await vi.waitFor(() => expect(locationAssign).toHaveBeenCalledWith('/create'))
+      await vi.waitFor(() => expect(locationAssign).toHaveBeenCalledWith('/'))
     })
 
     it('shows a sign-up nudge when no account exists for that email', async () => {
       devInstantLoginAction.mockResolvedValue({ success: false, error: 'Could not log in with that email.' })
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       await userEvent.type(screen.getByLabelText('Email address'), 'nobody@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
@@ -350,7 +369,7 @@ describe('AuthGate', () => {
     it('shows a nudge if the generated token fails to verify', async () => {
       devInstantLoginAction.mockResolvedValue({ success: true, tokenHash: 'hashed-token-1' })
       verifyOtp.mockResolvedValue({ error: { message: 'expired' } })
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
@@ -367,7 +386,7 @@ describe('AuthGate', () => {
       it('sends a real magic link gated to existing accounts instead of the dev instant-login shortcut', async () => {
         vi.stubEnv('NODE_ENV', 'production')
         signInWithOtp.mockResolvedValue({ error: null })
-        render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+        render(<AuthGate initialMode="login" />)
 
         await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
         await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
@@ -375,7 +394,7 @@ describe('AuthGate', () => {
         expect(signInWithOtp).toHaveBeenCalledWith({
           email: 'alex@example.com',
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fcreate`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=%2F`,
             shouldCreateUser: false,
           },
         })
@@ -385,7 +404,7 @@ describe('AuthGate', () => {
       it('shows the "check your inbox" step after a successful production login send', async () => {
         vi.stubEnv('NODE_ENV', 'production')
         signInWithOtp.mockResolvedValue({ error: null })
-        render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+        render(<AuthGate initialMode="login" />)
 
         await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
         await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
@@ -396,7 +415,7 @@ describe('AuthGate', () => {
       it('shows a sign-up nudge when no account exists for that email, without creating one', async () => {
         vi.stubEnv('NODE_ENV', 'production')
         signInWithOtp.mockResolvedValue({ error: { message: 'Signups not allowed for otp', code: 'otp_disabled' } })
-        render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+        render(<AuthGate initialMode="login" />)
 
         await userEvent.type(screen.getByLabelText('Email address'), 'nobody@example.com')
         await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
@@ -408,7 +427,7 @@ describe('AuthGate', () => {
       it('shows a rate-limit message rather than the "no account" nudge when that\'s the real cause', async () => {
         vi.stubEnv('NODE_ENV', 'production')
         signInWithOtp.mockResolvedValue({ error: { message: 'Email rate limit exceeded', code: 'over_email_send_rate_limit' } })
-        render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+        render(<AuthGate initialMode="login" />)
 
         await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
         await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
@@ -419,7 +438,7 @@ describe('AuthGate', () => {
     })
 
     it('switches from signup to login and back via the tabs', async () => {
-      render(<AuthGate onClose={vi.fn()} />)
+      render(<AuthGate />)
 
       expect(screen.getByLabelText('Full name')).toBeInTheDocument()
 
@@ -435,14 +454,14 @@ describe('AuthGate', () => {
     })
 
     it('opens with the Sign Up tab active by default', () => {
-      render(<AuthGate onClose={vi.fn()} />)
+      render(<AuthGate />)
 
       expect(screen.getByRole('tab', { name: 'Sign Up' })).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByRole('tab', { name: 'Log In' })).toHaveAttribute('aria-selected', 'false')
     })
 
     it('links each tab to the panel it controls, and the panel back to whichever tab is active', () => {
-      render(<AuthGate onClose={vi.fn()} />)
+      render(<AuthGate />)
 
       const signUpTab = screen.getByRole('tab', { name: 'Sign Up' })
       const panel = screen.getByRole('tabpanel')
@@ -452,7 +471,7 @@ describe('AuthGate', () => {
     })
 
     it('opens with the Log In tab active when initialMode is "login"', () => {
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       expect(screen.getByRole('tab', { name: 'Log In' })).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByRole('tab', { name: 'Sign Up' })).toHaveAttribute('aria-selected', 'false')
@@ -462,19 +481,19 @@ describe('AuthGate', () => {
   describe('Google sign-in', () => {
     it('calls signInWithOAuth with the google provider and an environment-aware redirect', async () => {
       signInWithOAuth.mockResolvedValue({ error: null })
-      render(<AuthGate onClose={vi.fn()} />)
+      render(<AuthGate />)
 
       await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
 
       expect(signInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback?next=%2Fcreate` },
+        options: { redirectTo: `${window.location.origin}/auth/callback?next=%2F` },
       })
     })
 
     it('shows an error if Google sign-in fails to start', async () => {
       signInWithOAuth.mockResolvedValue({ error: { message: 'provider not configured' } })
-      render(<AuthGate onClose={vi.fn()} />)
+      render(<AuthGate />)
 
       await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
 
@@ -483,7 +502,7 @@ describe('AuthGate', () => {
 
     it('does not affect the existing email magic-link flow', async () => {
       signInWithOtp.mockResolvedValue({ error: null })
-      render(<AuthGate onClose={vi.fn()} />)
+      render(<AuthGate />)
 
       await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
@@ -496,7 +515,7 @@ describe('AuthGate', () => {
   describe('rate limiting', () => {
     it('blocks a signup send and never calls Supabase once our own limit is exceeded', async () => {
       checkAuthRateLimitAction.mockResolvedValue({ allowed: false, error: 'Too many requests. Please wait.' })
-      render(<AuthGate onClose={vi.fn()} />)
+      render(<AuthGate />)
 
       await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
@@ -509,7 +528,7 @@ describe('AuthGate', () => {
     it('blocks a production login send once our own limit is exceeded', async () => {
       vi.stubEnv('NODE_ENV', 'production')
       checkAuthRateLimitAction.mockResolvedValue({ allowed: false, error: 'Too many requests. Please wait.' })
-      render(<AuthGate onClose={vi.fn()} initialMode="login" />)
+      render(<AuthGate initialMode="login" />)
 
       await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
@@ -521,7 +540,7 @@ describe('AuthGate', () => {
 
     it('blocks Google sign-in once our own IP limit is exceeded, checked with no email', async () => {
       checkAuthRateLimitAction.mockResolvedValue({ allowed: false, error: 'Too many requests. Please wait.' })
-      render(<AuthGate onClose={vi.fn()} />)
+      render(<AuthGate />)
 
       await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
 

@@ -180,8 +180,6 @@ export const ctaCopy = {
   senderPinPrompt: (recipientName: string) => `Enter the 4-digit PIN ${recipientName} gave you`,
   resumedDraftBannerText: 'Continuing your last coupon set.',
   resumedDraftStartFreshButton: 'Not this one? Start fresh →',
-  authLinkFailedBannerText: "That sign-in link didn't work — it may have expired, already been used, or been opened on a different device.",
-  authLinkFailedRetryButton: 'Try signing in again',
   currentSetBadge: 'In progress',
   templateSwitchWarningHeading: 'Switch templates?',
   templateSwitchWarningBody: (currentTemplateName: string) =>

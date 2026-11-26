@@ -5,8 +5,10 @@ import { GestureFlow } from '../GestureFlow'
 import { ctaCopy } from '@/constants/ctaCopy'
 import type { SingleUseGesture } from '@/lib/singleUseGestures'
 
+const routerPush = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), push: routerPush }),
+  usePathname: () => '/create',
 }))
 
 const saveDraftAction = vi.fn()
@@ -64,6 +66,7 @@ async function unlockGesture(gesture: SingleUseGesture) {
 describe('GestureFlow', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    routerPush.mockReset()
     resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
   })
 
@@ -216,36 +219,59 @@ describe('GestureFlow', () => {
   })
 
   describe('Save/Send without an account', () => {
-    it('opens AuthGate instead of saving a draft while logged out', async () => {
+    it('sends a logged-out sender to the login page instead of saving a draft', async () => {
       saveDraftAction.mockReset()
       await goToPersonalize(freeGesture)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.saveMyCoupons }))
 
-      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+      await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/login?next=%2Fcreate'))
       expect(saveDraftAction).not.toHaveBeenCalled()
     })
 
-    it('opens AuthGate instead of sending, even for an unmodified free gesture, while logged out', async () => {
+    it('sends a logged-out sender to the login page instead of sending, even for an unmodified free gesture', async () => {
       sendCouponSetAction.mockReset()
       await goToPersonalize(freeGesture)
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
 
-      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+      await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/login?next=%2Fcreate'))
       expect(sendCouponSetAction).not.toHaveBeenCalled()
     })
 
-    it('opens AuthGate — not checkout directly — when sending a paid unlock while logged out', async () => {
+    it('sends a logged-out sender to the login page — not checkout directly — when sending a paid unlock', async () => {
       sendCouponSetAction.mockReset()
       await unlockGesture(freeGesture)
       await userEvent.type(screen.getByLabelText('Service title'), ' (mine)')
 
       await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
 
-      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+      await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/login?next=%2Fcreate'))
       expect(initiateSendCheckoutAction).not.toHaveBeenCalled()
       expect(sendCouponSetAction).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('coming back from the login page', () => {
+    it('lands on the personalize screen with Send ready — it does not open payment for them', async () => {
+      sendCouponSetAction.mockReset().mockResolvedValue({ success: false, error: 'Payment required.', paymentRequired: true })
+      initiateSendCheckoutAction.mockReset()
+      const first = render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={false} region="US" onExit={vi.fn()} />)
+      await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
+      await userEvent.click(screen.getByRole('button', { name: ctaCopy.sendWithLove }))
+      await waitFor(() => expect(routerPush).toHaveBeenCalled())
+      first.unmount()
+      sendCouponSetAction.mockClear()
+      window.localStorage.setItem('kindness-currency:gesture-pending-save-intent', 'sent')
+
+      render(<GestureFlow gesture={freeGesture} templateId="template-1" isLoggedIn={true} region="US" onExit={vi.fn()} />)
+
+      expect(await screen.findByRole('button', { name: ctaCopy.sendWithLove })).toBeEnabled()
+      expect(sendCouponSetAction).not.toHaveBeenCalled()
+      expect(initiateSendCheckoutAction).not.toHaveBeenCalled()
+      expect(resumePaystackCheckout).not.toHaveBeenCalled()
     })
   })
 

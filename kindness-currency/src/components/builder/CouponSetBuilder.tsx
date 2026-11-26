@@ -12,8 +12,7 @@ import { BundleTierPills } from '@/components/builder/BundleTierPills'
 import { PromoScrollPopup } from '@/components/shared/PromoScrollPopup'
 import { CartIcon } from '@/components/shared/CartIcon'
 import { HeaderMenu } from '@/components/shared/HeaderMenu'
-import { AuthLinkFailedBanner } from '@/components/shared/AuthLinkFailedBanner'
-import { useAuthLinkFailed } from '@/hooks/useAuthLinkFailed'
+import { loginHref } from '@/lib/authRedirect'
 import { MessagePill } from '@/components/builder/MessagePill'
 import { TemplateCoverArt } from '@/components/shared/TemplateCoverArt'
 import { singleUseGestures, type SingleUseGesture } from '@/lib/singleUseGestures'
@@ -53,9 +52,6 @@ const FeatureInterestModal = dynamic(
   { ssr: false }
 )
 
-// Deferred, matching SaveToAccountBanner's own import of the same modal — only needed
-// once a logged-out sender actually tries to save/send.
-const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
 
 export type CouponSetBuilderProps = {
   templates: TemplateWithCoupons[]
@@ -84,7 +80,7 @@ type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'previ
 // provider forces mid "save to your account" click — see the effects below.
 const PENDING_SENDER_READY_KEY = 'kindness-currency:pending-sender-ready'
 
-// Set right before opening AuthGate from Save/Send, or before either an auth-only redirect or a
+// Set right before sending someone to log in from Save/Send, or before either an auth-only redirect or a
 // Paystack redirect triggered from the details screen's "Personalise the coupons" gate, so the
 // redirect's reload knows what the sender was trying to do once they're back — the draft itself
 // survives that redirect via useCouponSetBuilder's own localStorage persistence, so only the
@@ -125,10 +121,7 @@ export function CouponSetBuilder({
   const [saveError, setSaveError] = useState('')
   const [checkingEntitlement, setCheckingEntitlement] = useState(false)
   const [detailsError, setDetailsError] = useState('')
-  const [authOpen, setAuthOpen] = useState(false)
   const [resumedDraftDismissed, setResumedDraftDismissed] = useState(false)
-  const { failed: authLinkFailed, dismiss: dismissAuthLinkFailed } = useAuthLinkFailed()
-  const [resumeAuth, setResumeAuth] = useState(false)
   const attemptedResume = useRef(false)
   const attemptedSaveResume = useRef(false)
 
@@ -159,7 +152,7 @@ export function CouponSetBuilder({
       // the bundle flow is expected to hit it.
       if (!isLoggedIn) {
         setSaving(false)
-        setAuthOpen(true)
+        goToLogin()
         return
       }
       const checkout = await initiateSendCheckoutAction(slug)
@@ -214,13 +207,17 @@ export function CouponSetBuilder({
     if (intent === 'sent') router.refresh()
   }
 
+  // Signing in is its own page. The intent flag set just before this call (and the draft, which is
+  // already in localStorage) is what brings the sender back to where they were — see the resume effect below.
+  const goToLogin = () => router.push(loginHref('/create'))
+
   // Saving or sending always requires an account: check login first, and if the sender isn't
-  // logged in, remember what they were doing and open AuthGate. The resume effect below finishes
-  // the save automatically once they're back and logged in.
+  // logged in, remember what they were doing and send them to log in. The resume effect below picks
+  // the intent back up once they're back and logged in.
   const handleSaveOrSend = (intent: 'draft' | 'sent') => {
     if (!isLoggedIn) {
       if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, intent)
-      setAuthOpen(true)
+      goToLogin()
       return
     }
     void performSave(intent)
@@ -285,7 +282,7 @@ export function CouponSetBuilder({
     if (!slug) return
     if (!isLoggedIn) {
       if (typeof window !== 'undefined') window.localStorage.setItem(PENDING_SAVE_INTENT_KEY, 'edit')
-      setAuthOpen(true)
+      goToLogin()
       return
     }
     setDetailsError('')
@@ -303,7 +300,7 @@ export function CouponSetBuilder({
 
   // Only resumes the ready screen when the viewer is now logged in AND actually mid a
   // pending "save to your account" link (set by SaveToAccountBanner right before it opens
-  // AuthGate) — a plain revisit to /create must still start fresh at template-select.
+  // the login page) — a plain revisit to /create must still start fresh at template-select.
   useEffect(() => {
     if (attemptedResume.current || !isLoggedIn) return
     attemptedResume.current = true
@@ -324,8 +321,8 @@ export function CouponSetBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to resume a pending sender link, not on every state change
   }, [isLoggedIn])
 
-  // Completes whatever the sender was trying to do before AuthGate or a Paystack checkout
-  // interrupted them: once back here (auth redirect, or Paystack's callback_url) with isLoggedIn
+  // Completes whatever the sender was trying to do before logging in or a Paystack checkout
+  // interrupted them: once back here (login page, or Paystack's callback_url) with isLoggedIn
   // true and the intent flag from handleSaveOrSend/performSave/handleContinueToEdit still set,
   // finish it automatically instead of making them tap the button a second time. The draft itself
   // is already correct at this point via useCouponSetBuilder's own hydration. A `?reference=` in
@@ -379,6 +376,10 @@ export function CouponSetBuilder({
           setSaveError("Your payment wasn't completed, so this wasn't sent. Feel free to try again.")
           return
         }
+      } else if (intent === 'sent') {
+        // Back from the login page, not from Paystack: stop one tap short. Sending starts a payment
+        // window, and a window opened without a tap is often blocked on phones.
+        return
       }
       void performSave(intent)
     }
@@ -507,17 +508,6 @@ export function CouponSetBuilder({
         />
       )}
 
-      {authLinkFailed && (
-        <AuthLinkFailedBanner
-          onRetry={() => {
-            dismissAuthLinkFailed()
-            setResumeAuth(true)
-            setAuthOpen(true)
-          }}
-          onDismiss={dismissAuthLinkFailed}
-        />
-      )}
-
       {builder.resumedDraft && !resumedDraftDismissed && (builder.state.screen === 'details' || builder.state.screen === 'edit') && (
         <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#1A1A2E]/8 bg-white px-4 py-3.5">
           <div className="flex flex-col gap-1 text-left">
@@ -605,17 +595,6 @@ export function CouponSetBuilder({
           expiresAt={builder.state.expiryDate || null}
           recipientPreview={{ senderName: builder.state.senderName, senderMessage: builder.state.senderMessage || null }}
           onClose={() => setPreviewOpen(false)}
-        />
-      )}
-
-      {authOpen && (
-        <AuthGate
-          redirectTo="/create"
-          resumeFromFailedLink={resumeAuth}
-          onClose={() => {
-            setAuthOpen(false)
-            setResumeAuth(false)
-          }}
         />
       )}
 

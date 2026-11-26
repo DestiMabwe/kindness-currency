@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CouponSetBuilder } from '../CouponSetBuilder'
@@ -6,8 +6,10 @@ import { ctaCopy } from '@/constants/ctaCopy'
 import type { TemplateWithCoupons } from '@/lib/templateRepository'
 
 const routerRefresh = vi.fn()
+const routerPush = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: routerRefresh }),
+  useRouter: () => ({ refresh: routerRefresh, push: routerPush }),
+  usePathname: () => '/create',
 }))
 
 const saveDraftAction = vi.fn()
@@ -107,6 +109,7 @@ describe('CouponSetBuilder', () => {
     checkTemplateEntitlementAction.mockReset()
     resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
     routerRefresh.mockReset()
+    routerPush.mockReset()
     // Every bundle template is paid, so continuing past the details screen always checks
     // entitlement first (see CouponSetBuilder's unlockEditorIfEntitled) — default to "already
     // entitled" so tests unrelated to the paywall gate can reach the editor without each one
@@ -502,7 +505,7 @@ describe('coming soon section', () => {
       expect(checkTemplateEntitlementAction).toHaveBeenCalledWith('mothers_day')
     })
 
-    it('opens the auth prompt instead of the editor when continuing while logged out — every bundle template is paid', async () => {
+    it('sends a logged-out sender to the login page instead of the editor when continuing — every bundle template is paid', async () => {
       render(<CouponSetBuilder templates={[template()]} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
@@ -510,7 +513,7 @@ describe('coming soon section', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
 
-      expect(await screen.findByText('Almost there — save your coupons')).toBeInTheDocument()
+      await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/login?next=%2Fcreate'))
       expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
       expect(checkTemplateEntitlementAction).not.toHaveBeenCalled()
     })
@@ -916,19 +919,6 @@ describe('coming soon section', () => {
       expect(initiateSendCheckoutAction).not.toHaveBeenCalled()
     })
 
-    it('closing the auth prompt returns to the details screen with nothing unlocked', async () => {
-      await goToEditor(false)
-      await screen.findByText('Almost there — save your coupons')
-
-      await userEvent.click(screen.getByRole('button', { name: 'Not yet' }))
-
-      expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Personalise the coupons →' })).toBeInTheDocument()
-      expect(screen.queryByText('Save My Coupons')).not.toBeInTheDocument()
-      expect(saveDraftAction).not.toHaveBeenCalled()
-      expect(checkTemplateEntitlementAction).not.toHaveBeenCalled()
-    })
-
     it('shows the WhatsApp share option on the ready screen once logged in', async () => {
       saveDraftAction.mockResolvedValue({ success: true, id: 'set-1' })
       await goToEditor(true)
@@ -968,7 +958,7 @@ describe('coming soon section', () => {
       await userEvent.type(screen.getByPlaceholderText('e.g. Alex'), 'Alex')
       await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
       await userEvent.click(screen.getByRole('button', { name: 'Personalise the coupons →' }))
-      await screen.findByText('Almost there — save your coupons')
+      await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/login?next=%2Fcreate'))
       first.unmount()
 
       // Simulate the full-page reload that follows the auth provider's redirect: a fresh
@@ -987,52 +977,6 @@ describe('coming soon section', () => {
       expect(screen.queryByText('Your gift is ready')).not.toBeInTheDocument()
       expect(saveDraftAction).not.toHaveBeenCalled()
       expect(sendCouponSetAction).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('auth link failed banner', () => {
-    afterEach(() => {
-      window.history.pushState({}, '', '/')
-    })
-
-    it('shows a retry banner when the URL carries the auth-callback failure flag', () => {
-      window.history.pushState({}, '', '/?authError=1')
-      render(<CouponSetBuilder templates={[template()]} region="US" />)
-
-      expect(screen.getByText(ctaCopy.authLinkFailedBannerText)).toBeInTheDocument()
-    })
-
-    it('strips the authError param from the URL after reading it', () => {
-      window.history.pushState({}, '', '/?authError=1')
-      render(<CouponSetBuilder templates={[template()]} region="US" />)
-
-      expect(window.location.search).toBe('')
-    })
-
-    it('does not show the banner on a plain visit with no failure flag', () => {
-      render(<CouponSetBuilder templates={[template()]} region="US" />)
-
-      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
-    })
-
-    it('opens the auth modal when "Try signing in again" is tapped', async () => {
-      window.history.pushState({}, '', '/?authError=1')
-      render(<CouponSetBuilder templates={[template()]} region="US" />)
-
-      await userEvent.click(screen.getByRole('button', { name: ctaCopy.authLinkFailedRetryButton }))
-
-      expect(screen.getByText('Almost there — save your coupons')).toBeInTheDocument()
-      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
-    })
-
-    it('dismisses without opening the auth modal', async () => {
-      window.history.pushState({}, '', '/?authError=1')
-      render(<CouponSetBuilder templates={[template()]} region="US" />)
-
-      await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
-
-      expect(screen.queryByText(ctaCopy.authLinkFailedBannerText)).not.toBeInTheDocument()
-      expect(screen.queryByText('Almost there — save your coupons')).not.toBeInTheDocument()
     })
   })
 
@@ -1285,6 +1229,18 @@ describe('coming soon section', () => {
 
       expect(await screen.findByText('Save My Coupons')).toBeInTheDocument()
       expect(screen.getByText('A Custom Title')).toBeInTheDocument()
+    })
+
+    it('brings a sender back from login to the editor with Send ready — it does not start payment or send for them', async () => {
+      seedInProgressDraft()
+      window.localStorage.setItem('kindness-currency:pending-save-intent', 'sent')
+      render(<CouponSetBuilder templates={[template()]} isLoggedIn={true} region="US" initialTemplateSlug="mothers_day" />)
+
+      expect(await screen.findByRole('button', { name: ctaCopy.sendWithLove })).toBeEnabled()
+      expect(sendCouponSetAction).not.toHaveBeenCalled()
+      expect(initiateSendCheckoutAction).not.toHaveBeenCalled()
+      expect(resumePaystackCheckout).not.toHaveBeenCalled()
+      expect(window.localStorage.getItem('kindness-currency:pending-save-intent')).toBeNull()
     })
 
     it('shows the template-switch warning instead of silently discarding unrelated in-progress work', async () => {

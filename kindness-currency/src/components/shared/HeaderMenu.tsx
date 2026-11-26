@@ -2,15 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
-
-// Deferred: the Supabase auth client (~250KB) has no reason to load until someone
-// actually opens the login form or signs out — neither happens on most page visits,
-// including the recipient's `/give/[id]` page, which has zero auth requirement of its own.
-const AuthGate = dynamic(() => import('@/components/modals/AuthGate').then((m) => m.AuthGate), { ssr: false })
+import { loginHref } from '@/lib/authRedirect'
 
 export type HeaderMenuProps = {
   isLoggedIn: boolean
@@ -21,8 +16,8 @@ const linkClasses = 'rounded-xl px-3 py-3 font-sans text-[15px] font-semibold te
 
 export function HeaderMenu({ isLoggedIn, isAdmin = false }: HeaderMenuProps) {
   const [open, setOpen] = useState(false)
-  const [authOpen, setAuthOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
   const drawerRef = useDialogA11y<HTMLDivElement>(open, () => setOpen(false))
 
   const handleSignOut = async () => {
@@ -91,30 +86,17 @@ export function HeaderMenu({ isLoggedIn, isAdmin = false }: HeaderMenuProps) {
                   {ctaCopy.navLogOut}
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setAuthOpen(true)}
+                <Link
+                  href={loginHref(pathname, 'login')}
+                  onClick={() => setOpen(false)}
                   className={`mt-2 text-left ${linkClasses} text-[#C2185B]`}
                 >
                   {ctaCopy.navLogIn}
-                </button>
+                </Link>
               )}
             </nav>
           </div>
         </div>
-      )}
-
-      {authOpen && (
-        <AuthGate
-          initialMode="login"
-          // Return to the page the menu was opened on (cart, a gift, profile…), not AuthGate's /create default.
-          // Pathname only: query params like ?reference= or ?authError= must not be replayed after login.
-          redirectTo={window.location.pathname}
-          onClose={() => {
-            setAuthOpen(false)
-            setOpen(false)
-          }}
-        />
       )}
     </>
   )
