@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthGate } from '../AuthGate'
 
+const mockFlags = vi.hoisted(() => ({ googleSignIn: true }))
+vi.mock('@/lib/flags', () => ({ flags: mockFlags }))
+
 const signInWithOtp = vi.fn()
 const signInWithOAuth = vi.fn()
 const verifyOtp = vi.fn()
@@ -26,6 +29,7 @@ Object.defineProperty(window, 'location', {
 
 describe('AuthGate', () => {
   beforeEach(() => {
+    mockFlags.googleSignIn = true
     signInWithOtp.mockReset()
     signInWithOAuth.mockReset()
     verifyOtp.mockReset()
@@ -37,6 +41,16 @@ describe('AuthGate', () => {
   it('renders the exact auth modal heading and subtext', () => {
     render(<AuthGate onClose={vi.fn()} />)
     expect(screen.getByText('Almost there — save your coupons')).toBeInTheDocument()
+  })
+
+  it('hides Continue with Google (and its "or" divider) while the googleSignIn flag is off, keeping email sign-in', () => {
+    mockFlags.googleSignIn = false
+    render(<AuthGate onClose={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument()
+    expect(screen.queryByText('or')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Email address')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Email me a magic link' })).toBeInTheDocument()
   })
 
   it('requires an email before submitting', async () => {

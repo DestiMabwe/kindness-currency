@@ -1,3 +1,8 @@
+import { flags } from '@/lib/flags'
+
+// Sign-in copy follows the googleSignIn flag so it never promises a Google option AuthGate hides.
+const signInMethods = flags.googleSignIn ? 'a quick email link or Google' : 'a quick email link'
+
 export const ctaCopy = {
   heroCta: 'Create My Coupons',
   sendWithLove: 'Send with Love',
@@ -101,7 +106,7 @@ export const ctaCopy = {
     },
     {
       question: 'Do I need an account?',
-      answer: "You'll sign in with a quick email link or Google just before paying, so your gifts are saved to your account.",
+      answer: `You'll sign in with ${signInMethods} just before paying, so your gifts are saved to your account.`,
     },
   ],
   profileHeading: 'Your Gifts',
@@ -226,7 +231,7 @@ export const ctaCopy = {
   cartCheckoutCta: 'Checkout →',
   cartCheckoutHeading: 'Checkout',
   cartCheckoutNote: "You'll pay securely via Paystack, then come back here to personalize each one.",
-  cartCheckoutSignInNote: "You'll sign in with a quick email link or Google just before paying, so your gifts are saved to your account.",
+  cartCheckoutSignInNote: `You'll sign in with ${signInMethods} just before paying, so your gifts are saved to your account.`,
   cartPayCta: (formattedTotal: string) => `Pay ${formattedTotal}`,
   cartFreeCta: 'Claim for free →',
   cartCodeLabel: 'Discount code',

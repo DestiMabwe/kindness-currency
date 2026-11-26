@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { devInstantLoginAction, checkAuthRateLimitAction } from '@/app/auth/actions'
 import { ctaCopy } from '@/constants/ctaCopy'
+import { flags } from '@/lib/flags'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { TabPills } from '@/components/shared/TabPills'
 
@@ -201,6 +202,8 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
               <div className="mt-2 text-[12.5px] leading-relaxed text-[#2C2C2C] opacity-72">
                 {mode === 'signup' ? ctaCopy.authModalSubtext : ctaCopy.authModalLoginSubtext}
               </div>
+              {flags.googleSignIn && (
+              <>
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
@@ -225,6 +228,8 @@ export function AuthGate({ onClose, redirectTo = '/create', initialMode = 'signu
                 or
                 <span className="h-px flex-1 bg-[#1A1A2E]/14" />
               </div>
+              </>
+              )}
               <div className="mt-3.5 flex flex-col gap-2.5">
                 {mode === 'signup' && (
                   <input
