@@ -96,6 +96,20 @@ describe('GiftReminderRow', () => {
     expect(window.localStorage.getItem(pendingReminderKey('set-1'))).toBeNull()
   })
 
+  it('completes the reminder choice in place when the recipient logs in without the page reloading', async () => {
+    window.localStorage.setItem(pendingReminderKey('set-1'), 'monthly')
+    const { rerender } = render(<GiftReminderRow {...baseProps} isLoggedIn={false} alreadyLinked={false} />)
+    expect(setReminderFrequencyAction).not.toHaveBeenCalled()
+
+    rerender(<GiftReminderRow {...baseProps} isLoggedIn={true} alreadyLinked={false} />)
+
+    await vi.waitFor(() => {
+      expect(linkRecipientAction).toHaveBeenCalledWith('set-1')
+      expect(setReminderFrequencyAction).toHaveBeenCalledWith('set-1', 'monthly')
+    })
+    expect(await screen.findByRole('button', { name: /Reminding you once a month/ })).toBeInTheDocument()
+  })
+
   it('leaves a pending reminder choice alone while still logged out', () => {
     window.localStorage.setItem(pendingReminderKey('set-1'), 'monthly')
 

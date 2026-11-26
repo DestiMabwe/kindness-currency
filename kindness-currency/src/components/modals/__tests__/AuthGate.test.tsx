@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, act, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthGate } from '../AuthGate'
+import { ctaCopy } from '@/constants/ctaCopy'
 
 const mockFlags = vi.hoisted(() => ({ googleSignIn: true }))
 vi.mock('@/lib/flags', () => ({ flags: mockFlags }))
@@ -21,6 +22,9 @@ vi.mock('@/app/auth/actions', () => ({
   checkAuthRateLimitAction: (email?: string) => checkAuthRateLimitAction(email),
 }))
 
+const routerRefresh = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: routerRefresh }) }))
+
 const locationAssign = vi.fn()
 Object.defineProperty(window, 'location', {
   configurable: true,
@@ -35,6 +39,8 @@ describe('AuthGate', () => {
     verifyOtp.mockReset()
     devInstantLoginAction.mockReset()
     locationAssign.mockReset()
+    routerRefresh.mockReset()
+    window.localStorage.clear()
     checkAuthRateLimitAction.mockReset().mockResolvedValue({ allowed: true })
   })
 
@@ -100,7 +106,7 @@ describe('AuthGate', () => {
     await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
 
-    expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
+    expect(await screen.findByText('Enter your code')).toBeInTheDocument()
   })
 
   // Regression coverage: magic links from this app's shared transactional-email sender have
@@ -116,6 +122,118 @@ describe('AuthGate', () => {
     expect(await screen.findByText(/Check your spam or junk folder/)).toBeInTheDocument()
   })
 
+  describe('code entry step', () => {
+    async function reachCodeStep(props: Partial<React.ComponentProps<typeof AuthGate>> = {}) {
+      signInWithOtp.mockResolvedValue({ error: null })
+      render(<AuthGate onClose={vi.fn()} {...props} />)
+      await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+      await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+      return screen.findByLabelText('6-digit code')
+    }
+
+    it('verifies a correct code in place: refreshes the session, tells the caller, never navigates', async () => {
+      verifyOtp.mockResolvedValue({ error: null })
+      const onAuthenticated = vi.fn()
+      const onClose = vi.fn()
+      const codeInput = await reachCodeStep({ onAuthenticated, onClose })
+
+      await userEvent.type(codeInput, '123456')
+
+      expect(verifyOtp).toHaveBeenCalledWith({ email: 'alex@example.com', token: '123456', type: 'email' })
+      await vi.waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1))
+      expect(routerRefresh).toHaveBeenCalled()
+      expect(onClose).toHaveBeenCalled()
+      expect(locationAssign).not.toHaveBeenCalled()
+    })
+
+    it('shows a soft error and clears the field for a wrong or expired code, without closing', async () => {
+      verifyOtp.mockResolvedValue({ error: { message: 'Token has expired or is invalid' } })
+      const onAuthenticated = vi.fn()
+      const onClose = vi.fn()
+      const codeInput = await reachCodeStep({ onAuthenticated, onClose })
+
+      await userEvent.type(codeInput, '000000')
+
+      expect(await screen.findByRole('alert')).toHaveTextContent("That code didn't work — check it or send a new one")
+      expect(codeInput).toHaveValue('')
+      expect(onAuthenticated).not.toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('only allows a new code after a 60-second cooldown (Supabase allows one email per address per minute), then sends it through the rate-limit check', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        await reachCodeStep()
+        expect(signInWithOtp).toHaveBeenCalledTimes(1)
+        const resend = screen.getByRole('button', { name: /Send a new code/ })
+        expect(resend).toBeDisabled()
+        expect(resend).toHaveTextContent('60')
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60_000)
+        })
+        expect(resend).toBeEnabled()
+
+        await userEvent.click(resend)
+
+        expect(checkAuthRateLimitAction).toHaveBeenLastCalledWith('alex@example.com')
+        await vi.waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(2))
+        expect(screen.getByRole('button', { name: /Send a new code/ })).toBeDisabled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    describe('after a sign-in link failed', () => {
+      it('reopens on the code step with the remembered email and an immediately available resend', async () => {
+        const first = render(<AuthGate onClose={vi.fn()} />)
+        await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+        signInWithOtp.mockResolvedValue({ error: null })
+        await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+        await screen.findByLabelText('6-digit code')
+        first.unmount()
+
+        render(<AuthGate onClose={vi.fn()} resumeFromFailedLink />)
+
+        expect(await screen.findByLabelText('6-digit code')).toBeInTheDocument()
+        expect(screen.getByText('alex@example.com')).toBeInTheDocument()
+        expect(screen.getByRole('status')).toHaveTextContent(ctaCopy.authModalResumeNotice)
+        expect(screen.getByRole('button', { name: ctaCopy.authModalResend })).toBeEnabled()
+      })
+
+      it('falls back to the email form with an explanation when this browser never started the sign-in', () => {
+        render(<AuthGate onClose={vi.fn()} resumeFromFailedLink />)
+
+        expect(screen.getByLabelText('Email address')).toBeInTheDocument()
+        expect(screen.queryByLabelText('6-digit code')).not.toBeInTheDocument()
+        expect(screen.getByRole('status')).toHaveTextContent(ctaCopy.authModalResumeNoticeNoEmail)
+      })
+
+      it('forgets the remembered email once sign-in succeeds', async () => {
+        verifyOtp.mockResolvedValue({ error: null })
+        const codeInput = await reachCodeStep()
+        await userEvent.type(codeInput, '123456')
+        await vi.waitFor(() => expect(routerRefresh).toHaveBeenCalled())
+        cleanup()
+
+        render(<AuthGate onClose={vi.fn()} resumeFromFailedLink />)
+
+        expect(screen.getAllByLabelText('Email address').length).toBeGreaterThan(0)
+        expect(screen.queryAllByLabelText('6-digit code')).toHaveLength(0)
+      })
+    })
+
+    it('lets someone who mistyped their email go back to the form with their details kept', async () => {
+      await reachCodeStep()
+
+      await userEvent.click(screen.getByRole('button', { name: /Fix it and we'll send a new code/ }))
+
+      expect(screen.getByLabelText('Email address')).toHaveValue('alex@example.com')
+      expect(screen.getByLabelText('Email address')).toHaveFocus()
+      expect(screen.queryByLabelText('6-digit code')).not.toBeInTheDocument()
+    })
+  })
+
   it('shows a generic error and stays on the form for an unrecognized failure', async () => {
     signInWithOtp.mockResolvedValue({ error: { message: 'internal server error', code: 'unexpected_failure' } })
     render(<AuthGate onClose={vi.fn()} />)
@@ -124,7 +242,7 @@ describe('AuthGate', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
 
     expect(await screen.findByText(/Something went wrong sending your link/)).toBeInTheDocument()
-    expect(screen.queryByText('Check your inbox')).not.toBeInTheDocument()
+    expect(screen.queryByText('Enter your code')).not.toBeInTheDocument()
   })
 
   it('rejects an obviously malformed email before ever calling Supabase', async () => {
@@ -272,7 +390,7 @@ describe('AuthGate', () => {
         await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
         await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
 
-        expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
+        expect(await screen.findByText('Enter your code')).toBeInTheDocument()
       })
 
       it('shows a sign-up nudge when no account exists for that email, without creating one', async () => {
@@ -284,7 +402,7 @@ describe('AuthGate', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Log In' }))
 
         expect(await screen.findByText(/Want to sign up instead/)).toBeInTheDocument()
-        expect(screen.queryByText('Check your inbox')).not.toBeInTheDocument()
+        expect(screen.queryByText('Enter your code')).not.toBeInTheDocument()
       })
 
       it('shows a rate-limit message rather than the "no account" nudge when that\'s the real cause', async () => {
@@ -370,7 +488,7 @@ describe('AuthGate', () => {
       await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
 
-      expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
+      expect(await screen.findByText('Enter your code')).toBeInTheDocument()
       expect(signInWithOAuth).not.toHaveBeenCalled()
     })
   })

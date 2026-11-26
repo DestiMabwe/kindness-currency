@@ -4,19 +4,31 @@
 // "Pay" opens Paystack's inline popup right on this page; the buyer lands on /cart/complete once
 // the popup reports success, without ever navigating away to pay.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ctaCopy } from '@/constants/ctaCopy'
 import { QuantityStepper } from '@/components/builder/QuantityStepper'
-import { useCartLines, setCartQty, removeFromCart, linesForCart, cartTotals, type CartLine } from '@/lib/cart'
+import {
+  useCartLines,
+  setCartQty,
+  removeFromCart,
+  linesForCart,
+  cartTotals,
+  savePendingDiscountCode,
+  readPendingDiscountCode,
+  clearPendingDiscountCode,
+  type CartLine,
+} from '@/lib/cart'
 import { initiateCartCheckoutAction, previewDiscountCodeAction } from '@/app/cart/actions'
 import { resumePaystackCheckout } from '@/lib/paystack/inline'
 import { formatPrice, REGION_PAIRED_BUNDLE_PRICE, type PricingRegion } from '@/lib/geoPricing'
 import { settlementTotalForItems } from '@/lib/pricing'
 import { applyPercentDiscount } from '@/lib/discount'
 import { flags } from '@/lib/flags'
+import { AuthLinkFailedBanner } from '@/components/shared/AuthLinkFailedBanner'
+import { useAuthLinkFailed } from '@/hooks/useAuthLinkFailed'
 
 const CHECKOUT_POPUP_ERROR = 'Could not open the payment window. Please try again.'
 
@@ -40,6 +52,8 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   const cartLines = useCartLines()
   const [step, setStep] = useState<Step>('cart')
   const [authOpen, setAuthOpen] = useState(false)
+  const { failed: authLinkFailed, dismiss: dismissAuthLinkFailed } = useAuthLinkFailed()
+  const [resumeAuthOpen, setResumeAuthOpen] = useState(false)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState('')
   const [codeInput, setCodeInput] = useState('')
@@ -65,15 +79,12 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
   const zarTotal = formatPrice(zarFinalCents / 100, 'ZA')
   const isFree = appliedCode !== null && zarFinalCents === 0
 
-  const handleApplyCode = async () => {
-    if (!codeInput.trim()) return
-    if (!isLoggedIn) {
-      setAuthOpen(true)
-      return
-    }
+  // Display-only preview — see previewDiscountCodeAction. A rejected code stays in the input so it
+  // can be corrected rather than retyped.
+  const applyCode = async (code: string) => {
     setApplyingCode(true)
     setCodeError('')
-    const result = await previewDiscountCodeAction(codeInput)
+    const result = await previewDiscountCodeAction(code)
     setApplyingCode(false)
     if (!result.success) {
       setCodeError(result.error)
@@ -81,6 +92,35 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
     }
     setAppliedCode({ code: result.code, percentOff: result.percentOff })
     setCodeInput('')
+  }
+
+  // A code typed before login is restored the moment the buyer is logged in — whether that's the
+  // same tab (AuthGate's in-place code entry refreshes isLoggedIn) or a reload from the magic link.
+  // It reopens checkout too, since that's the only step with the code field, and stops there: the
+  // buyer still taps Pay themselves.
+  useEffect(() => {
+    if (!isLoggedIn || !flags.discountCodes) return
+    const restore = () => {
+      const pending = readPendingDiscountCode()
+      if (!pending) return
+      clearPendingDiscountCode()
+      setStep('checkout')
+      setCodeInput(pending)
+      void applyCode(pending)
+    }
+    restore()
+  }, [isLoggedIn])
+
+  const handleApplyCode = async () => {
+    if (!codeInput.trim()) return
+    if (!isLoggedIn) {
+      // Held in localStorage so the code outlives the trip to the inbox and back — the magic-link
+      // path reloads this page, and even the in-place code path shouldn't make anyone retype it.
+      savePendingDiscountCode(codeInput.trim())
+      setAuthOpen(true)
+      return
+    }
+    await applyCode(codeInput)
   }
 
   const handleRemoveCode = () => {
@@ -216,9 +256,21 @@ export function CartView({ isLoggedIn, region }: { isLoggedIn: boolean; region: 
 
   return (
     <div className="px-5.5 pt-2 pb-10">
-      <h1 className="text-[23px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
+      {authLinkFailed && (
+        <div className="-mx-4">
+          <AuthLinkFailedBanner
+            onRetry={() => {
+              dismissAuthLinkFailed()
+              setResumeAuthOpen(true)
+            }}
+            onDismiss={dismissAuthLinkFailed}
+          />
+        </div>
+      )}
+      <h1 className="mt-2 text-[23px] font-extrabold text-[#1A1A2E] italic" style={{ fontFamily: 'var(--font-playfair)' }}>
         {ctaCopy.cartHeading}
       </h1>
+      {resumeAuthOpen && <AuthGate redirectTo="/cart" resumeFromFailedLink onClose={() => setResumeAuthOpen(false)} />}
 
       {lines.length === 0 ? (
         <div className="mt-4 text-[13.5px] text-[#2C2C2C] opacity-72">

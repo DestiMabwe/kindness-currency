@@ -1,6 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { addToCart, useCartLines, cartTotals, recordCompletedCheckout, useOrderHistory, linesForCart, setCartQty } from '../cart'
+import {
+  addToCart,
+  useCartLines,
+  cartTotals,
+  recordCompletedCheckout,
+  useOrderHistory,
+  linesForCart,
+  setCartQty,
+  savePendingDiscountCode,
+  readPendingDiscountCode,
+  clearPendingDiscountCode,
+} from '../cart'
 import { REGION_PAIRED_BUNDLE_PRICE } from '../geoPricing'
 
 beforeEach(() => {
@@ -15,6 +26,44 @@ describe('cart quantities', () => {
     act(() => addToCart('mothers_day', 3))
 
     expect(result.current).toEqual([{ slug: 'mothers_day', qty: 5 }])
+  })
+})
+
+describe('pending discount code', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('remembers a code typed before login so it can be restored afterwards', () => {
+    savePendingDiscountCode('WELCOME10')
+
+    expect(readPendingDiscountCode()).toBe('WELCOME10')
+  })
+
+  it('forgets a code once cleared', () => {
+    savePendingDiscountCode('WELCOME10')
+
+    clearPendingDiscountCode()
+
+    expect(readPendingDiscountCode()).toBeNull()
+  })
+
+  it('forgets a code older than 24 hours instead of restoring something stale', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-26T10:00:00Z'))
+    savePendingDiscountCode('WELCOME10')
+
+    vi.setSystemTime(new Date('2026-11-27T10:00:01Z'))
+
+    expect(readPendingDiscountCode()).toBeNull()
+  })
+
+  it('is cleared once an order is recorded as paid', () => {
+    savePendingDiscountCode('WELCOME10')
+
+    act(() => recordCompletedCheckout([{ slug: 'mothers_day', name: "Mom's Promise Tokens", price: 2.99, qty: 1 }], 2.99))
+
+    expect(readPendingDiscountCode()).toBeNull()
   })
 })
 
