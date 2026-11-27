@@ -1123,7 +1123,7 @@ export function DetailsFormScreen({
           Who&apos;s it for?
         </h1>
         <div className="mt-1.5 text-[13px] text-[#2C2C2C] opacity-72">
-          {templateName ? `${templateName} — ` : ''}We&apos;ll weave these names through the whole gift.
+          {templateName ? `${templateName}. ` : ''}We&apos;ll weave these names through the whole gift.
         </div>
       </div>
       <div className="flex flex-col gap-4 px-5.5 py-5.5">

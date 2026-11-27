@@ -85,7 +85,7 @@ export function FeatureInterestModal({ feature, userEmail, onClose }: FeatureInt
                 disabled={submitting}
                 className="mt-4.5 w-full rounded-2xl bg-[#C2185B] p-3.5 font-sans text-[15px] font-bold text-white disabled:opacity-60"
               >
-                {ctaCopy.featureInterestSubmitButton} — {userEmail}
+                {ctaCopy.featureInterestSubmitButton} at {userEmail}
               </button>
             ) : (
               <div className="mt-4.5 flex flex-col gap-2.5">

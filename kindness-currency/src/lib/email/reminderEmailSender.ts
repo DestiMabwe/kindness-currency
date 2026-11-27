@@ -13,7 +13,7 @@ export function createResendReminderEmailSender(apiKey: string, fromEmail: strin
         from: fromEmail,
         to,
         subject: `Want a nudge to redeem ${senderName}'s coupons?`,
-        html: `<p>Hi ${recipientName},</p><p>${senderName}'s coupons are still waiting for you on Kindness Currency — no pressure, just a gentle nudge.</p>`,
+        html: `<p>Hi ${recipientName},</p><p>${senderName}'s coupons are still waiting for you on Kindness Currency. No pressure, just a gentle nudge.</p>`,
       })
       return { success: !error }
     },

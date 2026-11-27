@@ -75,7 +75,7 @@ function describeSendError(error: SendErrorLike): string {
   const code = error?.code ?? ''
   const message = (error?.message ?? '').toLowerCase()
   if (code === 'over_email_send_rate_limit' || message.includes('rate limit')) {
-    return "You've requested a few of these recently — please wait a minute before trying again."
+    return "You've requested a few of these recently. Please wait a minute before trying again."
   }
   if (code === 'email_address_invalid' || (message.includes('invalid') && message.includes('email'))) {
     return "That doesn't look like a valid email address."
@@ -418,7 +418,7 @@ function AuthGateForm({
               {ctaCopy.authModalCodeHeading}
             </h2>
             <div className="mt-2 text-[13px] leading-relaxed text-[#2C2C2C] opacity-72">
-              We sent a 6-digit code to <b>{email}</b>. Type it here, or tap the link in the email — no password needed.
+              We sent a 6-digit code to <b>{email}</b>. Type it here, or tap the link in the email. No password needed.
             </div>
             {authFailed && rememberedEmail && (
               <div role="status" className="mt-3 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-left text-[12.5px] leading-relaxed text-[#1A1A2E]">
@@ -466,7 +466,7 @@ function AuthGateForm({
             </div>
             <div className="mt-4 rounded-xl bg-[#FF8F00]/10 px-3.5 py-3 text-left text-[12.5px] leading-relaxed text-[#1A1A2E]">
               <b>Don&apos;t see it? Check your spam or junk folder.</b> These emails sometimes land there
-              instead of your main inbox — search for &quot;Kindness Currency&quot; if it&apos;s hard to
+              instead of your main inbox. Search for &quot;Kindness Currency&quot; if it&apos;s hard to
               spot.
             </div>
           </div>

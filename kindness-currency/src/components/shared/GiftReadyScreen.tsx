@@ -63,7 +63,7 @@ export function GiftReadyScreen({ shareLink, senderName, recipientName, onStartO
           Your gift is ready
         </h1>
         <div className="mt-2 text-[13.5px] leading-relaxed text-[#2C2C2C] opacity-75">
-          Share the link — it&apos;s all they need to open it.
+          Share the link. It&apos;s all they need to open it.
         </div>
       </div>
 

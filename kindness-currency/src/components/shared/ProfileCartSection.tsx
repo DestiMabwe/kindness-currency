@@ -37,7 +37,7 @@ export function ProfileCartSection({
         <div className="rounded-2xl border border-[#FF8F00]/25 bg-[#FF8F00]/8 p-4">
           <div className="text-[13.5px] font-bold text-[#1A1A2E]">Ready to personalize</div>
           <div className="mt-0.5 text-[12px] text-[#2C2C2C] opacity-60">
-            Paid for, waiting on you — pick one up whenever you&apos;re ready.
+            Paid for, waiting on you. Pick one up whenever you&apos;re ready.
           </div>
           <div className="mt-3 flex flex-col gap-2">
             {purchasedLines.flatMap((line) =>

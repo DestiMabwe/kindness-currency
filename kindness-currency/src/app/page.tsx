@@ -95,7 +95,7 @@ export default async function HomePage() {
           className="kc-rise mt-3 max-w-[300px] text-[14.5px] leading-relaxed text-[#2C2C2C] opacity-78"
           style={{ ['--kc-rise-delay' as string]: '0.18s' }}
         >
-          Kindness Currency lets you give time, care, and love. The gifts that matter most. Share promises, surprises, and acts of service — all wrapped in a single link.
+          Kindness Currency lets you give time, care, and love. The gifts that matter most. Share promises, surprises, and acts of service, all wrapped in a single link.
         </div>
         <div className="kc-rise mt-5 flex gap-2.5" style={{ ['--kc-rise-delay' as string]: '0.3s' }}>
           <Link

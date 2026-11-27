@@ -12,7 +12,7 @@ export const DISCOUNT_ERRORS = {
   expired: 'That code has expired.',
   exhausted: 'That code has been fully used.',
   alreadyUsed: "You've already used that code.",
-  rateLimited: "You're trying codes a bit fast — please wait a moment and try again.",
+  rateLimited: "You're trying codes a bit fast. Please wait a moment and try again.",
   generic: 'Something went wrong applying that code. Please try again.',
 } as const
 

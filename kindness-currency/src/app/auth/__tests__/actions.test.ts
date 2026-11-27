@@ -116,7 +116,7 @@ describe('checkAuthRateLimitAction', () => {
 
     expect(result).toEqual({
       allowed: false,
-      error: 'Too many attempts from this device — please wait a few minutes and try again.',
+      error: 'Too many attempts from this device. Please wait a few minutes and try again.',
     })
     expect(checkRateLimit).toHaveBeenCalledTimes(1)
   })
@@ -128,7 +128,7 @@ describe('checkAuthRateLimitAction', () => {
 
     expect(result).toEqual({
       allowed: false,
-      error: "You've requested a few of these recently — please wait a few minutes before trying again.",
+      error: "You've requested a few of these recently. Please wait a few minutes before trying again.",
     })
   })
 

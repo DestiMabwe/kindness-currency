@@ -45,16 +45,16 @@ describe('RecipientPinModal', () => {
 
       expect(props.onGenerate).toHaveBeenCalledTimes(1)
       expect(await screen.findByLabelText('Your PIN')).toHaveTextContent('4821')
-      expect(screen.getByText('Tell Jordan this PIN — it works for 5 minutes.')).toBeInTheDocument()
+      expect(screen.getByText('Tell Jordan this PIN. It works for 5 minutes.')).toBeInTheDocument()
       expect(screen.getByRole('timer')).toHaveTextContent(/Expires in [45]:\d\d/)
     })
 
     it('shows the soft error and stays on the intro when generating fails (e.g. rate limited)', async () => {
-      setup({ onGenerate: vi.fn().mockResolvedValue({ success: false, error: 'Easy there — please wait.' }) })
+      setup({ onGenerate: vi.fn().mockResolvedValue({ success: false, error: 'Easy there. Please wait.' }) })
 
       await userEvent.click(screen.getByRole('button', { name: 'Generate Redemption PIN' }))
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('Easy there — please wait.')
+      expect(await screen.findByRole('alert')).toHaveTextContent('Easy there. Please wait.')
       expect(screen.queryByLabelText('Your PIN')).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Generate Redemption PIN' })).toBeInTheDocument()
     })

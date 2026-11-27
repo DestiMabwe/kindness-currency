@@ -23,9 +23,9 @@ export default function AboutPage() {
             with a sibling, or a meaningful way to tell a best friend, <em className="italic">“I’m in your corner.”</em>
           </p>
           <p>
-            We all have these moments — ideas for connection that get lost to bad timing, fear of awkwardness, or
-            the rush of daily life. We end up giving physical objects that gather dust, while the real gift — our
-            time, our attention, our care — remains unspoken.
+            We all have these moments, when ideas for connection get lost to bad timing, fear of awkwardness, or
+            the rush of daily life. We end up giving physical objects that gather dust, while the real gift remains
+            unspoken: our time, our attention, our care.
           </p>
           <p>That is why we built Kindness Currency.</p>
         </div>
@@ -48,7 +48,7 @@ export default function AboutPage() {
               you mean. In turn, it allows the recipient to <em className="italic">receive without obligation</em>,
               giving them the space to open, digest, and redeem your promise whenever they are truly ready.
             </p>
-            <p>When they hit redeem, it isn&apos;t just cashing in a favor — it is their way of reaching back.</p>
+            <p>When they hit redeem, it isn&apos;t just cashing in a favor. It is their way of reaching back.</p>
           </div>
         </div>
 

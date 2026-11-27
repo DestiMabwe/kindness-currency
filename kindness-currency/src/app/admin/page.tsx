@@ -85,7 +85,7 @@ export default async function AdminPage() {
         </section>
 
         <section className="mt-10">
-          <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Custom Coupon Book — Signups</h2>
+          <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Custom Coupon Book Signups</h2>
           {waitlistSignups.length === 0 ? (
             <div className="mt-3 text-[13px] text-[#2C2C2C] opacity-60">No signups yet.</div>
           ) : (
@@ -103,7 +103,7 @@ export default async function AdminPage() {
         </section>
 
         <section className="mt-10">
-          <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Coming Soon — Signups</h2>
+          <h2 className="text-[13px] font-semibold tracking-[0.06em] text-[#2C2C2C] uppercase opacity-60">Coming Soon Signups</h2>
           {earlyAccessSignups.length === 0 ? (
             <div className="mt-3 text-[13px] text-[#2C2C2C] opacity-60">No signups yet.</div>
           ) : (

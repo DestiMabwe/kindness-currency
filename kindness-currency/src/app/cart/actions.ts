@@ -9,7 +9,7 @@ import { flags } from '@/lib/flags'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
 import type { CartLineItem } from '@/lib/pricing'
 
-const RATE_LIMITED_ERROR = "You're checking out a bit fast — please wait a moment and try again."
+const RATE_LIMITED_ERROR = "You're checking out a bit fast. Please wait a moment and try again."
 
 export type PreviewDiscountCodeResult =
   | { success: true; code: string; percentOff: number }

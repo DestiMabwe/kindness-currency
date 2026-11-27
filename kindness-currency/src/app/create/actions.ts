@@ -7,8 +7,8 @@ import { createClient } from '@/lib/supabase/server'
 import { initiateSingleCheckout, verifyAndFulfillCheckout, type InitiateCheckoutResult, type VerifyAndFulfillResult } from '@/lib/checkoutService'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
 
-const SEND_RATE_LIMITED_ERROR = "You're sending a bit fast — please wait a moment and try again."
-const CHECKOUT_RATE_LIMITED_ERROR = "You're checking out a bit fast — please wait a moment and try again."
+const SEND_RATE_LIMITED_ERROR = "You're sending a bit fast. Please wait a moment and try again."
+const CHECKOUT_RATE_LIMITED_ERROR = "You're checking out a bit fast. Please wait a moment and try again."
 
 async function getAuthedUser() {
   const authClient = await createClient()

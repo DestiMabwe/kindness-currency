@@ -60,7 +60,7 @@ describe('HowYouCreateOverlay', () => {
 
     expect(await screen.findByRole('dialog', { name: 'A gift from Your Name' }, { timeout: 2500 })).toBeInTheDocument()
     expect(
-      screen.getByText('For everything you do without ever being asked — a few ways I want to take care of you now.', { exact: false })
+      screen.getByText('For everything you do without ever being asked: a few ways I want to take care of you now.', { exact: false })
     ).toBeInTheDocument()
   })
 
