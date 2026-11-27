@@ -69,6 +69,7 @@ export function RecipientCouponList({
             imageSrc={imageSrc}
             expiresAt={expiresAt}
             showRedeem
+            fill
             onRedeem={() => setRedeemingId(coupon.id)}
           />
         ))}

@@ -29,6 +29,15 @@
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
 }
 
+.fill {
+  display: flex;
+  flex-direction: column;
+}
+
+.fill > .inner {
+  flex: 1 1 auto;
+}
+
 .inner {
   position: relative;
   width: 100%;
@@ -177,6 +186,8 @@
      overflowing .inner's right edge and dragging the absolutely-positioned
      decorativeImage out past the clipped card border with it. */
   min-width: 0;
+  /* Lets the headline size itself against this column's own width (cqw), not the viewport's. */
+  container-type: inline-size;
 }
 
 .eyebrow {
@@ -191,6 +202,9 @@
 
 .headline {
   font-size: var(--headline-fs);
+  /* Shrink until the longest word fits the column on one line (~0.78em per capital letter), so a word is
+     never split mid-word. The line above is the fallback where container units are unsupported. */
+  font-size: min(var(--headline-fs), max(12px, calc(100cqw / (var(--title-chars, 1) * 0.78))));
   line-height: 1.02;
   letter-spacing: 0.5px;
   color: #1a1a2e;
@@ -198,8 +212,8 @@
   text-transform: uppercase;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
   overflow: hidden;
   text-overflow: ellipsis;
   /* hyphens:auto is tried first — a word too wide for the column breaks at a real syllable with

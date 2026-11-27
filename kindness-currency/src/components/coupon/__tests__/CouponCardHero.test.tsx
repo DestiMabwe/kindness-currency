@@ -36,6 +36,18 @@ describe('CouponCardHero', () => {
     expect(screen.getByText('A Long Bath Together')).toBeInTheDocument()
   })
 
+  // The title column is narrow (the decorative image reserves the right side), so the title is
+  // sized to its longest word — otherwise a word like "Unplanned" splits mid-word and gets clipped.
+  it('tells the headline how long its longest word is, so it can shrink to fit', () => {
+    render(<CouponCardHero {...baseProps} serviceTitle="Unplanned Adventure Day" />)
+    expect(screen.getByRole('heading', { level: 2 }).style.getPropertyValue('--title-chars')).toBe('9')
+  })
+
+  it('treats a one-word title as its own longest word', () => {
+    render(<CouponCardHero {...baseProps} serviceTitle="Unconditional" />)
+    expect(screen.getByRole('heading', { level: 2 }).style.getPropertyValue('--title-chars')).toBe('13')
+  })
+
   it('renders the headline in Playfair Display Bold', () => {
     render(<CouponCardHero {...baseProps} />)
     const headline = screen.getByText(baseProps.serviceTitle)

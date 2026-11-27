@@ -15,6 +15,9 @@ export type CouponBookProps = {
 export function CouponBook({ slides, label }: CouponBookProps) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [index, setIndex] = useState(0)
+  // While a button-driven slide is under way, the scroll position is mid-way between pages; trusting it
+  // would pull the counter back and make a quick second tap count from the wrong page.
+  const ignoreScrollUntil = useRef(0)
   const last = slides.length - 1
 
   const goTo = (target: number) => {
@@ -22,13 +25,14 @@ export function CouponBook({ slides, label }: CouponBookProps) {
     if (!track) return
     const page = Math.min(Math.max(target, 0), last)
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ignoreScrollUntil.current = Date.now() + 600
     track.scrollTo({ left: page * track.clientWidth, behavior: reduceMotion ? 'auto' : 'smooth' })
     setIndex(page)
   }
 
   const handleScroll = () => {
     const track = trackRef.current
-    if (!track || !track.clientWidth) return
+    if (!track || !track.clientWidth || Date.now() < ignoreScrollUntil.current) return
     setIndex(Math.min(Math.max(Math.round(track.scrollLeft / track.clientWidth), 0), last))
   }
 
@@ -53,7 +57,7 @@ export function CouponBook({ slides, label }: CouponBookProps) {
             role="group"
             aria-roledescription="page"
             aria-label={`${i + 1} of ${slides.length}`}
-            className="flex w-full shrink-0 snap-center justify-center px-4 pt-5 pb-2"
+            className="flex w-full shrink-0 snap-center justify-center px-4 pt-5 pb-10"
           >
             {slide}
           </div>
@@ -61,7 +65,7 @@ export function CouponBook({ slides, label }: CouponBookProps) {
       </div>
 
       {showPager && (
-        <div className="mt-2 flex items-center justify-center gap-3">
+        <div className="-mt-4 flex items-center justify-center gap-3">
           <button
             type="button"
             onClick={() => goTo(index - 1)}
