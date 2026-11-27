@@ -45,7 +45,7 @@ describe('initiateCartCheckoutAction', () => {
 
     const result = await initiateCartCheckoutAction([{ slug: 'mothers_day', qty: 1 }])
 
-    expect(result).toEqual({ success: false, error: "You're checking out a bit fast — please wait a moment and try again." })
+    expect(result).toEqual({ success: false, error: "You're checking out a bit fast. Please wait a moment and try again." })
     expect(initiateCartCheckout).not.toHaveBeenCalled()
   })
 

@@ -54,7 +54,7 @@ describe('AuthGate', () => {
 
   it('renders the exact auth modal heading and subtext', () => {
     render(<AuthGate />)
-    expect(screen.getByText('Almost there — save your coupons')).toBeInTheDocument()
+    expect(screen.getByText('Almost there: save your coupons')).toBeInTheDocument()
   })
 
   it('hides Continue with Google (and its "or" divider) while the googleSignIn flag is off, keeping email sign-in', () => {
@@ -174,7 +174,7 @@ describe('AuthGate', () => {
 
       await userEvent.type(codeInput, '000000')
 
-      expect(await screen.findByRole('alert')).toHaveTextContent("That code didn't work — check it or send a new one")
+      expect(await screen.findByRole('alert')).toHaveTextContent("That code didn't work. Check it or send a new one")
       expect(codeInput).toHaveValue('')
       expect(routerReplace).not.toHaveBeenCalled()
     })
@@ -561,7 +561,7 @@ describe('AuthGate', () => {
 
       await userEvent.click(screen.getByRole('tab', { name: 'Sign Up' }))
 
-      expect(screen.getByText('Almost there — save your coupons')).toBeInTheDocument()
+      expect(screen.getByText('Almost there: save your coupons')).toBeInTheDocument()
       expect(screen.getByLabelText('Full name')).toBeInTheDocument()
     })
 

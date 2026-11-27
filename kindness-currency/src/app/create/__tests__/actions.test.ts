@@ -57,7 +57,7 @@ describe('initiateSendCheckoutAction', () => {
 
     const result = await initiateSendCheckoutAction('mothers_day')
 
-    expect(result).toEqual({ success: false, error: "You're checking out a bit fast — please wait a moment and try again." })
+    expect(result).toEqual({ success: false, error: "You're checking out a bit fast. Please wait a moment and try again." })
     expect(initiateSingleCheckout).not.toHaveBeenCalled()
   })
 })
@@ -91,7 +91,7 @@ describe('sendCouponSetAction', () => {
 
     const result = await sendCouponSetAction({ some: 'input' })
 
-    expect(result).toEqual({ success: false, error: "You're sending a bit fast — please wait a moment and try again." })
+    expect(result).toEqual({ success: false, error: "You're sending a bit fast. Please wait a moment and try again." })
     expect(saveCouponSet).not.toHaveBeenCalled()
   })
 })

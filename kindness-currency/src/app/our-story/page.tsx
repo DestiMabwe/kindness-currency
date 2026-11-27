@@ -15,15 +15,15 @@ export default function OurStoryPage() {
         </h1>
         <div className="mt-4 flex flex-col gap-3.5 text-[14.5px] leading-relaxed text-[#2C2C2C] opacity-85">
           <p className="text-[15px] font-bold text-[#1A1A2E] opacity-100">
-            It started with a thoughtful heart — and a tight budget.
+            It started with a thoughtful heart and a tight budget.
           </p>
           <p>
             Like a lot of meaningful ideas, Kindness Currency began with something simple: wanting to give thoughtful,
             personal gifts to the people who matter most, without needing a big budget. There&apos;s something
-            special about a gift that feels handmade — truly made from the heart.
+            special about a gift that feels handmade, truly made from the heart.
           </p>
           <p>
-            That search led to printable love-coupon templates — the kind you buy online, print at home, and
+            That search led to printable love-coupon templates, the kind you buy online, print at home, and
             hand-assemble into a little booklet. A Mother&apos;s Day set for Mom. A Father&apos;s Day set for Dad.
             Each one made with love.
           </p>
@@ -57,7 +57,7 @@ export default function OurStoryPage() {
             </li>
           </ul>
           <p className="mt-3.5 text-[14.5px] leading-relaxed text-[#2C2C2C] opacity-85">
-            It became clear that this kind of love needed a digital home — something accessible, something that
+            It became clear that this kind of love needed a digital home: something accessible, something that
             lasts, something lighter on the planet.
           </p>
         </div>
@@ -76,12 +76,12 @@ export default function OurStoryPage() {
               As the idea took digital shape, another realization surfaced: not every gift needs to be a whole
               booklet of eight promises. Sometimes you just want to do one meaningful thing for someone, today.
             </p>
-            <p>That&apos;s the shape Kindness Currency took — two simple ways to show up:</p>
+            <p>That&apos;s the shape Kindness Currency took. Two simple ways to show up:</p>
           </div>
           <ul className="mt-3.5 flex flex-col gap-3 text-[14.5px] leading-relaxed text-[#2C2C2C] opacity-85">
             <li>
               <span className="font-bold text-[#1A1A2E]">One Clear Gesture:</span>{' '}
-              A single, focused coupon for the moment that doesn&apos;t need eight promises — just the one you
+              A single, focused coupon for the moment that doesn&apos;t need eight promises, just the one you
               already know you want to give.
             </li>
             <li>
@@ -103,12 +103,12 @@ export default function OurStoryPage() {
           </h2>
           <div className="mt-3 flex flex-col gap-3.5 text-[14.5px] leading-relaxed text-[#2C2C2C] opacity-85">
             <p>
-              Those first paper coupons may be long gone — lost in a drawer somewhere — but what they stood for
+              Those first paper coupons may be long gone, lost in a drawer somewhere, but what they stood for
               never left.
             </p>
             <p>
               Kindness Currency was never really about coupons, or code, or features. It&apos;s about making it
-              easy — genuinely easy — to say the things we mean, to the people we love, before life talks us out of
+              easy, genuinely easy, to say the things we mean, to the people we love, before life talks us out of
               it.
             </p>
           </div>

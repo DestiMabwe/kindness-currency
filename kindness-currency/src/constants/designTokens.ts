@@ -43,7 +43,7 @@ export const templateVisuals: Record<
     motif: '❀',
     imageSrc: '/images/mothers_day.png',
     coverImageSrc: '/images/covers/mothers_day.png',
-    previewMessage: 'For everything you do without ever being asked — a few ways I want to take care of you now.',
+    previewMessage: 'For everything you do without ever being asked: a few ways I want to take care of you now.',
   },
   valentines: {
     accent: '#C2185B',
@@ -75,7 +75,7 @@ export const templateVisuals: Record<
     motif: '✦',
     imageSrc: '/images/besties.png',
     coverImageSrc: '/images/covers/besties.png',
-    previewMessage: "For my ride-or-die — a few ways I've got your back, any time.",
+    previewMessage: "For my ride-or-die: a few ways I've got your back, any time.",
   },
   'requested-by-him': {
     accent: '#2C3E63',
@@ -83,7 +83,7 @@ export const templateVisuals: Record<
     motif: '✩',
     imageSrc: '/images/requested-by-him.png',
     coverImageSrc: '/images/covers/requested-by-him.png',
-    previewMessage: "No guessing what I actually want — here's exactly what would mean something.",
+    previewMessage: "No guessing what I actually want: here's exactly what would mean something.",
   },
   'requested-by-her': {
     accent: '#CD7479',
@@ -91,7 +91,7 @@ export const templateVisuals: Record<
     motif: '❈',
     imageSrc: '/images/requested-by-her.png',
     coverImageSrc: '/images/covers/requested-by-her.png',
-    previewMessage: "No guessing what I actually want — here's exactly what would mean something.",
+    previewMessage: "No guessing what I actually want: here's exactly what would mean something.",
   },
 }
 

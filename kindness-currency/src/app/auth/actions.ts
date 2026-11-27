@@ -23,13 +23,13 @@ export async function checkAuthRateLimitAction(email?: string): Promise<AuthRate
 
   const ipResult = await checkRateLimit(supabase, `auth:ip:${ip}`, RATE_LIMITS.authByIp)
   if (!ipResult.allowed) {
-    return { allowed: false, error: 'Too many attempts from this device — please wait a few minutes and try again.' }
+    return { allowed: false, error: 'Too many attempts from this device. Please wait a few minutes and try again.' }
   }
 
   if (email) {
     const emailResult = await checkRateLimit(supabase, `auth:email:${email.trim().toLowerCase()}`, RATE_LIMITS.authByEmail)
     if (!emailResult.allowed) {
-      return { allowed: false, error: "You've requested a few of these recently — please wait a few minutes before trying again." }
+      return { allowed: false, error: "You've requested a few of these recently. Please wait a few minutes before trying again." }
     }
   }
 

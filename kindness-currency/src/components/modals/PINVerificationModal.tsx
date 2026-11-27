@@ -48,7 +48,7 @@ export function PINVerificationModal({ couponTitle, recipientName, onVerify, onC
             Redeem this right now?
           </h2>
           <div className="mt-2 text-[13px] leading-relaxed text-[#2C2C2C] opacity-75">
-            &ldquo;{couponTitle}&rdquo; — once you confirm, it can&apos;t be undone. Ready?
+            &ldquo;{couponTitle}&rdquo;. Once you confirm, it can&apos;t be undone. Ready?
           </div>
         </div>
 

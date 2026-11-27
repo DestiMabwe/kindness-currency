@@ -367,7 +367,7 @@ describe('single-use gesture pricing', () => {
     render(<CouponSetBuilder templates={[template()]} region="US" />)
 
     expect(screen.getByText('Undivided Attention')).toBeInTheDocument()
-    expect(screen.getByText('One hour, just us — world on pause')).toBeInTheDocument()
+    expect(screen.getByText('One hour, just us, world on pause')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: ctaCopy.qtyIncreaseLabel('Undivided Attention') })).toBeInTheDocument()
   })
 })
@@ -603,7 +603,7 @@ describe('coming soon section', () => {
       await userEvent.click(screen.getByText(/For everything you do without ever being asked/))
 
       expect(textarea).toHaveValue(
-        'For everything you do without ever being asked — a few ways I want to take care of you now.'
+        'For everything you do without ever being asked: a few ways I want to take care of you now.'
       )
     })
 
