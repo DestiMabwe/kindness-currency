@@ -242,6 +242,118 @@ describe('AuthGate', () => {
       })
     })
 
+    describe('coming back after leaving the page', () => {
+      async function startSignup() {
+        signInWithOtp.mockResolvedValue({ error: null })
+        const first = render(<AuthGate />)
+        await userEvent.type(screen.getByLabelText('Full name'), 'Alex Rivera')
+        await userEvent.type(screen.getByLabelText('Email address'), 'alex@example.com')
+        await userEvent.click(screen.getByRole('button', { name: 'Email me a magic link' }))
+        await screen.findByLabelText('6-digit code')
+        first.unmount()
+      }
+
+      afterEach(() => {
+        vi.useRealTimers()
+      })
+
+      it('reopens on the code step with the email shown, no error notice, after a reload', async () => {
+        await startSignup()
+
+        render(<AuthGate />)
+
+        expect(await screen.findByLabelText('6-digit code')).toBeInTheDocument()
+        expect(screen.getByText('alex@example.com')).toBeInTheDocument()
+        expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      })
+
+      it('lets them finish signing in with the code already in their inbox', async () => {
+        await startSignup()
+        verifyOtp.mockResolvedValue({ error: null })
+        render(<AuthGate next="/cart" />)
+
+        await userEvent.type(await screen.findByLabelText('6-digit code'), '123456')
+
+        expect(verifyOtp).toHaveBeenCalledWith({ email: 'alex@example.com', token: '123456', type: 'email' })
+        await vi.waitFor(() => expect(routerReplace).toHaveBeenCalledWith('/cart'))
+      })
+
+      it('keeps the resend countdown running instead of restarting it', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        await startSignup()
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(45_000)
+        })
+
+        render(<AuthGate />)
+
+        const resend = await screen.findByRole('button', { name: /Send a new code/ })
+        expect(resend).toBeDisabled()
+        expect(resend).toHaveTextContent('15')
+      })
+
+      it('keeps the signup name, so a resent code still creates the account with it', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        await startSignup()
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(61_000)
+        })
+        render(<AuthGate />)
+
+        await userEvent.click(await screen.findByRole('button', { name: ctaCopy.authModalResend }))
+
+        await vi.waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(2))
+        expect(signInWithOtp).toHaveBeenLastCalledWith(
+          expect.objectContaining({ options: expect.objectContaining({ data: { full_name: 'Alex Rivera' } }) })
+        )
+      })
+
+      it('starts fresh once the code is more than an hour old', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        await startSignup()
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(61 * 60_000)
+        })
+
+        render(<AuthGate />)
+
+        expect(screen.getByLabelText('Email address')).toHaveValue('')
+        expect(screen.queryByLabelText('6-digit code')).not.toBeInTheDocument()
+      })
+
+      it('starts fresh after signing in', async () => {
+        await startSignup()
+        verifyOtp.mockResolvedValue({ error: null })
+        render(<AuthGate />)
+        await userEvent.type(await screen.findByLabelText('6-digit code'), '123456')
+        await vi.waitFor(() => expect(routerReplace).toHaveBeenCalled())
+        cleanup()
+
+        render(<AuthGate />)
+
+        expect(screen.getByLabelText('Email address')).toHaveValue('')
+      })
+
+      it('starts fresh after choosing to fix the email', async () => {
+        await startSignup()
+        render(<AuthGate />)
+        await userEvent.click(await screen.findByRole('button', { name: /Fix it and we'll send a new code/ }))
+        cleanup()
+
+        render(<AuthGate />)
+
+        expect(screen.queryByLabelText('6-digit code')).not.toBeInTheDocument()
+      })
+
+      it('ignores a saved record it cannot read', () => {
+        window.localStorage.setItem('kindness-currency:pending-signin', '{not json')
+
+        render(<AuthGate />)
+
+        expect(screen.getByLabelText('Email address')).toHaveValue('')
+      })
+    })
+
     it('lets someone who mistyped their email go back to the form with their details kept', async () => {
       await reachCodeStep()
 

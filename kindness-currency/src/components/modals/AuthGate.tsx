@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { devInstantLoginAction, checkAuthRateLimitAction } from '@/app/auth/actions'
@@ -19,20 +19,41 @@ export type AuthGateProps = {
   authFailed?: boolean
 }
 
-// Remembered so a failed link can reopen on the code step. Email only, in localStorage — never the URL.
-const PENDING_AUTH_EMAIL_KEY = 'kindness-currency:pending-auth-email'
+// A sign-in that has had its code emailed but not finished. Kept in localStorage (never the URL) so a
+// reload, or leaving the site and coming back, reopens on the code step instead of a blank form.
+// The code itself is never stored — only what's needed to ask for it again.
+const PENDING_SIGNIN_KEY = 'kindness-currency:pending-signin'
+// Matches how long the emailed code stays valid.
+const PENDING_SIGNIN_TTL_MS = 60 * 60 * 1000
 
-function readPendingAuthEmail(): string | null {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem(PENDING_AUTH_EMAIL_KEY)
+type PendingSignIn = { email: string; mode: 'signup' | 'login'; name: string; sentAt: number }
+
+function parsePendingSignIn(raw: string | null): PendingSignIn | null {
+  if (!raw) return null
+  try {
+    const saved: unknown = JSON.parse(raw)
+    if (
+      typeof saved === 'object' && saved !== null &&
+      'email' in saved && typeof saved.email === 'string' && saved.email &&
+      'mode' in saved && (saved.mode === 'signup' || saved.mode === 'login') &&
+      'name' in saved && typeof saved.name === 'string' &&
+      'sentAt' in saved && typeof saved.sentAt === 'number' &&
+      Date.now() - saved.sentAt < PENDING_SIGNIN_TTL_MS
+    ) {
+      return { email: saved.email, mode: saved.mode, name: saved.name, sentAt: saved.sentAt }
+    }
+  } catch {
+    // unreadable — treated like nothing saved
+  }
+  return null
 }
 
-function savePendingAuthEmail(email: string) {
-  window.localStorage.setItem(PENDING_AUTH_EMAIL_KEY, email)
+function savePendingSignIn(pending: PendingSignIn) {
+  window.localStorage.setItem(PENDING_SIGNIN_KEY, JSON.stringify(pending))
 }
 
-function clearPendingAuthEmail() {
-  window.localStorage.removeItem(PENDING_AUTH_EMAIL_KEY)
+function clearPendingSignIn() {
+  window.localStorage.removeItem(PENDING_SIGNIN_KEY)
 }
 
 const OTP_LENGTH = 6
@@ -62,22 +83,45 @@ function describeSendError(error: SendErrorLike): string {
   return 'Something went wrong sending your link. Please try again.'
 }
 
-export function AuthGate({ next: rawNext, initialMode = 'signup', authFailed = false }: AuthGateProps) {
+const noSubscription = () => () => {}
+
+// Reads the saved sign-in without an effect: the server (and the first hydration pass) see "nothing
+// saved", the browser then sees the real value. The inner form is keyed on it, so it starts on the
+// right step instead of flashing the blank form first.
+export function AuthGate(props: AuthGateProps) {
+  const raw = useSyncExternalStore(
+    noSubscription,
+    () => window.localStorage.getItem(PENDING_SIGNIN_KEY),
+    () => null
+  )
+  const saved = useMemo(() => parsePendingSignIn(raw), [raw])
+  return <AuthGateForm key={saved ? 'resume' : 'fresh'} {...props} saved={saved} />
+}
+
+function AuthGateForm({
+  next: rawNext,
+  initialMode = 'signup',
+  authFailed = false,
+  saved,
+}: AuthGateProps & { saved: PendingSignIn | null }) {
   const router = useRouter()
   const next = safeNextPath(rawNext)
-  const [rememberedEmail] = useState(() => (authFailed ? readPendingAuthEmail() : null))
-  const [step, setStep] = useState<'form' | 'otp'>(rememberedEmail ? 'otp' : 'form')
+  const [rememberedEmail, setRememberedEmail] = useState<string | null>(saved?.email ?? null)
+  const [step, setStep] = useState<'form' | 'otp'>(saved ? 'otp' : 'form')
   const [code, setCode] = useState('')
   const [fixingEmail, setFixingEmail] = useState(false)
   // Resend is gated by a deadline rather than a decrementing counter, so a backgrounded tab
   // (where timers throttle) still shows the true time left when it wakes.
-  const [cooldownEndsAt, setCooldownEndsAt] = useState(0)
+  // After a failed link the old code is spent, so a new one is wanted straight away; otherwise the
+  // countdown carries on from when the last one was sent.
+  const [cooldownEndsAt, setCooldownEndsAt] = useState(
+    saved && !authFailed ? saved.sentAt + RESEND_COOLDOWN_SECONDS * 1000 : 0
+  )
   const [now, setNow] = useState(() => Date.now())
   const cooldown = Math.max(0, Math.ceil((cooldownEndsAt - now) / 1000))
-  // The account already exists once the first code went out, so a resumed resend must not try to create it again.
-  const [mode, setMode] = useState<'signup' | 'login'>(rememberedEmail ? 'login' : initialMode)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState(rememberedEmail ?? '')
+  const [mode, setMode] = useState<'signup' | 'login'>(saved?.mode ?? initialMode)
+  const [name, setName] = useState(saved?.name ?? '')
+  const [email, setEmail] = useState(saved?.email ?? '')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   // Stays true after a successful signInWithOAuth call on purpose: the browser is mid-redirect to
@@ -99,15 +143,16 @@ export function AuthGate({ next: rawNext, initialMode = 'signup', authFailed = f
     return () => clearInterval(timer)
   }, [cooldownEndsAt])
 
-  const startCooldown = () => {
+  // A code just went out: remember it for a return visit and hold the resend button for a minute.
+  const rememberSend = () => {
     const current = Date.now()
+    savePendingSignIn({ email: email.trim(), mode, name: name.trim(), sentAt: current })
     setNow(current)
     setCooldownEndsAt(current + RESEND_COOLDOWN_SECONDS * 1000)
   }
 
   const goToCodeStep = () => {
-    savePendingAuthEmail(email.trim())
-    startCooldown()
+    rememberSend()
     setStep('otp')
   }
 
@@ -126,7 +171,7 @@ export function AuthGate({ next: rawNext, initialMode = 'signup', authFailed = f
       setError(describeSendError(otpError))
       return
     }
-    startCooldown()
+    rememberSend()
   }
 
   const handleSubmit = async () => {
@@ -226,7 +271,7 @@ export function AuthGate({ next: rawNext, initialMode = 'signup', authFailed = f
       setError(ctaCopy.authModalCodeError)
       return
     }
-    clearPendingAuthEmail()
+    clearPendingSignIn()
     router.replace(next)
   }
 
@@ -407,6 +452,8 @@ export function AuthGate({ next: rawNext, initialMode = 'signup', authFailed = f
               <button
                 type="button"
                 onClick={() => {
+                  clearPendingSignIn()
+                  setRememberedEmail(null)
                   setCode('')
                   setError('')
                   setFixingEmail(true)
