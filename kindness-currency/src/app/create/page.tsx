@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { isAdminEmail } from '@/lib/adminAuth'
 import { CouponSetBuilder } from '@/components/builder/CouponSetBuilder'
 import { getRegion } from '@/lib/region'
+import { readDisplayName } from '@/lib/displayName'
 
 export default async function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; gift?: string }> }) {
   const { template, gift } = await searchParams
@@ -35,6 +36,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
       isLoggedIn={!!user}
       isAdmin={isAdminEmail(user?.email)}
       userEmail={user?.email ?? null}
+      defaultSenderName={readDisplayName(user?.user_metadata)}
       region={region}
       pendingPersonalizations={groupUnconsumedInstances(unconsumedInstances)}
       initialTemplateSlug={template ?? null}

@@ -70,6 +70,8 @@ export type CouponSetBuilderProps = {
   initialTemplateSlug?: string | null
   /** Set from /create?gift=<n> on Profile's per-unit links — which identical purchased unit this is. */
   initialGiftNumber?: number | null
+  /** The name saved on the signed-in account — pre-fills "Your name" when it is still empty. */
+  defaultSenderName?: string | null
 }
 
 type PendingAgeGate = { template: TemplateWithCoupons; action: 'select' | 'preview' }
@@ -100,9 +102,10 @@ export function CouponSetBuilder({
   pendingPersonalizations = [],
   initialTemplateSlug = null,
   initialGiftNumber = null,
+  defaultSenderName = null,
 }: CouponSetBuilderProps) {
   const router = useRouter()
-  const builder = useCouponSetBuilder(templates)
+  const builder = useCouponSetBuilder(templates, defaultSenderName)
   // Maps a gesture's fixture slug (src/lib/singleUseGestures.ts) to its real DB template id, so
   // GestureFlow has something valid to save coupon_sets.template_id with.
   const singleUseTemplateIdBySlug = Object.fromEntries(singleUseTemplates.map((t) => [t.slug, t.id]))
@@ -505,6 +508,7 @@ export function CouponSetBuilder({
           onPreviewSample={handlePreviewSample}
           onFeatureInterest={setFeatureInterestModal}
           initialGestureSlug={initialTemplateSlug}
+          defaultSenderName={defaultSenderName}
         />
       )}
 
@@ -760,8 +764,10 @@ function TemplateSelectScreen({
   onPreviewSample,
   onFeatureInterest,
   initialGestureSlug,
+  defaultSenderName,
 }: {
   initialGestureSlug: string | null
+  defaultSenderName: string | null
   templates: TemplateWithCoupons[]
   singleUseTemplateIdBySlug: Record<string, string>
   comingSoonTemplates: ComingSoonTemplate[]
@@ -810,6 +816,7 @@ function TemplateSelectScreen({
         isLoggedIn={isLoggedIn}
         isAdmin={isAdmin}
         region={region}
+        defaultSenderName={defaultSenderName}
         onExit={() => setChosenGesture(null)}
       />
     )

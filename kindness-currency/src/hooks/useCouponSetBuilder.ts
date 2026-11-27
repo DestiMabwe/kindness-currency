@@ -96,7 +96,11 @@ function loadDraft(): BuilderState | null {
   }
 }
 
-export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
+/**
+ * `defaultSenderName` is the name saved on the person's account. It only fills a sender name that is
+ * still empty — a name already typed (or kept in a saved draft) is never replaced.
+ */
+export function useCouponSetBuilder(templates: TemplateWithCoupons[], defaultSenderName: string | null = null) {
   const [state, setState] = useState<BuilderState>(initialState)
   const [resumedDraft, setResumedDraft] = useState(false)
   // Distinct from the hydratedRef guard below: this is state (not a ref) specifically so a caller
@@ -114,11 +118,13 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
     hydratedRef.current = true
     const draft = loadDraft()
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-hydration sync from localStorage, not a render-time update
-    if (draft) setState(draft)
+    if (draft) setState({ ...draft, senderName: draft.senderName || (defaultSenderName ?? '') })
+    else if (defaultSenderName) setState((s) => ({ ...s, senderName: defaultSenderName }))
     // A draft still on the select screen (nothing chosen yet) isn't "mid-progress" —
     // only flag drafts a "start fresh" affordance would actually need to discard.
     if (draft && draft.screen !== 'select') setResumedDraft(true)
     setHydrated(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once; later name changes must not rewrite a draft
   }, [])
 
   useEffect(() => {
@@ -216,8 +222,8 @@ export function useCouponSetBuilder(templates: TemplateWithCoupons[]) {
 
   const startNewSet = useCallback(() => {
     if (typeof window !== 'undefined') window.localStorage.removeItem(DRAFT_STORAGE_KEY)
-    setState(initialState)
-  }, [])
+    setState({ ...initialState, senderName: defaultSenderName ?? '' })
+  }, [defaultSenderName])
 
   return {
     state,

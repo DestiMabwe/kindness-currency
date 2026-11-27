@@ -70,6 +70,29 @@ describe('GestureFlow', () => {
     resumePaystackCheckout.mockReset().mockResolvedValue(undefined)
   })
 
+  describe('sender name from the account', () => {
+    it('prefills "Your name" from the saved account name, still editable', async () => {
+      render(<GestureFlow gesture={paidGesture} templateId="template-1" isLoggedIn region="US" onExit={vi.fn()} defaultSenderName="Alex" />)
+
+      const field = screen.getByPlaceholderText('e.g. Alex')
+      expect(field).toHaveValue('Alex')
+      await userEvent.type(field, ' R.')
+      expect(field).toHaveValue('Alex R.')
+    })
+
+    it('fills it into a resumed draft that had no sender name, keeping the rest of the draft', async () => {
+      const first = render(
+        <GestureFlow gesture={paidGesture} templateId="template-1" isLoggedIn region="US" onExit={vi.fn()} />
+      )
+      await userEvent.type(screen.getByPlaceholderText('e.g. Mom'), 'Mom')
+      first.unmount()
+
+      render(<GestureFlow gesture={paidGesture} templateId="template-1" isLoggedIn region="US" onExit={vi.fn()} defaultSenderName="Alex" />)
+      expect(screen.getByPlaceholderText('e.g. Alex')).toHaveValue('Alex')
+      expect(screen.getByPlaceholderText('e.g. Mom')).toHaveValue('Mom')
+    })
+  })
+
   // Regression coverage: same gap as the bundle-template flow — Step 3 here (and Step 2, via the
   // shared DetailsFormScreen) used to have no way to leave except "‹ Back".
   describe('navigation menu', () => {

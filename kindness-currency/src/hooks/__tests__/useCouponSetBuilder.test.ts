@@ -112,6 +112,52 @@ describe('useCouponSetBuilder', () => {
     })
   })
 
+  describe('default sender name (from the saved account name)', () => {
+    it('starts a fresh session with the sender name already filled in', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay], 'Alex'))
+
+      expect(result.current.state.senderName).toBe('Alex')
+    })
+
+    it('leaves it empty when the person has no saved name', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay], null))
+
+      expect(result.current.state.senderName).toBe('')
+    })
+
+    it('never overwrites a name already typed into a saved draft', () => {
+      window.localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ screen: 'details', selectedTemplateId: mothersDay.id, selectedTemplateSlug: 'mothers_day', senderName: 'Ally', recipientName: 'Mom', expiryDate: '', coupons: [], savedResult: null })
+      )
+
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay], 'Alex'))
+
+      expect(result.current.state.senderName).toBe('Ally')
+    })
+
+    it('fills it into a saved draft that has no sender name yet', () => {
+      window.localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ screen: 'details', selectedTemplateId: mothersDay.id, selectedTemplateSlug: 'mothers_day', senderName: '', recipientName: 'Mom', expiryDate: '', coupons: [], savedResult: null })
+      )
+
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay], 'Alex'))
+
+      expect(result.current.state.senderName).toBe('Alex')
+      expect(result.current.state.recipientName).toBe('Mom')
+    })
+
+    it('is still filled in when starting another gift', () => {
+      const { result } = renderHook(() => useCouponSetBuilder([mothersDay], 'Alex'))
+      act(() => result.current.setSenderName('Someone else'))
+
+      act(() => result.current.startNewSet())
+
+      expect(result.current.state.senderName).toBe('Alex')
+    })
+  })
+
   describe('hydrated', () => {
     it('becomes true once the one-time localStorage rehydration has run, whether or not a draft existed', () => {
       const { result } = renderHook(() => useCouponSetBuilder([mothersDay]))

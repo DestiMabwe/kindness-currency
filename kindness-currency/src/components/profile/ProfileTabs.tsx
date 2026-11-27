@@ -88,16 +88,22 @@ export function ProfileTabs({ sentSets, receivedSets }: ProfileTabsProps) {
           ) : (
             <div className="flex flex-col gap-3.5">
               {receivedSets.map((set) => (
-                <div key={set.id} className="rounded-2xl border border-[#1A1A2E]/8 bg-white p-4">
+                <Link
+                  key={set.id}
+                  href={`/give/${set.id}`}
+                  className="block rounded-2xl border border-[#1A1A2E]/8 bg-white p-4 transition-colors hover:border-[#1A1A2E]/16"
+                >
                   <div className="flex items-center justify-between">
                     <div className="text-[15.5px] font-bold text-[#1A1A2E]">{set.sender_name}</div>
-                    <span className="text-[11px] font-semibold tracking-[0.05em] text-[#2C2C2C] uppercase opacity-60">{set.status}</span>
+                    <span aria-hidden="true" className="text-[11px] font-semibold tracking-[0.05em] text-[#C2185B] uppercase">
+                      Open ›
+                    </span>
                   </div>
                   {set.templateName && <div className="mt-1 text-[12.5px] text-[#2C2C2C] opacity-70">{set.templateName}</div>}
                   <div className="mt-2.5 text-[12.5px] font-semibold text-[#C2185B]">
                     {redeemedCount(set.coupons)} of {set.coupons.length} redeemed
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
