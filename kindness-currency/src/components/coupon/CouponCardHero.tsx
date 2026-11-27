@@ -16,6 +16,13 @@ export type CouponCardHeroProps = {
   status: CouponStatus
   showRedeem?: boolean
   onRedeem?: () => void
+  /** Stretch the ticket to fill whatever height it is given (the book sizes every page alike). Off elsewhere. */
+  fill?: boolean
+}
+
+// The length of the longest word in the title — what decides whether it fits the narrow title column.
+function longestWordLength(title: string): number {
+  return Math.max(1, ...title.split(/\s+/).map((word) => word.replace(/[^\p{L}\p{N}]/gu, '').length))
 }
 
 function formatStubLabel(expiresAt?: string | null): string {
@@ -37,11 +44,12 @@ export function CouponCardHero({
   status,
   showRedeem = false,
   onRedeem,
+  fill = false,
 }: CouponCardHeroProps) {
   const isRedeemed = status === 'redeemed'
 
   return (
-    <div className={styles.card} style={{ '--hero-accent': accent } as CSSProperties}>
+    <div className={fill ? `${styles.card} ${styles.fill}` : styles.card} style={{ '--hero-accent': accent } as CSSProperties}>
       <div className={styles.inner} style={{ backgroundColor: backgroundColor ?? '#FFF8F0' }}>
         {backgroundEffect === 'soft-glow' && (
           <div
@@ -75,7 +83,7 @@ export function CouponCardHero({
           <p className={styles.eyebrow}>GOOD FOR ONE</p>
           <h2
             className={styles.headline}
-            style={{ fontFamily: 'var(--font-playfair)', fontWeight: 700 }}
+            style={{ fontFamily: 'var(--font-playfair)', fontWeight: 700, '--title-chars': longestWordLength(serviceTitle) } as CSSProperties}
           >
             {serviceTitle}
           </h2>

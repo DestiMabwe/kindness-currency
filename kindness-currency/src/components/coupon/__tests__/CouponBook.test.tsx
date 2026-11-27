@@ -50,6 +50,20 @@ describe('CouponBook', () => {
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
   })
 
+  it('counts quick repeated taps on Next even while the page is still sliding', async () => {
+    const track = renderBook(5)
+    Object.defineProperty(track, 'clientWidth', { configurable: true, value: 300 })
+    const next = screen.getByRole('button', { name: 'Next coupon' })
+
+    await userEvent.click(next)
+    // the slide to page 2 has barely started, so the browser reports a position still near page 1
+    track.scrollLeft = 40
+    fireEvent.scroll(track)
+    await userEvent.click(next)
+
+    expect(screen.getByText('3 of 5')).toBeInTheDocument()
+  })
+
   it('has no previous on the first coupon and no next on the last', () => {
     const track = renderBook(3)
     expect(screen.getByRole('button', { name: 'Previous coupon' })).toBeDisabled()
