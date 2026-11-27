@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { CouponCardHero } from './CouponCardHero'
+import { CouponBook } from './CouponBook'
 import { RecipientPinModal } from '@/components/modals/RecipientPinModal'
 import { sortCouponsForDisplay, type GiveCoupon } from '@/lib/giveRepository'
 import { generatePinAction, getCouponStatusAction } from '@/app/give/[id]/actions'
@@ -24,7 +25,8 @@ export function RecipientCouponList({
   imageSrc,
   expiresAt,
 }: RecipientCouponListProps) {
-  const [coupons, setCoupons] = useState(initialCoupons)
+  // Sorted once: a coupon redeemed mid-visit keeps its page, so the book doesn't shuffle under the reader.
+  const [coupons, setCoupons] = useState(() => sortCouponsForDisplay(initialCoupons))
   const [redeemingId, setRedeemingId] = useState<string | null>(null)
   const [celebrating, setCelebrating] = useState(false)
 
@@ -51,8 +53,9 @@ export function RecipientCouponList({
 
   return (
     <>
-      <div className="flex flex-col items-center gap-6 px-4 pt-5 pb-2">
-        {sortCouponsForDisplay(coupons).map((coupon) => (
+      <CouponBook
+        label="Your coupons"
+        slides={coupons.map((coupon) => (
           <CouponCardHero
             key={coupon.id}
             serviceTitle={coupon.service_title}
@@ -69,7 +72,7 @@ export function RecipientCouponList({
             onRedeem={() => setRedeemingId(coupon.id)}
           />
         ))}
-      </div>
+      />
 
       {redeemingCoupon && (
         <RecipientPinModal
