@@ -164,6 +164,7 @@ export function GestureFlow({
   isAdmin = false,
   region,
   onExit,
+  defaultSenderName = null,
 }: {
   gesture: SingleUseGesture
   templateId: string | null
@@ -171,9 +172,11 @@ export function GestureFlow({
   isAdmin?: boolean
   region: PricingRegion
   onExit: () => void
+  /** The name saved on the account — fills "Your name" while it is still empty. */
+  defaultSenderName?: string | null
 }) {
   const [step, setStep] = useState<Step>('details')
-  const [senderName, setSenderName] = useState('')
+  const [senderName, setSenderName] = useState(defaultSenderName ?? '')
   const [recipientName, setRecipientName] = useState('')
   const [expiryDate, setExpiryDate] = useState('')
   const [senderMessage, setSenderMessage] = useState('')
@@ -207,12 +210,13 @@ export function GestureFlow({
     if (!persisted || persisted.gestureSlug !== gesture.slug) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-mount rehydration from localStorage, not a render-time update
     setStep(persisted.step)
-    setSenderName(persisted.senderName)
+    setSenderName(persisted.senderName || (defaultSenderName ?? ''))
     setRecipientName(persisted.recipientName)
     setExpiryDate(persisted.expiryDate)
     setSenderMessage(persisted.senderMessage)
     setDraft(persisted.draft)
     setUnlocked(persisted.unlocked)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once; a later name change must not rewrite a draft
   }, [gesture.slug])
 
   // Keeps the draft resumable across the full-page reload every auth path here causes — including

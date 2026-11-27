@@ -78,12 +78,12 @@ describe('ProfileTabs', () => {
     expect(screen.getByRole('link', { name: /Mom/ })).toHaveAttribute('href', '/profile/set-1')
   })
 
-  it('does not link received sets anywhere (no detail page for them)', async () => {
+  it('opens a received gift on its own gift page, so it can be used without the original link', async () => {
     render(<ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />)
 
     await userEvent.click(screen.getByRole('tab', { name: 'Received' }))
 
-    expect(screen.queryByRole('link', { name: /Jordan/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Jordan/ })).toHaveAttribute('href', '/give/set-2')
   })
 
   describe('sent status badge', () => {

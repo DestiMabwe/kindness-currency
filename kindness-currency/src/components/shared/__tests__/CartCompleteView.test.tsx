@@ -4,7 +4,7 @@ import { CartCompleteView } from '../CartCompleteView'
 import { ctaCopy } from '@/constants/ctaCopy'
 
 describe('CartCompleteView', () => {
-  it('sends a successful payer on to Your Gifts, not back into /create, to see everything they own', () => {
+  it('sends a successful payer on to My Account, not back into /create, to see everything they own', () => {
     render(
       <CartCompleteView
         result={{ paid: true, cartSnapshot: [{ slug: 'mothers_day', qty: 1 }], amountCents: 1999 }}

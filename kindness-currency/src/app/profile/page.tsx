@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createCouponSetRepository } from '@/lib/couponSetRepository'
 import { createOrderRepository, groupUnconsumedInstances } from '@/lib/orderRepository'
+import { AccountHeader } from '@/components/profile/AccountHeader'
+import { updateDisplayNameAction } from '@/app/profile/accountActions'
+import { readDisplayName } from '@/lib/displayName'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { ProfileLogInButton } from '@/components/profile/ProfileLogInButton'
 import { ProfileCartSection } from '@/components/shared/ProfileCartSection'
@@ -55,6 +58,9 @@ export default async function ProfilePage() {
         >
           {ctaCopy.profileHeading}
         </h1>
+        <div className="mt-4">
+          <AccountHeader name={readDisplayName(user.user_metadata)} email={user.email ?? ''} onSave={updateDisplayNameAction} />
+        </div>
         <div className="mt-5">
           <ProfileCartSection region={region} pendingPersonalizations={pendingPersonalizations} />
           <ProfileTabs sentSets={sentSets} receivedSets={receivedSets} />

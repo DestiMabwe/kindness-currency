@@ -471,6 +471,16 @@ describe('coming soon section', () => {
   })
 
   describe('details form', () => {
+    it('prefills "Your name" from the name saved on the account, still editable', async () => {
+      render(<CouponSetBuilder templates={[template()]} region="US" defaultSenderName="Alex" />)
+      await userEvent.click(screen.getByText("Mom's Promise Tokens"))
+
+      const field = screen.getByPlaceholderText('e.g. Alex')
+      expect(field).toHaveValue('Alex')
+      await userEvent.type(field, ' R.')
+      expect(field).toHaveValue('Alex R.')
+    })
+
     it('blocks continuing to the editor without a recipient name or a sender name', async () => {
       render(<CouponSetBuilder templates={[template()]} region="US" />)
       await userEvent.click(screen.getByText("Mom's Promise Tokens"))

@@ -105,7 +105,7 @@ describe('GiftTrackingDetail', () => {
   it('links back to the gifts list', () => {
     render(<GiftTrackingDetail detail={baseDetail()} />)
 
-    expect(screen.getByRole('link', { name: 'Back to Your Gifts' })).toHaveAttribute('href', '/profile')
+    expect(screen.getByRole('link', { name: 'Back to My Account' })).toHaveAttribute('href', '/profile')
   })
 
   it('no longer offers a way to view or reset a PIN — the sender never holds one', () => {
