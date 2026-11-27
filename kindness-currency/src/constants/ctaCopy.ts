@@ -5,23 +5,17 @@ const signInMethods = flags.googleSignIn ? 'a quick email link or Google' : 'a q
 
 export const ctaCopy = {
   heroCta: 'Create My Coupons',
+  heroCreateAccountCta: 'Create Account',
   sendWithLove: 'Send with Love',
   saveMyCoupons: 'Save My Coupons',
   sendPaymentRedirecting: 'Redirecting you to checkout…',
-  homeHowItWorksHeading: 'How it works',
-  homeHowItWorksSteps: [
-    {
-      title: 'Personalize it',
-      body: 'Pick a single coupon or a full set, then make it yours in your own words.',
-    },
-    {
-      title: 'Send the link',
-      body: 'Use one link, shared with a lover, friend or family.',
-    },
-    {
-      title: 'They call it in',
-      body: "When they're ready, they tap a coupon and give you a one-time PIN. Enter it and the coupon is redeemed.",
-    },
+  homeDemoHeading: 'Watch a promise get kept',
+  homeDemoSubheading: "Kindness Currency turns “I’ll cook for you” into a coupon they can redeem with you.",
+  homeDemoSteps: [
+    { title: 'You make it', body: 'Pick a promise. Write it in your own words.' },
+    { title: 'You send one link', body: 'To a lover, friend or family. No app needed.' },
+    { title: 'They call it in', body: "They tap the promise when they're ready." },
+    { title: 'You deliver', body: 'Enter their PIN. Promise kept.' },
   ],
   previewAllCoupons: 'Preview All Coupons',
   previewSampleCoupons: 'How You Create Your Perfect Gift',

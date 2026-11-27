@@ -148,3 +148,45 @@ body {
     animation: kc-marquee 20s linear infinite;
   }
 }
+
+/* "How it works" phone demo: four 4s scenes on a 16s loop. Without motion, scene 1 stays visible. */
+.kc-demo-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+.kc-demo-scene[data-scene='1'] {
+  opacity: 1;
+}
+
+@keyframes kc-demo-scene {
+  0% { opacity: 0; transform: translateY(8px); }
+  4%, 23% { opacity: 1; transform: none; }
+  27%, 100% { opacity: 0; }
+}
+@keyframes kc-demo-type {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes kc-demo-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kc-demo-scene {
+    animation: kc-demo-scene 16s infinite both;
+  }
+  .kc-demo-scene[data-scene='2'] { animation-delay: 4s; }
+  .kc-demo-scene[data-scene='3'] { animation-delay: 8s; }
+  .kc-demo-scene[data-scene='4'] { animation-delay: 12s; }
+  .kc-demo-type {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    animation: kc-demo-type 2.4s steps(24) 0.6s both;
+  }
+  .kc-demo-pulse {
+    animation: kc-demo-pulse 1.2s infinite;
+  }
+}
